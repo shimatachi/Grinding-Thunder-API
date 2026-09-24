@@ -1,0 +1,74 @@
+## .NET 10 Build & Compilation Outputs
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+[Pp]ublish/
+[Aa]rtifacts/
+out/
+
+## Executables and Installers
+*.appx
+*.appxbundle
+*.msi
+*.msix
+
+## Native AOT / Single-File Intermediate Artifacts
+**/[Bb]in/NativeAOT/
+
+## User-Specific Files & Settings
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userlibraries
+
+## IDEs & Code Editors
+# Visual Studio
+.vs/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# VS Code (Ignores editor state, retains shared run configurations)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Text Editor Backups
+*.swp
+*~
+
+## NuGet & Dependencies
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+
+## Test Results & Code Coverage
+[Tt]est[Rr]esults/
+*.coverage
+*.coveragexml
+*.clover
+Coverage/
+
+## Secrets & Local Environment Configs
+# Exclude local settings/secrets containing keys or connection strings
+**/appsettings.Local.json
+local.settings.json
+secrets.json
+# **/appsettings.Development.json
+
+## OS Generated Files
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db

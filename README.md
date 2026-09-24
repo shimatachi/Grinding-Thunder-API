@@ -4,7 +4,7 @@ ASP.NET Core backend for planning War Thunder vehicle progression. It models veh
 
 ## Overview
 
-Grinding Thunder is intended to answer a practical progression question: given a player's unlocked vehicles and a target vehicle, what still needs to be researched?
+Grinding Thunder API just helps you keep receipts. It parses tech tree requirements to calculate the exact Research Points (RP), Silver Lions (SL), mandatory prerequisite vehicles, and estimated real-world hours needed to reach your target vehicle from your current progress.
 
 The current API exposes nation and vehicle data, traverses explicit prerequisite links, includes player-selected vehicles needed toward rank gates, totals remaining RP, and estimates matches from average RP earned per match. It is an early prototype: it does not yet persist player inventories, calculate total Silver Lions (SL), select rank-gate fillers automatically, or provide historical tech-tree versions.
 

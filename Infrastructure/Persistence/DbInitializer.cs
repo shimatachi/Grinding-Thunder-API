@@ -247,8 +247,9 @@ public static class DbInitializer
                     await context.SaveChangesAsync();
 
                     // Version-specific placements (rank, RP cost, SL cost).
-                    context.VehicleTreeEntries.AddRange(
-                        new VehicleTreeEntry
+                                            // Version-specific placements (rank, RP cost, SL cost).
+                        // Local variables so prerequisite edges can reference entry ids (Batch 5).
+                        var m2LightEntry = new VehicleTreeEntry
                         {
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
@@ -256,8 +257,8 @@ public static class DbInitializer
                             TreeRankId = rank1.Id,
                             RpCost = 2900,
                             SlCost = 700
-                        },
-                        new VehicleTreeEntry
+                        };
+                        var m3StuartEntry = new VehicleTreeEntry
                         {
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
@@ -265,8 +266,8 @@ public static class DbInitializer
                             TreeRankId = rank1.Id,
                             RpCost = 4000,
                             SlCost = 1400
-                        },
-                        new VehicleTreeEntry
+                        };
+                        var m2a4Entry = new VehicleTreeEntry
                         {
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
@@ -274,8 +275,8 @@ public static class DbInitializer
                             TreeRankId = rank1.Id,
                             RpCost = 2900,
                             SlCost = 700
-                        },
-                        new VehicleTreeEntry
+                        };
+                        var m3a1StuartEntry = new VehicleTreeEntry
                         {
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
@@ -283,8 +284,8 @@ public static class DbInitializer
                             TreeRankId = rank1.Id,
                             RpCost = 4000,
                             SlCost = 1400
-                        },
-                        new VehicleTreeEntry
+                        };
+                        var m4a1ShermanEntry = new VehicleTreeEntry
                         {
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
@@ -292,8 +293,8 @@ public static class DbInitializer
                             TreeRankId = rank2.Id,
                             RpCost = 9200,
                             SlCost = 3800
-                        },
-                        new VehicleTreeEntry
+                        };
+                        var m3LeeEntry = new VehicleTreeEntry
                         {
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
@@ -301,34 +302,41 @@ public static class DbInitializer
                             TreeRankId = rank2.Id,
                             RpCost = 5900,
                             SlCost = 2200
-                        }
-                    );
+                        };
 
-                    // Set Prerequisite Edges
-                    // TRANSITIONAL (Batch 3): edges still reference Vehicle
-                    // identities; they move to versioned edges in Batch 5.
-                    context.VehiclePrerequisites.AddRange(
-                        new VehiclePrerequisite
-                        {
-                            VehicleId = m3Stuart.Id,
-                            PrerequisiteVehicleId = m2Light.Id
-                        },
-                        new VehiclePrerequisite
-                        {
-                            VehicleId = m4a1Sherman.Id,
-                            PrerequisiteVehicleId = m3Stuart.Id
-                        },
-                        new VehiclePrerequisite
-                        {
-                            VehicleId = m3a1Stuart.Id,
-                            PrerequisiteVehicleId = m2a4.Id
-                        },
-                        new VehiclePrerequisite
-                        {
-                            VehicleId = m3Lee.Id,
-                            PrerequisiteVehicleId = m3a1Stuart.Id
-                        }
-                    );
+                        context.VehicleTreeEntries.AddRange(
+                            m2LightEntry, m3StuartEntry, m2a4Entry, m3a1StuartEntry,
+                            m4a1ShermanEntry, m3LeeEntry);
+
+                                            // Set Prerequisite Edges
+                        // Version-specific edges (Batch 5): both ends are VehicleTreeEntries in
+                        // the same version; Vehicle identities are never referenced directly.
+                        context.VehiclePrerequisites.AddRange(
+                            new VehiclePrerequisite
+                            {
+                                VehicleTreeEntryId = m3StuartEntry.Id,
+                                PrerequisiteVehicleTreeEntryId = m2LightEntry.Id,
+                                ResearchTreeVersionId = usaGroundVersion.Id
+                            },
+                            new VehiclePrerequisite
+                            {
+                                VehicleTreeEntryId = m4a1ShermanEntry.Id,
+                                PrerequisiteVehicleTreeEntryId = m3StuartEntry.Id,
+                                ResearchTreeVersionId = usaGroundVersion.Id
+                            },
+                            new VehiclePrerequisite
+                            {
+                                VehicleTreeEntryId = m3a1StuartEntry.Id,
+                                PrerequisiteVehicleTreeEntryId = m2a4Entry.Id,
+                                ResearchTreeVersionId = usaGroundVersion.Id
+                            },
+                            new VehiclePrerequisite
+                            {
+                                VehicleTreeEntryId = m3LeeEntry.Id,
+                                PrerequisiteVehicleTreeEntryId = m3a1StuartEntry.Id,
+                                ResearchTreeVersionId = usaGroundVersion.Id
+                            }
+                        );
 
                     await context.SaveChangesAsync();
                 }

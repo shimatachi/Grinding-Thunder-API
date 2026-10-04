@@ -19,4 +19,9 @@ public class VehicleTreeEntry
     public ResearchTreeVersion ResearchTreeVersion { get; set; } = null!;
     public Vehicle Vehicle { get; set; } = null!;
     public TreeRank TreeRank { get; set; } = null!;
+
+    // Version-specific prerequisite edges (Batch 5); both ends always share
+    // this entry's ResearchTreeVersion, enforced by composite foreign keys.
+    public ICollection<VehiclePrerequisite> Prerequisites { get; set; } = new List<VehiclePrerequisite>();
+    public ICollection<VehiclePrerequisite> RequiredFor { get; set; } = new List<VehiclePrerequisite>();
 }

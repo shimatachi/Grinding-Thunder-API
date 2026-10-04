@@ -96,12 +96,16 @@ public class ResearchCalculatorService : IResearchCalculatorService
 
         var entryByVehicleId = entries.ToDictionary(e => e.VehicleId);
 
-        var vehicleIds = vehicles.Select(v => v.Id).ToList();
-
+        // Version-scoped prerequisite edges (Batch 5): loaded edges belong to
+        // the target's research tree version, so the traversal graph is
+        // inherently version-consistent. Edges are entry-based in the DB and
+        // projected down to vehicle ids for traversal; the API contract stays
+        // vehicle-based until the version-aware request redesign (Batch 7).
         var prerequisites = await _context.VehiclePrerequisites
             .AsNoTracking()
-            .Where(vp => vehicleIds.Contains(vp.VehicleId) && vehicleIds.Contains(vp.PrerequisiteVehicleId))
+            .Where(vp => vp.ResearchTreeVersionId == targetEntry.ResearchTreeVersionId)
             .ToListAsync(cancellationToken);
+
 
         var ranks = await _context.TreeRanks
             .AsNoTracking()
@@ -112,9 +116,13 @@ public class ResearchCalculatorService : IResearchCalculatorService
         var vehiclesByRank = entries.GroupBy(e => e.TreeRankId).ToDictionary(g => g.Key, g => g.Select(e => e.Vehicle).ToList());
 
         // VehicleId -> list of prerequisite vehicle ids (dependency direction points up the tree).
+        // Edges are entry-based; translated to vehicle ids via the version's entry map.
+        var entryIdToVehicleId = entries.ToDictionary(e => e.Id, e => e.VehicleId);
         var prereqMap = prerequisites
-            .GroupBy(vp => vp.VehicleId)
-            .ToDictionary(g => g.Key, g => g.Select(vp => vp.PrerequisiteVehicleId).ToList());
+            .GroupBy(vp => entryIdToVehicleId[vp.VehicleTreeEntryId])
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(vp => entryIdToVehicleId[vp.PrerequisiteVehicleTreeEntryId]).ToList());
 
         // ------------------------------------------------------------------
         // Step 1: Direct line traversal (upward graph search).

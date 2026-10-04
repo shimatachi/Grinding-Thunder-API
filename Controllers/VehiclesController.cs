@@ -29,7 +29,10 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                     e.TreeRankId,
                     RankNumber = (int?)e.TreeRank.RankNumber,
                     e.RpCost,
-                    e.SlCost
+                    e.SlCost,
+                    PrerequisiteIds = e.Prerequisites
+                        .Select(pr => pr.PrerequisiteVehicleTreeEntryId)
+                        .ToList()
                 }).ToList(),
                 v.Name,
                 v.ImageUrl,
@@ -37,9 +40,19 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 v.FolderParentId,
                 v.TreeColumn,
                 v.TreeRow,
-                Prerequisites = v.Prerequisites.Select(p => p.PrerequisiteVehicleId).ToList()
+                PrerequisiteEntryIds = v.TreeEntries
+                    .SelectMany(te => te.Prerequisites.Select(pr => pr.PrerequisiteVehicleTreeEntryId))
+                    .ToList()
             })
             .ToListAsync();
+
+        // Entry ids -> vehicle ids, client-side: keeps the server projection
+        // SQLite-friendly (no APPLY) while the public contract still exposes
+        // vehicle ids. Transitional until the version-aware API (Batch 7).
+        var entryVehicleIds = await _context.VehicleTreeEntries
+            .AsNoTracking()
+            .Select(e => new { e.Id, e.VehicleId })
+            .ToDictionaryAsync(e => e.Id, e => e.VehicleId);
 
         return Ok(vehicles.Select(v =>
         {
@@ -58,7 +71,10 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 v.FolderParentId,
                 v.TreeColumn,
                 v.TreeRow,
-                v.Prerequisites,
+                Prerequisites = v.PrerequisiteEntryIds
+                    .Select(entryId => entryVehicleIds[entryId])
+                    .Distinct()
+                    .ToList(),
                 TreeEntries = v.TreeEntries
             };
         }));
@@ -101,8 +117,8 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 e.Vehicle.FolderParentId,
                 e.Vehicle.TreeColumn,
                 e.Vehicle.TreeRow,
-                PrerequisiteIds = e.Vehicle.Prerequisites
-                    .Select(p => p.PrerequisiteVehicleId)
+                PrerequisiteIds = e.Prerequisites
+                    .Select(p => p.PrerequisiteVehicleTreeEntry.VehicleId)
                     .ToList()
             })
             .ToListAsync(cancellationToken);

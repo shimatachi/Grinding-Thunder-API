@@ -197,7 +197,7 @@ public class VehicleTreeEntryCalculatorTests
         // A NON-target vehicle spans two versions; the target itself does not.
         var ambiguous = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "Ambiguous", 10, treeVersion: versionA);
         database.AddVehicleTreeEntry(versionB, ambiguous, rank, 99);
-        database.AddPrerequisite(target, ambiguous);
+        database.AddPrerequisite(target, ambiguous, versionA);
         await database.SaveChangesAsync();
 
         // Must fail with the deliberate domain error, not an opaque

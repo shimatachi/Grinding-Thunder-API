@@ -216,18 +216,53 @@ internal sealed class CalculatorTestDatabase : IDisposable
         return AddTreeRank(version, rank.RankNumber, rank.RequiredVehiclesUnlocked);
     }
 
-    public void AddPrerequisite(Vehicle vehicle, Vehicle prerequisite)
-    {
-        Context.VehiclePrerequisites.Add(new VehiclePrerequisite
+                    public void AddPrerequisite(Vehicle vehicle, Vehicle prerequisite, ResearchTreeVersion? version = null)
         {
-            VehicleId = vehicle.Id,
-            Vehicle = vehicle,
-            PrerequisiteVehicleId = prerequisite.Id,
-            PrerequisiteVehicle = prerequisite
-        });
-    }
+            // Entry-based edge (Batch 5): both vehicles' entries must be
+            // locatable. With an explicit version, entries are taken from that
+            // version; otherwise both vehicles must share exactly one version.
+            var vehicleEntries = Context.VehicleTreeEntries.Local
+                .Where(e => e.VehicleId == vehicle.Id).ToList();
+            var prerequisiteEntries = Context.VehicleTreeEntries.Local
+                .Where(e => e.VehicleId == prerequisite.Id).ToList();
 
-    public GameUpdate AddGameUpdate(
+            if (version is not null)
+            {
+                vehicleEntries = vehicleEntries.Where(e => e.ResearchTreeVersionId == version.Id).ToList();
+                prerequisiteEntries = prerequisiteEntries.Where(e => e.ResearchTreeVersionId == version.Id).ToList();
+            }
+            else
+            {
+                var sharedVersions = vehicleEntries.Select(e => e.ResearchTreeVersionId)
+                    .Intersect(prerequisiteEntries.Select(e => e.ResearchTreeVersionId))
+                    .ToList();
+                if (sharedVersions.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "AddPrerequisite without an explicit version requires both vehicles to share exactly one research tree version.");
+                }
+            }
+
+            if (vehicleEntries.Count != 1 || prerequisiteEntries.Count != 1)
+            {
+                throw new InvalidOperationException(
+                    "AddPrerequisite requires exactly one tree entry per vehicle in the version under test.");
+            }
+
+            var vehicleEntry = vehicleEntries[0];
+            var prerequisiteEntry = prerequisiteEntries[0];
+
+            Context.VehiclePrerequisites.Add(new VehiclePrerequisite
+            {
+                VehicleTreeEntryId = vehicleEntry.Id,
+                VehicleTreeEntry = vehicleEntry,
+                PrerequisiteVehicleTreeEntryId = prerequisiteEntry.Id,
+                PrerequisiteVehicleTreeEntry = prerequisiteEntry,
+                ResearchTreeVersionId = vehicleEntry.ResearchTreeVersionId
+            });
+        }
+
+public GameUpdate AddGameUpdate(
         string version,
         string? name = null,
         DateOnly? releaseDate = null)

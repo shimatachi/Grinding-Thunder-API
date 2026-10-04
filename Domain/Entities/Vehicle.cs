@@ -6,7 +6,7 @@ public class Vehicle
     public string Name { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
 
-    // TRANSITIONAL (Batch 3): folder/layout state is still stored on Vehicle.
+    // TRANSITIONAL (Batch 3): folder/layout state still stored on Vehicle.
     // It moves to versioned tree state in a later batch (see docs/DOMAIN.md).
     public bool IsFolderParent { get; set; }
     public Guid? FolderParentId { get; set; }
@@ -16,9 +16,4 @@ public class Vehicle
     public Vehicle? FolderParent { get; set; }
     public ICollection<Vehicle> FolderChildren { get; set; } = new List<Vehicle>();
     public ICollection<VehicleTreeEntry> TreeEntries { get; set; } = new List<VehicleTreeEntry>();
-
-    // TRANSITIONAL (Batch 3): prerequisite edges still target Vehicle identities.
-    // They move to versioned entry relationships in Batch 5.
-    public ICollection<VehiclePrerequisite> Prerequisites { get; set; } = new List<VehiclePrerequisite>();
-    public ICollection<VehiclePrerequisite> RequiredFor { get; set; } = new List<VehiclePrerequisite>();
 }

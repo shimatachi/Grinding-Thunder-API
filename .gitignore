@@ -72,8 +72,3 @@ secrets.json
 ehthumbs.db
 Icon?
 Thumbs.db
-
-## Test File
-**/GrindingThunder.Api.Tests/*
-GrindingThunder.Api.sln
-GrindingThunder.Api.http

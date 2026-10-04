@@ -25,6 +25,7 @@ public static class DbInitializer
     private const int MinRankNumber = 1;
     private const int MaxRankNumber = 8;
     private const int DefaultRequiredVehiclesUnlocked = 5;
+    private const string SampleGameUpdateVersion = "dev-sample";
 
     public static async Task InitializeAsync(ApplicationDbContext context)
     {
@@ -109,7 +110,48 @@ public static class DbInitializer
 
         await context.SaveChangesAsync();
 
-        // 4. Seed sample vehicles and prerequisites if missing.
+        // 4. Seed a sample game update and one tree version per research tree.
+        //    Development sample data only — real War Thunder update history
+        //    is intentionally not modeled yet.
+        var sampleGameUpdate = await context.GameUpdates
+            .FirstOrDefaultAsync(gu => gu.Version == SampleGameUpdateVersion);
+
+        if (sampleGameUpdate is null)
+        {
+            sampleGameUpdate = new GameUpdate
+            {
+                Id = Guid.NewGuid(),
+                Version = SampleGameUpdateVersion,
+                Name = "Sample Dev Update",
+                ReleaseDate = DateOnly.FromDateTime(DateTime.UtcNow)
+            };
+
+            context.GameUpdates.Add(sampleGameUpdate);
+            await context.SaveChangesAsync();
+        }
+
+        var treesWithoutSampleVersion = await context.ResearchTrees
+            .Where(rt => !context.ResearchTreeVersions.Any(rtv =>
+                rtv.ResearchTreeId == rt.Id &&
+                rtv.GameUpdateId == sampleGameUpdate.Id))
+            .ToListAsync();
+
+        foreach (var researchTree in treesWithoutSampleVersion)
+        {
+            context.ResearchTreeVersions.Add(new ResearchTreeVersion
+            {
+                Id = Guid.NewGuid(),
+                ResearchTreeId = researchTree.Id,
+                ResearchTree = researchTree,
+                GameUpdateId = sampleGameUpdate.Id,
+                GameUpdate = sampleGameUpdate,
+                Status = ResearchTreeVersionStatus.Published
+            });
+        }
+
+        await context.SaveChangesAsync();
+
+        // 5. Seed sample vehicles and prerequisites if missing.
         if (!await context.Vehicles.AnyAsync())
         {
             var usaGroundTree = await context.ResearchTrees

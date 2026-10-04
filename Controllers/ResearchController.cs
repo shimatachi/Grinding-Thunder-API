@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using GrindingThunder.Api.Application.Exceptions;
 using GrindingThunder.Api.Application.Models;
 using GrindingThunder.Api.Domain.Services;
 
@@ -15,12 +16,33 @@ public class ResearchController(IResearchCalculatorService calculatorService) : 
         [FromBody] ResearchCalculationRequest request,
         CancellationToken cancellationToken)
     {
+        if (request.ResearchTreeVersionId == Guid.Empty)
+        {
+            return BadRequest("ResearchTreeVersionId is required.");
+        }
+
+        if (request.TargetVehicleId == Guid.Empty)
+        {
+            return BadRequest("TargetVehicleId is required.");
+        }
+
         if (request.AverageRpPerMatch <= 0)
         {
             return BadRequest("Average RP per match must be greater than 0.");
         }
 
-        var result = await _calculatorService.CalculateResearchAsync(request, cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _calculatorService.CalculateResearchAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (ResearchTreeVersionNotFoundException exception)
+        {
+            return NotFound(exception.Message);
+        }
+        catch (ResearchCalculationInputException exception)
+        {
+            return BadRequest(exception.Message);
+        }
     }
 }

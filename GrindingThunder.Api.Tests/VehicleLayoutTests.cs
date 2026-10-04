@@ -122,7 +122,7 @@ public class VehicleLayoutTests
         Assert.Empty(await database.Context.VehiclePrerequisites.AsNoTracking().ToListAsync());
 
         var result = await database.Calculator.CalculateResearchAsync(
-            new ResearchCalculationRequest(child.Id, [], [], 100));
+            new ResearchCalculationRequest(version.Id, child.Id, [], [], 100));
 
         var required = Assert.Single(result.RequiredVehicles);
         Assert.Equal(child.Id, required.VehicleId);

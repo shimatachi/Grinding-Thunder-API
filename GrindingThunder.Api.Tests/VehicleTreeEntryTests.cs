@@ -1,4 +1,5 @@
 using GrindingThunder.Api.Application.Models;
+using GrindingThunder.Api.Application.Exceptions;
 using GrindingThunder.Api.Domain.Entities;
 using GrindingThunder.Api.Infrastructure.Persistence;
 using GrindingThunder.Api.Infrastructure.Services;
@@ -99,17 +100,21 @@ public class VehicleTreeEntryCalculatorTests
         database.Context.Vehicles.Add(orphan);
         await database.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        var exception = await Assert.ThrowsAsync<ResearchCalculationInputException>(() =>
             database.Calculator.CalculateResearchAsync(
                 new ResearchCalculationRequest(
+                    ResearchTreeVersionId: rank.ResearchTreeVersionId,
                     TargetVehicleId: orphan.Id,
                     AverageRpPerMatch: 1000,
                     UnlockedVehicleIds: [],
                     FillerTargetIds: [])));
+
+        Assert.Contains(orphan.Id.ToString(), exception.Message);
+        Assert.Contains(rank.ResearchTreeVersionId.ToString(), exception.Message);
     }
 
     [Fact]
-    public async Task CalculateResearchAsync_TargetInMultipleVersions_FailsClearly()
+    public async Task CalculateResearchAsync_TargetInMultipleVersions_UsesSelectedVersionCost()
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
@@ -125,13 +130,13 @@ public class VehicleTreeEntryCalculatorTests
         database.AddVehicleTreeEntry(versionB, d, rank, 99);
         await database.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            database.Calculator.CalculateResearchAsync(
-                new ResearchCalculationRequest(
-                    TargetVehicleId: d.Id,
-                    AverageRpPerMatch: 1000,
-                    UnlockedVehicleIds: [],
-                    FillerTargetIds: [])));
+        var resultA = await database.Calculator.CalculateResearchAsync(
+            new ResearchCalculationRequest(versionA.Id, d.Id, [], [], 1000));
+        var resultB = await database.Calculator.CalculateResearchAsync(
+            new ResearchCalculationRequest(versionB.Id, d.Id, [], [], 1000));
+
+        Assert.Equal(40, resultA.TotalRpRequired);
+        Assert.Equal(99, resultB.TotalRpRequired);
     }
 
     [Fact]
@@ -150,6 +155,7 @@ public class VehicleTreeEntryCalculatorTests
 
         var result = await database.Calculator.CalculateResearchAsync(
             new ResearchCalculationRequest(
+                ResearchTreeVersionId: version.Id,
                 TargetVehicleId: b.Id,
                 AverageRpPerMatch: 1000,
                 UnlockedVehicleIds: [],
@@ -183,7 +189,7 @@ public class VehicleTreeEntryCalculatorTests
     }
 
     [Fact]
-    public async Task CalculateResearchAsync_NonTargetVehicleInMultipleVersions_FailsClearly()
+    public async Task CalculateResearchAsync_NonTargetVehicleInMultipleVersions_UsesSelectedVersionOnly()
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
@@ -200,18 +206,12 @@ public class VehicleTreeEntryCalculatorTests
         database.AddPrerequisite(target, ambiguous, versionA);
         await database.SaveChangesAsync();
 
-        // Must fail with the deliberate domain error, not an opaque
-        // ArgumentException from ToDictionary.
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            database.Calculator.CalculateResearchAsync(
-                new ResearchCalculationRequest(
-                    TargetVehicleId: target.Id,
-                    AverageRpPerMatch: 1000,
-                    UnlockedVehicleIds: [],
-                    FillerTargetIds: [])));
+        var result = await database.Calculator.CalculateResearchAsync(
+            new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 1000));
 
-        Assert.Contains(ambiguous.Id.ToString(), exception.Message);
-        Assert.Contains("multiple research tree versions", exception.Message);
+        Assert.Equal(50, result.TotalRpRequired);
+        Assert.Contains(result.RequiredVehicles, vehicle =>
+            vehicle.VehicleId == ambiguous.Id && vehicle.RpRemaining == 10);
     }
 }
 

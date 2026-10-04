@@ -1,6 +1,8 @@
 using GrindingThunder.Api.Application.Models;
+using GrindingThunder.Api.Application.Exceptions;
 using GrindingThunder.Api.Domain.Entities;
 using GrindingThunder.Api.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -33,7 +35,7 @@ public class ResearchCalculatorServiceTests
     }
 
     [Fact]
-    public async Task CalculateResearchAsync_OtherTreeForSameNation_DoesNotAffectCalculation()
+    public async Task CalculateResearchAsync_FillerFromOtherTreeForSameNation_IsRejected()
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
@@ -50,13 +52,12 @@ public class ResearchCalculatorServiceTests
         database.AddPrerequisite(target, mandatory);
         await database.SaveChangesAsync();
 
-        var result = await database.Calculator.CalculateResearchAsync(
-            RequestFor(target, fillerTargetIds: [aviationFiller.Id]));
+        var exception = await Assert.ThrowsAsync<ResearchCalculationInputException>(() =>
+            database.Calculator.CalculateResearchAsync(
+                RequestFor(target, fillerTargetIds: [aviationFiller.Id])));
 
-        AssertVehicleIds(result, target, mandatory);
-        var deficit = Assert.Single(result.RankDeficits);
-        Assert.Equal(1, deficit.RankNumber);
-        Assert.Equal(1, deficit.Shortfall);
+        Assert.Contains("Filler target IDs", exception.Message);
+        Assert.Contains(aviationFiller.Id.ToString(), exception.Message);
     }
 
     [Fact]
@@ -141,6 +142,27 @@ public class ResearchCalculatorServiceTests
 
         AssertVehicleIds(result, b, a);
         Assert.Equal(30, result.TotalRpRequired);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_CyclicFillerPrerequisites_TerminatesAndIncludesEachVehicleOnce()
+    {
+        using var database = new CalculatorTestDatabase();
+        var nation = database.AddNation();
+        var rank = database.AddTreeRank(nation, 1);
+        var target = database.AddVehicle(rank, "Target", 10);
+        var fillerA = database.AddVehicle(rank, "Filler A", 20);
+        var fillerB = database.AddVehicle(rank, "Filler B", 30);
+        database.AddPrerequisite(fillerA, fillerB);
+        database.AddPrerequisite(fillerB, fillerA);
+        await database.SaveChangesAsync();
+
+        var result = await database.Calculator.CalculateResearchAsync(
+            RequestFor(target, fillerTargetIds: [fillerA.Id]));
+
+        AssertVehicleIds(result, target, fillerA, fillerB);
+        Assert.Equal(60, result.TotalRpRequired);
+        Assert.Equal(2, result.RequiredVehicles.Count(vehicle => vehicle.IsRankGateFiller));
     }
 
     [Fact]
@@ -302,13 +324,159 @@ public class ResearchCalculatorServiceTests
     }
 
     [Fact]
+    public async Task CalculateResearchAsync_DifferentPrerequisitesAcrossVersions_UsesSelectedGraphOnly()
+    {
+        using var database = new CalculatorTestDatabase();
+        var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
+        var versionA = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.43"));
+        var versionB = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.45"));
+        var rankA = database.AddTreeRank(versionA, 1);
+        var rankB = database.AddTreeRank(versionB, 1);
+        var prerequisiteA = database.AddVehicle(tree, rankA, "Prerequisite A", 10, versionA);
+        var prerequisiteB = database.AddVehicle(tree, rankB, "Prerequisite B", 20, versionB);
+        var target = database.AddVehicle(tree, rankA, "Target", 100, versionA);
+        database.AddVehicleTreeEntry(versionB, target, rankB, 200);
+        database.AddPrerequisite(target, prerequisiteA, versionA);
+        database.AddPrerequisite(target, prerequisiteB, versionB);
+        await database.SaveChangesAsync();
+
+        var resultA = await database.Calculator.CalculateResearchAsync(
+            new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 100));
+        var resultB = await database.Calculator.CalculateResearchAsync(
+            new ResearchCalculationRequest(versionB.Id, target.Id, [], [], 100));
+
+        Assert.Equal(110, resultA.TotalRpRequired);
+        Assert.Equal(new[] { target.Id, prerequisiteA.Id }.OrderBy(id => id),
+            resultA.RequiredVehicles.Select(vehicle => vehicle.VehicleId).OrderBy(id => id));
+        Assert.Equal(220, resultB.TotalRpRequired);
+        Assert.Equal(new[] { target.Id, prerequisiteB.Id }.OrderBy(id => id),
+            resultB.RequiredVehicles.Select(vehicle => vehicle.VehicleId).OrderBy(id => id));
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_DifferentRankGatesAcrossVersions_UsesSelectedGateOnly()
+    {
+        using var database = new CalculatorTestDatabase();
+        var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
+        var versionA = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.43"));
+        var versionB = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.45"));
+        database.AddTreeRank(versionA, 1, requiredVehiclesUnlocked: 1);
+        var targetRankA = database.AddTreeRank(versionA, 2);
+        database.AddTreeRank(versionB, 1, requiredVehiclesUnlocked: 2);
+        var targetRankB = database.AddTreeRank(versionB, 2);
+        var target = database.AddVehicle(tree, targetRankA, "Target", 100, versionA);
+        database.AddVehicleTreeEntry(versionB, target, targetRankB, 100);
+        await database.SaveChangesAsync();
+
+        var resultA = await database.Calculator.CalculateResearchAsync(
+            new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 100));
+        var resultB = await database.Calculator.CalculateResearchAsync(
+            new ResearchCalculationRequest(versionB.Id, target.Id, [], [], 100));
+
+        var deficitA = Assert.Single(resultA.RankDeficits);
+        Assert.Equal(1, deficitA.Required);
+        Assert.Equal(1, deficitA.Shortfall);
+        var deficitB = Assert.Single(resultB.RankDeficits);
+        Assert.Equal(2, deficitB.Required);
+        Assert.Equal(2, deficitB.Shortfall);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_TargetOnlyInAnotherVersion_FailsClearly()
+    {
+        using var database = new CalculatorTestDatabase();
+        var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
+        var versionA = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.43"));
+        var versionB = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.45"));
+        database.AddTreeRank(versionA, 1);
+        var rankB = database.AddTreeRank(versionB, 1);
+        var target = database.AddVehicle(tree, rankB, "Target", 100, versionB);
+        await database.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<ResearchCalculationInputException>(() =>
+            database.Calculator.CalculateResearchAsync(
+                new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 100)));
+
+        Assert.Contains("Target vehicle", exception.Message);
+        Assert.Contains(target.Id.ToString(), exception.Message);
+        Assert.Contains(versionA.Id.ToString(), exception.Message);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_UnknownVersion_FailsClearly()
+    {
+        using var database = new CalculatorTestDatabase();
+        var unknownVersionId = Guid.NewGuid();
+
+        var exception = await Assert.ThrowsAsync<ResearchTreeVersionNotFoundException>(() =>
+            database.Calculator.CalculateResearchAsync(
+                new ResearchCalculationRequest(unknownVersionId, Guid.NewGuid(), [], [], 100)));
+
+        Assert.Contains(unknownVersionId.ToString(), exception.Message);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_OwnedVehicleOnlyInAnotherVersion_IsRejected()
+    {
+        using var database = new CalculatorTestDatabase();
+        var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
+        var versionA = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.43"));
+        var versionB = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.45"));
+        var rankA = database.AddTreeRank(versionA, 1);
+        var rankB = database.AddTreeRank(versionB, 1);
+        var target = database.AddVehicle(tree, rankA, "Target", 100, versionA);
+        var otherVersionVehicle = database.AddVehicle(tree, rankB, "Other version", 10, versionB);
+        await database.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<ResearchCalculationInputException>(() =>
+            database.Calculator.CalculateResearchAsync(
+                new ResearchCalculationRequest(
+                    versionA.Id,
+                    target.Id,
+                    [otherVersionVehicle.Id],
+                    [],
+                    100)));
+
+        Assert.Contains("Unlocked vehicle IDs", exception.Message);
+        Assert.Contains(otherVersionVehicle.Id.ToString(), exception.Message);
+        Assert.Contains(versionA.Id.ToString(), exception.Message);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_FillerOnlyInAnotherVersion_IsRejected()
+    {
+        using var database = new CalculatorTestDatabase();
+        var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
+        var versionA = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.43"));
+        var versionB = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.45"));
+        var rankA = database.AddTreeRank(versionA, 1);
+        var rankB = database.AddTreeRank(versionB, 1);
+        var target = database.AddVehicle(tree, rankA, "Target", 100, versionA);
+        var otherVersionVehicle = database.AddVehicle(tree, rankB, "Other version", 10, versionB);
+        await database.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<ResearchCalculationInputException>(() =>
+            database.Calculator.CalculateResearchAsync(
+                new ResearchCalculationRequest(
+                    versionA.Id,
+                    target.Id,
+                    [],
+                    [otherVersionVehicle.Id],
+                    100)));
+
+        Assert.Contains("Filler target IDs", exception.Message);
+        Assert.Contains(otherVersionVehicle.Id.ToString(), exception.Message);
+        Assert.Contains(versionA.Id.ToString(), exception.Message);
+    }
+
+    [Fact]
     public async Task CalculateResearchAsync_ZeroAverageRpPerMatch_ThrowsArgumentOutOfRangeException()
     {
         using var database = new CalculatorTestDatabase();
 
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             database.Calculator.CalculateResearchAsync(
-                new ResearchCalculationRequest(Guid.NewGuid(), [], [], 0)));
+                new ResearchCalculationRequest(Guid.NewGuid(), Guid.NewGuid(), [], [], 0)));
 
         Assert.Equal("AverageRpPerMatch", exception.ParamName);
     }
@@ -320,31 +488,44 @@ public class ResearchCalculatorServiceTests
 
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             database.Calculator.CalculateResearchAsync(
-                new ResearchCalculationRequest(Guid.NewGuid(), [], [], -1)));
+                new ResearchCalculationRequest(Guid.NewGuid(), Guid.NewGuid(), [], [], -1)));
 
         Assert.Equal("AverageRpPerMatch", exception.ParamName);
     }
 
     [Fact]
-    public async Task CalculateResearchAsync_UnknownTargetVehicle_ThrowsKeyNotFoundException()
+    public async Task CalculateResearchAsync_UnknownTargetVehicle_ThrowsInputException()
     {
         using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        await database.SaveChangesAsync();
         var unknownTargetId = Guid.NewGuid();
 
-        var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+        var exception = await Assert.ThrowsAsync<ResearchCalculationInputException>(() =>
             database.Calculator.CalculateResearchAsync(
-                new ResearchCalculationRequest(unknownTargetId, [], [], 100)));
+                new ResearchCalculationRequest(
+                    rank.ResearchTreeVersionId,
+                    unknownTargetId,
+                    [],
+                    [],
+                    100)));
 
         Assert.Contains(unknownTargetId.ToString(), exception.Message);
+        Assert.Contains(rank.ResearchTreeVersionId.ToString(), exception.Message);
     }
 
     private static ResearchCalculationRequest RequestFor(
         Vehicle target,
         List<Guid>? unlockedVehicleIds = null,
         List<Guid>? fillerTargetIds = null,
-        int averageRpPerMatch = 100)
+        int averageRpPerMatch = 100,
+        ResearchTreeVersion? version = null)
     {
+        var researchTreeVersionId = version?.Id
+            ?? Assert.Single(target.TreeEntries).ResearchTreeVersionId;
+
         return new ResearchCalculationRequest(
+            researchTreeVersionId,
             target.Id,
             unlockedVehicleIds ?? [],
             fillerTargetIds ?? [],
@@ -359,5 +540,44 @@ public class ResearchCalculatorServiceTests
         Assert.Equal(
             expectedVehicles.Select(vehicle => vehicle.Id).OrderBy(id => id),
             result.RequiredVehicles.Select(vehicle => vehicle.VehicleId).OrderBy(id => id));
+    }
+}
+
+public class ResearchControllerTests
+{
+    [Fact]
+    public async Task CalculateResearch_UnknownVersion_ReturnsNotFound()
+    {
+        using var database = new CalculatorTestDatabase();
+        var versionId = Guid.NewGuid();
+        var controller = new GrindingThunder.Api.Controllers.ResearchController(database.Calculator);
+
+        var result = await controller.CalculateResearch(
+            new ResearchCalculationRequest(versionId, Guid.NewGuid(), [], [], 100),
+            CancellationToken.None);
+
+        var notFound = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Contains(versionId.ToString(), Assert.IsType<string>(notFound.Value));
+    }
+
+    [Fact]
+    public async Task CalculateResearch_TargetOutsideSelectedVersion_ReturnsBadRequest()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        await database.SaveChangesAsync();
+        var controller = new GrindingThunder.Api.Controllers.ResearchController(database.Calculator);
+
+        var result = await controller.CalculateResearch(
+            new ResearchCalculationRequest(
+                rank.ResearchTreeVersionId,
+                Guid.NewGuid(),
+                [],
+                [],
+                100),
+            CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("Target vehicle", Assert.IsType<string>(badRequest.Value));
     }
 }

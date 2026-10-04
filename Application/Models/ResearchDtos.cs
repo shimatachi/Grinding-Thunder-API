@@ -1,6 +1,7 @@
 namespace GrindingThunder.Api.Application.Models;
 
 public record ResearchCalculationRequest(
+    Guid ResearchTreeVersionId,
     Guid TargetVehicleId,
     List<Guid> UnlockedVehicleIds,
     List<Guid> FillerTargetIds,

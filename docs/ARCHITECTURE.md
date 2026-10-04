@@ -1,0 +1,18 @@
+# Architecture
+
+## CURRENT — repository structure
+
+This is one ASP.NET Core `.NET 10` production project with `Controllers`, `Application`, `Domain`, and `Infrastructure` folders. These folders organize code but do **not** create strict Clean Architecture or compile-time dependency boundaries.
+
+- Controllers provide nation and vehicle read endpoints and a research calculation endpoint. The read controllers query EF Core directly and project response shapes; the research controller validates required IDs and positive RP/net-SL averages, delegates to `ResearchCalculatorService`, and maps calculation input failures to 400 or 404 responses.
+- `Application` contains calculation request/result records and calculation-specific exceptions. `Domain` contains the domain entities and `IResearchCalculatorService`. `Infrastructure` contains the EF Core context, configurations, migrations, development seed, and calculator implementation. PostgreSQL is configured through Npgsql.
+- In Development, startup applies migrations and seeds sample data. The `GrindingThunder.Api.Tests` project contains unit tests for the calculator and the versioned tree-entry model, using an in-memory SQLite database.
+- One dependency direction is inconsistent with the intended boundary: `Domain.Services.IResearchCalculatorService` returns and accepts `Application.Models` records. Domain therefore depends on Application. The current implementation also uses EF entities inside the calculator.
+- The versioned tree model keeps stable vehicle identity separate from snapshot state: `VehicleTreeEntry` stores version-specific RP/SL costs, rank, integer layout coordinates, and same-version folder membership; `TreeRank` stores version-specific rank configuration; and `VehiclePrerequisite` stores explicit version-scoped progression edges. Controllers project compatible flat vehicle fields only when exactly one entry exists and otherwise avoid choosing an arbitrary version.
+- Research calculation requests explicitly identify a `ResearchTreeVersionId`. `ResearchCalculatorService` loads that version's entries, ranks, and prerequisite edges as one read-only split aggregate query, validates target/owned/filler membership, and traverses the graph in memory. It totals version-owned RP and vehicle-purchase SL costs from the same deduplicated remaining-entry set, calculates separate ceiling-based match estimates, and returns their maximum as the combined estimate. It does not infer a version from a vehicle or query during recursion. Application-specific exceptions distinguish a missing version from invalid selected-version membership without leaking EF or dictionary exceptions through the API.
+
+## TARGET — direction
+
+Remain a modular monolith and keep one production project for now. Keep controllers focused on HTTP validation and response handling; keep progression and costing rules separate from controllers and presentation. Use EF Core directly where it is appropriate, with DTOs or projections at API boundaries instead of exposing EF entity graphs. Avoid generic repository and UnitOfWork wrappers, MediatR, CQRS, AutoMapper, microservices, and similar abstractions unless a concrete requirement later justifies them.
+
+The service contract's location and request/result types should be reconciled when the calculation boundary is changed; a folder name alone cannot enforce dependency direction. Separate Domain, Application, Infrastructure, and API .NET projects are not currently required. Reconsider that split if compile-time dependency enforcement becomes valuable enough to justify the added project and reference management.

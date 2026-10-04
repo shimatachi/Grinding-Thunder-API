@@ -47,12 +47,12 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
 
         var query = _context.Vehicles
             .AsNoTracking()
-            .Where(v => v.Rank.NationId == nationId);
+            .Where(v => v.Rank.ResearchTree.NationId == nationId);
 
         if (!string.IsNullOrWhiteSpace(type))
         {
             var normalizedType = type.ToLowerInvariant();
-            query = query.Where(v => v.Rank.Nation.Type.ToLower() == normalizedType);
+            query = query.Where(v => v.Rank.ResearchTree.VehicleType.Name.ToLower() == normalizedType);
         }
 
         var vehicles = await query
@@ -60,6 +60,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
             {
                 v.Id,
                 v.RankId,
+                v.Rank.ResearchTreeId,
                 v.Name,
                 v.ImageUrl,
                 v.RpCost,

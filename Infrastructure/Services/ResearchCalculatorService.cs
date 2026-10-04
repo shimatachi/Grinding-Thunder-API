@@ -42,20 +42,20 @@ public class ResearchCalculatorService : IResearchCalculatorService
             .Distinct()
             .ToHashSet();
 
-        // Locate the target vehicle and its nation so we can scope the traversal.
+        // Locate the target vehicle and its research tree so we can scope the traversal.
         var target = await _context.Vehicles
             .AsNoTracking()
             .Include(v => v.Rank)
             .FirstOrDefaultAsync(v => v.Id == request.TargetVehicleId, cancellationToken)
             ?? throw new KeyNotFoundException($"Vehicle '{request.TargetVehicleId}' was not found.");
 
-        var nationId = target.Rank.NationId;
+        var researchTreeId = target.Rank.ResearchTreeId;
 
-        // Load the full research sub-graph for the target's nation in a few queries,
+        // Load the full research sub-graph for the target's tree in a few queries,
         // then traverse in memory to avoid N+1 async round trips.
         var vehicles = await _context.Vehicles
             .AsNoTracking()
-            .Where(v => v.Rank.NationId == nationId)
+            .Where(v => v.Rank.ResearchTreeId == researchTreeId)
             .ToListAsync(cancellationToken);
 
         var vehicleIds = vehicles.Select(v => v.Id).ToList();
@@ -67,7 +67,7 @@ public class ResearchCalculatorService : IResearchCalculatorService
 
         var ranks = await _context.Ranks
             .AsNoTracking()
-            .Where(r => r.NationId == nationId)
+            .Where(r => r.ResearchTreeId == researchTreeId)
             .ToListAsync(cancellationToken);
 
         var vehicleMap = vehicles.ToDictionary(v => v.Id);
@@ -98,6 +98,8 @@ public class ResearchCalculatorService : IResearchCalculatorService
             {
                 return;
             }
+
+            if (unlockedSet.Contains(vehicleId)) return;
 
             if (!unlockedSet.Contains(vehicleId))
             {

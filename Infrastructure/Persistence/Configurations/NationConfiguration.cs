@@ -14,13 +14,9 @@ public class NationConfiguration : IEntityTypeConfiguration<Nation>
             .IsRequired()
             .HasMaxLength(100);
 
-        builder.Property(n => n.Type)
-            .IsRequired()
-            .HasMaxLength(50);
-
-        builder.HasMany(n => n.Ranks)
-            .WithOne(r => r.Nation)
-            .HasForeignKey(r => r.NationId)
+        builder.HasMany(n => n.ResearchTrees)
+            .WithOne(rt => rt.Nation)
+            .HasForeignKey(rt => rt.NationId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

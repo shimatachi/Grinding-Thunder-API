@@ -15,5 +15,10 @@ public class RankConfiguration : IEntityTypeConfiguration<Rank>
 
         builder.Property(r => r.RequiredVehiclesUnlocked)
             .IsRequired();
+
+        builder.HasOne(r => r.ResearchTree)
+            .WithMany(rt => rt.Ranks)
+            .HasForeignKey(r => r.ResearchTreeId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

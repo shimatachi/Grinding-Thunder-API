@@ -5,6 +5,15 @@ namespace GrindingThunder.Api.Infrastructure.Persistence;
 
 public static class DbInitializer
 {
+    private static readonly string[] StandardVehicleTypes =
+    {
+        "Ground",
+        "Aviation",
+        "Helicopter",
+        "Coastal Fleet",
+        "Bluewater Fleet"
+    };
+
     private static readonly string[] StandardNations =
     {
         "USA",
@@ -19,7 +28,31 @@ public static class DbInitializer
 
     public static async Task InitializeAsync(ApplicationDbContext context)
     {
-        // 1. Seed Nations & Ranks if missing
+        // 1. Seed vehicle types if missing.
+        var vehicleTypes = await context.VehicleTypes.ToListAsync();
+        var vehicleTypesByName = vehicleTypes.ToDictionary(vt => vt.Name, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var vehicleTypeName in StandardVehicleTypes)
+        {
+            if (vehicleTypesByName.ContainsKey(vehicleTypeName))
+            {
+                continue;
+            }
+
+            var vehicleType = new VehicleType
+            {
+                Id = Guid.NewGuid(),
+                Name = vehicleTypeName
+            };
+
+            context.VehicleTypes.Add(vehicleType);
+            vehicleTypesByName.Add(vehicleTypeName, vehicleType);
+        }
+
+        await context.SaveChangesAsync();
+        var groundType = vehicleTypesByName["Ground"];
+
+        // 2. Seed nations if missing.
         if (!await context.Nations.AnyAsync())
         {
             foreach (var nationName in StandardNations)
@@ -27,16 +60,7 @@ public static class DbInitializer
                 var nation = new Nation
                 {
                     Id = Guid.NewGuid(),
-                    Name = nationName,
-                    Type = "Ground",
-                    Ranks = Enumerable.Range(MinRankNumber, MaxRankNumber)
-                        .Select(rankNumber => new Rank
-                        {
-                            Id = Guid.NewGuid(),
-                            RankNumber = rankNumber,
-                            RequiredVehiclesUnlocked = DefaultRequiredVehiclesUnlocked
-                        })
-                        .ToList()
+                    Name = nationName
                 };
 
                 context.Nations.Add(nation);
@@ -45,17 +69,58 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        // 2. Seed Sample Vehicles & Prerequisites if missing
+        // 3. Seed one Ground research tree and its ranks for each standard nation.
+        var nations = await context.Nations
+            .Where(n => StandardNations.Contains(n.Name))
+            .Include(n => n.ResearchTrees)
+            .ThenInclude(rt => rt.Ranks)
+            .ToListAsync();
+
+        foreach (var nation in nations)
+        {
+            if (nation.ResearchTrees.Any(rt => rt.VehicleTypeId == groundType.Id))
+            {
+                continue;
+            }
+
+            var researchTree = new ResearchTree
+            {
+                Id = Guid.NewGuid(),
+                NationId = nation.Id,
+                Nation = nation,
+                VehicleTypeId = groundType.Id,
+                VehicleType = groundType
+            };
+
+            foreach (var rankNumber in Enumerable.Range(MinRankNumber, MaxRankNumber))
+            {
+                researchTree.Ranks.Add(new Rank
+                {
+                    Id = Guid.NewGuid(),
+                    ResearchTreeId = researchTree.Id,
+                    ResearchTree = researchTree,
+                    RankNumber = rankNumber,
+                    RequiredVehiclesUnlocked = DefaultRequiredVehiclesUnlocked
+                });
+            }
+
+            context.ResearchTrees.Add(researchTree);
+        }
+
+        await context.SaveChangesAsync();
+
+        // 4. Seed sample vehicles and prerequisites if missing.
         if (!await context.Vehicles.AnyAsync())
         {
-            var usa = await context.Nations
-                .Include(n => n.Ranks)
-                .FirstOrDefaultAsync(n => n.Name == "USA");
+            var usaGroundTree = await context.ResearchTrees
+                .Include(rt => rt.Ranks)
+                .FirstOrDefaultAsync(rt =>
+                    rt.Nation.Name == "USA" && rt.VehicleTypeId == groundType.Id);
 
-            if (usa != null)
+            if (usaGroundTree != null)
             {
-                var rank1 = usa.Ranks.FirstOrDefault(r => r.RankNumber == 1);
-                var rank2 = usa.Ranks.FirstOrDefault(r => r.RankNumber == 2);
+                var rank1 = usaGroundTree.Ranks.FirstOrDefault(r => r.RankNumber == 1);
+                var rank2 = usaGroundTree.Ranks.FirstOrDefault(r => r.RankNumber == 2);
 
                 if (rank1 != null && rank2 != null)
                 {

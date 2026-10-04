@@ -17,4 +17,11 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="GrindingThunder.Api.Tests\**\*.cs" />
+    <Content Remove="GrindingThunder.Api.Tests\**\*" />
+    <EmbeddedResource Remove="GrindingThunder.Api.Tests\**\*" />
+    <None Remove="GrindingThunder.Api.Tests\**\*" />
+  </ItemGroup>
+
 </Project>

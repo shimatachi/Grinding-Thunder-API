@@ -1,6 +1,6 @@
 namespace GrindingThunder.Api.Domain.Entities;
 
-public class Nation
+public class VehicleType
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;

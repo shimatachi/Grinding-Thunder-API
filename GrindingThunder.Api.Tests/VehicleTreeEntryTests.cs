@@ -15,9 +15,10 @@ public class VehicleTreeEntryTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
-        var rank1 = database.AddRank(nation, 1);
         var update = database.AddGameUpdate("2.43");
-        var version = database.AddResearchTreeVersion(rank1.ResearchTree, update);
+        var version = database.AddResearchTreeVersion(
+            database.AddResearchTree(nation, database.AddVehicleType("Ground")), update);
+        var rank1 = database.AddTreeRank(version, 1);
 
         // One stable vehicle identity with version-specific rank and costs.
         var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Test Tank" };
@@ -32,7 +33,7 @@ public class VehicleTreeEntryTests
             .SingleAsync(e => e.VehicleId == vehicle.Id);
 
         Assert.Equal(version.Id, persisted.ResearchTreeVersionId);
-        Assert.Equal(rank1.Id, persisted.RankId);
+        Assert.Equal(rank1.Id, persisted.TreeRankId);
         Assert.Equal(2900, persisted.RpCost);
         Assert.Equal(700, persisted.SlCost);
     }
@@ -42,9 +43,10 @@ public class VehicleTreeEntryTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
-        var rank = database.AddRank(nation, 1);
         var update = database.AddGameUpdate("2.43");
-        var version = database.AddResearchTreeVersion(rank.ResearchTree, update);
+        var version = database.AddResearchTreeVersion(
+            database.AddResearchTree(nation, database.AddVehicleType("Ground")), update);
+        var rank = database.AddTreeRank(version, 1);
         var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Test Tank" };
         database.Context.Vehicles.Add(vehicle);
 
@@ -60,11 +62,11 @@ public class VehicleTreeEntryTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var updateA = database.AddGameUpdate("2.43");
         var updateB = database.AddGameUpdate("2.45");
-        var versionA = database.AddResearchTreeVersion(rank.ResearchTree, updateA);
-        var versionB = database.AddResearchTreeVersion(rank.ResearchTree, updateB);
+        var versionA = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateA);
+        var versionB = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateB);
         var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Test Tank" };
         database.Context.Vehicles.Add(vehicle);
 
@@ -92,7 +94,7 @@ public class VehicleTreeEntryCalculatorTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var orphan = new Vehicle { Id = Guid.NewGuid(), Name = "Orphan" };
         database.Context.Vehicles.Add(orphan);
         await database.SaveChangesAsync();
@@ -111,13 +113,13 @@ public class VehicleTreeEntryCalculatorTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var updateA = database.AddGameUpdate("2.43");
         var updateB = database.AddGameUpdate("2.45");
-        var versionA = database.AddResearchTreeVersion(rank.ResearchTree, updateA);
-        var versionB = database.AddResearchTreeVersion(rank.ResearchTree, updateB);
-        var a = database.AddVehicle(rank.ResearchTree, rank, "A", 10, treeVersion: versionA);
-        var d = database.AddVehicle(rank.ResearchTree, rank, "D", 40, treeVersion: versionA);
+        var versionA = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateA);
+        var versionB = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateB);
+        var a = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "A", 10, treeVersion: versionA);
+        var d = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "D", 40, treeVersion: versionA);
 
         // The same target vehicle placed in a second version with a different cost.
         database.AddVehicleTreeEntry(versionB, d, rank, 99);
@@ -137,11 +139,12 @@ public class VehicleTreeEntryCalculatorTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
-        var rank = database.AddRank(nation, 1);
         var update = database.AddGameUpdate("2.43");
-        var version = database.AddResearchTreeVersion(rank.ResearchTree, update);
-        var a = database.AddVehicle(rank.ResearchTree, rank, "A", 10, treeVersion: version);
-        var b = database.AddVehicle(rank.ResearchTree, rank, "B", 20, treeVersion: version);
+        var version = database.AddResearchTreeVersion(
+            database.AddResearchTree(nation, database.AddVehicleType("Ground")), update);
+        var rank = database.AddTreeRank(version, 1);
+        var a = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "A", 10, treeVersion: version);
+        var b = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "B", 20, treeVersion: version);
         database.AddPrerequisite(b, a);
         await database.SaveChangesAsync();
 
@@ -184,15 +187,15 @@ public class VehicleTreeEntryCalculatorTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var updateA = database.AddGameUpdate("2.43");
         var updateB = database.AddGameUpdate("2.45");
-        var versionA = database.AddResearchTreeVersion(rank.ResearchTree, updateA);
-        var versionB = database.AddResearchTreeVersion(rank.ResearchTree, updateB);
-        var target = database.AddVehicle(rank.ResearchTree, rank, "Target", 40, treeVersion: versionA);
+        var versionA = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateA);
+        var versionB = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateB);
+        var target = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "Target", 40, treeVersion: versionA);
 
         // A NON-target vehicle spans two versions; the target itself does not.
-        var ambiguous = database.AddVehicle(rank.ResearchTree, rank, "Ambiguous", 10, treeVersion: versionA);
+        var ambiguous = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "Ambiguous", 10, treeVersion: versionA);
         database.AddVehicleTreeEntry(versionB, ambiguous, rank, 99);
         database.AddPrerequisite(target, ambiguous);
         await database.SaveChangesAsync();
@@ -219,10 +222,11 @@ public class VehiclesControllerTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
-        var rank = database.AddRank(nation, 1);
         var update = database.AddGameUpdate("2.43");
-        var version = database.AddResearchTreeVersion(rank.ResearchTree, update);
-        var placed = database.AddVehicle(rank.ResearchTree, rank, "Placed", 10, treeVersion: version);
+        var version = database.AddResearchTreeVersion(
+            database.AddResearchTree(nation, database.AddVehicleType("Ground")), update);
+        var rank = database.AddTreeRank(version, 1);
+        var placed = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "Placed", 10, treeVersion: version);
 
         // Entry-less vehicle: previously TreeEntries[0] would throw.
         var orphan = new Vehicle { Id = Guid.NewGuid(), Name = "Orphan" };
@@ -256,13 +260,13 @@ public class VehiclesControllerTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var updateA = database.AddGameUpdate("2.43");
         var updateB = database.AddGameUpdate("2.45");
-        var versionA = database.AddResearchTreeVersion(rank.ResearchTree, updateA);
-        var versionB = database.AddResearchTreeVersion(rank.ResearchTree, updateB);
+        var versionA = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateA);
+        var versionB = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateB);
 
-        var vehicle = database.AddVehicle(rank.ResearchTree, rank, "Ambiguous", 10, treeVersion: versionA);
+        var vehicle = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "Ambiguous", 10, treeVersion: versionA);
         database.AddVehicleTreeEntry(versionB, vehicle, rank, 99);
         await database.SaveChangesAsync();
 

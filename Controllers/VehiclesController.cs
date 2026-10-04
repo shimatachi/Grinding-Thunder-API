@@ -26,7 +26,8 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 TreeEntries = v.TreeEntries.Select(e => new
                 {
                     e.ResearchTreeVersionId,
-                    e.RankId,
+                    e.TreeRankId,
+                    RankNumber = (int?)e.TreeRank.RankNumber,
                     e.RpCost,
                     e.SlCost
                 }).ToList(),
@@ -48,7 +49,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
             return new
             {
                 v.Id,
-                RankId = singleEntry?.RankId,
+                RankId = singleEntry?.TreeRankId,
                 v.Name,
                 v.ImageUrl,
                 RpCost = singleEntry?.RpCost,
@@ -78,20 +79,20 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
         // tree is filtered through the entry's rank and projected from the entry.
         var query = _context.VehicleTreeEntries
             .AsNoTracking()
-            .Where(e => e.Rank.ResearchTree.NationId == nationId);
+            .Where(e => e.TreeRank.ResearchTreeVersion.ResearchTree.NationId == nationId);
 
         if (!string.IsNullOrWhiteSpace(type))
         {
             var normalizedType = type.ToLowerInvariant();
-            query = query.Where(e => e.Rank.ResearchTree.VehicleType.Name.ToLower() == normalizedType);
+            query = query.Where(e => e.TreeRank.ResearchTreeVersion.ResearchTree.VehicleType.Name.ToLower() == normalizedType);
         }
 
         var entries = await query
             .Select(e => new
             {
                 e.Vehicle.Id,
-                e.RankId,
-                e.Rank.ResearchTreeId,
+                e.TreeRankId,
+                e.TreeRank.ResearchTreeVersionId,
                 e.Vehicle.Name,
                 e.Vehicle.ImageUrl,
                 e.RpCost,

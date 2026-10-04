@@ -25,11 +25,17 @@ public class ResearchTreePersistenceTests
         var trees = await database.Context.ResearchTrees
             .AsNoTracking()
             .Include(rt => rt.VehicleType)
-            .Include(rt => rt.Ranks)
+            .Include(rt => rt.Versions).ThenInclude(v => v.TreeRanks)
             .ToListAsync();
         Assert.Equal(4, trees.Count);
         Assert.All(trees, tree => Assert.Equal("Ground", tree.VehicleType.Name));
-        Assert.All(trees, tree => Assert.Equal(8, tree.Ranks.Count));
+        // Rank configuration is version-specific (Batch 4): every seeded tree
+        // receives one version with its own eight TreeRank rows.
+        Assert.All(trees, tree =>
+        {
+            var version = Assert.Single(tree.Versions);
+            Assert.Equal(8, version.TreeRanks.Count);
+        });
     }
 
     [Fact]

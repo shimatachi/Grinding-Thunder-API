@@ -70,16 +70,23 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        // 3. Seed one Ground research tree and its ranks for each standard nation.
+        // 3. Seed one Ground research tree for each standard nation.
+        //    Rank configuration is seeded per version in step 4 (Batch 4).
         var nations = await context.Nations
             .Where(n => StandardNations.Contains(n.Name))
-            .Include(n => n.ResearchTrees)
-            .ThenInclude(rt => rt.Ranks)
             .ToListAsync();
+
+        // Nations that already own a Ground tree are loaded so we can skip
+        // them; the tree collection is no longer eagerly loaded just for this.
+        var nationIdsWithGroundTree = await context.ResearchTrees
+            .Where(rt => rt.VehicleTypeId == groundType.Id)
+            .Select(rt => rt.NationId)
+            .ToListAsync();
+        var nationsWithGroundTree = nationIdsWithGroundTree.ToHashSet();
 
         foreach (var nation in nations)
         {
-            if (nation.ResearchTrees.Any(rt => rt.VehicleTypeId == groundType.Id))
+            if (nationsWithGroundTree.Contains(nation.Id))
             {
                 continue;
             }
@@ -93,25 +100,13 @@ public static class DbInitializer
                 VehicleType = groundType
             };
 
-            foreach (var rankNumber in Enumerable.Range(MinRankNumber, MaxRankNumber))
-            {
-                researchTree.Ranks.Add(new Rank
-                {
-                    Id = Guid.NewGuid(),
-                    ResearchTreeId = researchTree.Id,
-                    ResearchTree = researchTree,
-                    RankNumber = rankNumber,
-                    RequiredVehiclesUnlocked = DefaultRequiredVehiclesUnlocked
-                });
-            }
-
             context.ResearchTrees.Add(researchTree);
         }
 
         await context.SaveChangesAsync();
 
         // 4. Seed a sample game update and one tree version per research tree.
-        //    Development sample data only â€” real War Thunder update history
+        //    Development sample data only - real War Thunder update history
         //    is intentionally not modeled yet.
         var sampleGameUpdate = await context.GameUpdates
             .FirstOrDefaultAsync(gu => gu.Version == SampleGameUpdateVersion);
@@ -138,7 +133,7 @@ public static class DbInitializer
 
         foreach (var researchTree in treesWithoutSampleVersion)
         {
-            context.ResearchTreeVersions.Add(new ResearchTreeVersion
+            var version = new ResearchTreeVersion
             {
                 Id = Guid.NewGuid(),
                 ResearchTreeId = researchTree.Id,
@@ -146,7 +141,23 @@ public static class DbInitializer
                 GameUpdateId = sampleGameUpdate.Id,
                 GameUpdate = sampleGameUpdate,
                 Status = ResearchTreeVersionStatus.Published
-            });
+            };
+
+            // Rank configuration is version-specific (Batch 4): each new
+            // version receives its own TreeRank rows.
+            foreach (var rankNumber in Enumerable.Range(MinRankNumber, MaxRankNumber))
+            {
+                version.TreeRanks.Add(new TreeRank
+                {
+                    Id = Guid.NewGuid(),
+                    ResearchTreeVersionId = version.Id,
+                    ResearchTreeVersion = version,
+                    RankNumber = rankNumber,
+                    RequiredVehiclesUnlocked = DefaultRequiredVehiclesUnlocked
+                });
+            }
+
+            context.ResearchTreeVersions.Add(version);
         }
 
         await context.SaveChangesAsync();
@@ -154,23 +165,22 @@ public static class DbInitializer
         // 5. Seed sample vehicles, tree entries, and prerequisites if missing.
         if (!await context.VehicleTreeEntries.AnyAsync())
         {
-            var usaGroundTree = await context.ResearchTrees
-                .Include(rt => rt.Ranks)
-                .FirstOrDefaultAsync(rt =>
-                    rt.Nation.Name == "USA" && rt.VehicleTypeId == groundType.Id);
+            var usaGroundVersion = await context.ResearchTreeVersions
+                .Include(rtv => rtv.TreeRanks)
+                .FirstOrDefaultAsync(rtv =>
+                    rtv.ResearchTree.Nation.Name == "USA" &&
+                    rtv.ResearchTree.VehicleTypeId == groundType.Id &&
+                    rtv.Status == ResearchTreeVersionStatus.Published);
 
-            if (usaGroundTree != null)
+            if (usaGroundVersion != null)
             {
-                var rank1 = usaGroundTree.Ranks.FirstOrDefault(r => r.RankNumber == 1);
-                var rank2 = usaGroundTree.Ranks.FirstOrDefault(r => r.RankNumber == 2);
-                var usaGroundVersion = await context.ResearchTreeVersions
-                    .FirstAsync(rtv =>
-                        rtv.ResearchTreeId == usaGroundTree.Id &&
-                        rtv.GameUpdateId == context.GameUpdates.AsNoTracking().Where(gu => gu.Version == SampleGameUpdateVersion).Select(gu => gu.Id).First());
+                var rank1 = usaGroundVersion.TreeRanks.FirstOrDefault(r => r.RankNumber == 1);
+                var rank2 = usaGroundVersion.TreeRanks.FirstOrDefault(r => r.RankNumber == 2);
 
-                if (rank1 != null && rank2 != null && usaGroundVersion != null)
+
+                if (rank1 != null && rank2 != null)
                 {
-                    // Stable vehicle identities — version-specific state
+                    // Stable vehicle identities - version-specific state
                     // (rank, RP cost, SL cost) lives in their tree entries.
                     var m2Light = new Vehicle
                     {
@@ -243,7 +253,7 @@ public static class DbInitializer
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
                             VehicleId = m2Light.Id,
-                            RankId = rank1.Id,
+                            TreeRankId = rank1.Id,
                             RpCost = 2900,
                             SlCost = 700
                         },
@@ -252,7 +262,7 @@ public static class DbInitializer
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
                             VehicleId = m3Stuart.Id,
-                            RankId = rank1.Id,
+                            TreeRankId = rank1.Id,
                             RpCost = 4000,
                             SlCost = 1400
                         },
@@ -261,7 +271,7 @@ public static class DbInitializer
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
                             VehicleId = m2a4.Id,
-                            RankId = rank1.Id,
+                            TreeRankId = rank1.Id,
                             RpCost = 2900,
                             SlCost = 700
                         },
@@ -270,7 +280,7 @@ public static class DbInitializer
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
                             VehicleId = m3a1Stuart.Id,
-                            RankId = rank1.Id,
+                            TreeRankId = rank1.Id,
                             RpCost = 4000,
                             SlCost = 1400
                         },
@@ -279,7 +289,7 @@ public static class DbInitializer
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
                             VehicleId = m4a1Sherman.Id,
-                            RankId = rank2.Id,
+                            TreeRankId = rank2.Id,
                             RpCost = 9200,
                             SlCost = 3800
                         },
@@ -288,7 +298,7 @@ public static class DbInitializer
                             Id = Guid.NewGuid(),
                             ResearchTreeVersionId = usaGroundVersion.Id,
                             VehicleId = m3Lee.Id,
-                            RankId = rank2.Id,
+                            TreeRankId = rank2.Id,
                             RpCost = 5900,
                             SlCost = 2200
                         }

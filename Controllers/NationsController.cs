@@ -27,13 +27,22 @@ public class NationsController(ApplicationDbContext context) : ControllerBase
                         rt.Id,
                         rt.VehicleTypeId,
                         VehicleTypeName = rt.VehicleType.Name,
-                        Ranks = rt.Ranks
-                            .OrderBy(r => r.RankNumber)
-                            .Select(r => new
+                        Versions = rt.Versions
+                            .OrderBy(v => v.GameUpdate.Version)
+                            .Select(v => new
                             {
-                                r.Id,
-                                r.RankNumber,
-                                r.RequiredVehiclesUnlocked
+                                v.Id,
+                                v.Status,
+                                UpdateVersion = v.GameUpdate.Version,
+                                TreeRanks = v.TreeRanks
+                                    .OrderBy(r => r.RankNumber)
+                                    .Select(r => new
+                                    {
+                                        r.Id,
+                                        r.RankNumber,
+                                        r.RequiredVehiclesUnlocked
+                                    })
+                                    .ToList()
                             })
                             .ToList()
                     })

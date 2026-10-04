@@ -20,15 +20,14 @@ public class VehicleTreeEntryConfiguration : IEntityTypeConfiguration<VehicleTre
             .HasForeignKey(e => e.VehicleId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // TRANSITIONAL (Batch 3): Rank is not yet versioned (Batch 4 introduces
-        // TreeRank). Rank belongs to a ResearchTree, so deleting a tree cascades
-        // through both the version and the rank; keeping this FK cascade too
-        // avoids non-deterministic FK-check ordering when a tree is deleted.
-        // Deleting a Vehicle never cascades its entries (Restrict above) so
-        // historical placements cannot vanish while a version still references them.
-        builder.HasOne(e => e.Rank)
+        // The entry's TreeRank is owned by the same ResearchTreeVersion as the
+        // entry itself; both cascade from the version, so deleting a version
+        // removes its ranks and entries together. Deleting a Vehicle never
+        // cascades its entries (Restrict above) so historical placements
+        // cannot vanish while a version still references them.
+        builder.HasOne(e => e.TreeRank)
             .WithMany(r => r.TreeEntries)
-            .HasForeignKey(e => e.RankId)
+            .HasForeignKey(e => e.TreeRankId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // A vehicle appears at most once per research-tree version.

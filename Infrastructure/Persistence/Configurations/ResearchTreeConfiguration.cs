@@ -20,11 +20,6 @@ public class ResearchTreeConfiguration : IEntityTypeConfiguration<ResearchTree>
             .HasForeignKey(rt => rt.VehicleTypeId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasMany(rt => rt.Ranks)
-            .WithOne(r => r.ResearchTree)
-            .HasForeignKey(r => r.ResearchTreeId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         builder.HasIndex(rt => new { rt.NationId, rt.VehicleTypeId })
             .IsUnique();
     }

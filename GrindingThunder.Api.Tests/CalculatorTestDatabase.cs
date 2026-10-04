@@ -67,7 +67,7 @@ internal sealed class CalculatorTestDatabase : IDisposable
         return researchTree;
     }
 
-    public Rank AddRank(Nation nation, int rankNumber, int requiredVehiclesUnlocked = 0)
+    public TreeRank AddTreeRank(Nation nation, int rankNumber, int requiredVehiclesUnlocked = 0)
     {
         var researchTree = nation.ResearchTrees.FirstOrDefault();
         if (researchTree is null)
@@ -79,35 +79,56 @@ internal sealed class CalculatorTestDatabase : IDisposable
             researchTree = AddResearchTree(nation, groundType);
         }
 
-        return AddRank(researchTree, rankNumber, requiredVehiclesUnlocked);
+        return AddTreeRank(researchTree, rankNumber, requiredVehiclesUnlocked);
     }
 
-    public Rank AddRank(
+    public TreeRank AddTreeRank(
         ResearchTree researchTree,
         int rankNumber,
         int requiredVehiclesUnlocked = 0)
     {
-        var rank = new Rank
+        // Rank configuration lives under a version (Batch 4): reuse the
+        // tree's existing version, or create one when the tree is new.
+        var version = Context.ResearchTreeVersions.Local
+            .FirstOrDefault(rtv => rtv.ResearchTreeId == researchTree.Id);
+
+        if (version is null)
+        {
+            var gameUpdate = Context.GameUpdates.Local.FirstOrDefault()
+                ?? AddGameUpdate("test-update");
+
+            version = AddResearchTreeVersion(researchTree, gameUpdate);
+        }
+
+        return AddTreeRank(version, rankNumber, requiredVehiclesUnlocked);
+    }
+
+    public TreeRank AddTreeRank(
+        ResearchTreeVersion version,
+        int rankNumber,
+        int requiredVehiclesUnlocked = 0)
+    {
+        var rank = new TreeRank
         {
             Id = Guid.NewGuid(),
-            ResearchTreeId = researchTree.Id,
-            ResearchTree = researchTree,
+            ResearchTreeVersionId = version.Id,
+            ResearchTreeVersion = version,
             RankNumber = rankNumber,
             RequiredVehiclesUnlocked = requiredVehiclesUnlocked
         };
 
-        Context.Ranks.Add(rank);
+        Context.TreeRanks.Add(rank);
         return rank;
     }
 
-    public Vehicle AddVehicle(Rank rank, string name, int rpCost)
+    public Vehicle AddVehicle(TreeRank rank, string name, int rpCost)
     {
-        return AddVehicle(rank.ResearchTree, rank, name, rpCost);
+        return AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, name, rpCost);
     }
 
     public Vehicle AddVehicle(
         ResearchTree researchTree,
-        Rank rank,
+        TreeRank rank,
         string name,
         int rpCost,
         ResearchTreeVersion? treeVersion = null)
@@ -140,8 +161,7 @@ internal sealed class CalculatorTestDatabase : IDisposable
             ResearchTreeVersion = version,
             VehicleId = vehicle.Id,
             Vehicle = vehicle,
-            RankId = rank.Id,
-            Rank = rank,
+            TreeRankId = ResolveRank(version, rank).Id,
             RpCost = rpCost
         });
 
@@ -151,10 +171,12 @@ internal sealed class CalculatorTestDatabase : IDisposable
     public VehicleTreeEntry AddVehicleTreeEntry(
         ResearchTreeVersion version,
         Vehicle vehicle,
-        Rank rank,
+        TreeRank rank,
         int rpCost,
         int slCost = 0)
     {
+        var resolvedRank = ResolveRank(version, rank);
+
         var entry = new VehicleTreeEntry
         {
             Id = Guid.NewGuid(),
@@ -162,14 +184,36 @@ internal sealed class CalculatorTestDatabase : IDisposable
             ResearchTreeVersion = version,
             VehicleId = vehicle.Id,
             Vehicle = vehicle,
-            RankId = rank.Id,
-            Rank = rank,
+            TreeRankId = resolvedRank.Id,
             RpCost = rpCost,
             SlCost = slCost
         };
 
         Context.VehicleTreeEntries.Add(entry);
         return entry;
+    }
+
+
+    /// <summary>
+    /// Ensures the entry references a TreeRank of the SAME version (Batch 4
+    /// invariant): reuses the given rank when it already belongs to the
+    /// version, otherwise maps it by rank number into the target version.
+    /// </summary>
+    private TreeRank ResolveRank(ResearchTreeVersion version, TreeRank rank)
+    {
+        if (rank.ResearchTreeVersionId == version.Id)
+        {
+            return rank;
+        }
+
+        var existing = Context.TreeRanks.Local
+            .FirstOrDefault(tr => tr.ResearchTreeVersionId == version.Id && tr.RankNumber == rank.RankNumber);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        return AddTreeRank(version, rank.RankNumber, rank.RequiredVehiclesUnlocked);
     }
 
     public void AddPrerequisite(Vehicle vehicle, Vehicle prerequisite)

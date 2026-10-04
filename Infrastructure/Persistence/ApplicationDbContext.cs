@@ -16,7 +16,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ResearchTree> ResearchTrees { get; set; } = null!;
     public DbSet<ResearchTreeVersion> ResearchTreeVersions { get; set; } = null!;
     public DbSet<GameUpdate> GameUpdates { get; set; } = null!;
-    public DbSet<Rank> Ranks { get; set; } = null!;
+    public DbSet<TreeRank> TreeRanks { get; set; } = null!;
     public DbSet<Vehicle> Vehicles { get; set; } = null!;
     public DbSet<VehicleTreeEntry> VehicleTreeEntries { get; set; } = null!;
     public DbSet<VehiclePrerequisite> VehiclePrerequisites { get; set; } = null!;

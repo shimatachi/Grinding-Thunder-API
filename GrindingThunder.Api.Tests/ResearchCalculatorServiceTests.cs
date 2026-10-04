@@ -41,9 +41,9 @@ public class ResearchCalculatorServiceTests
         var aviation = database.AddVehicleType("Aviation");
         var groundTree = database.AddResearchTree(nation, ground);
         var aviationTree = database.AddResearchTree(nation, aviation);
-        var groundRankOne = database.AddRank(groundTree, 1, requiredVehiclesUnlocked: 2);
-        var groundRankTwo = database.AddRank(groundTree, 2);
-        var aviationRankOne = database.AddRank(aviationTree, 1);
+        var groundRankOne = database.AddTreeRank(groundTree, 1, requiredVehiclesUnlocked: 2);
+        var groundRankTwo = database.AddTreeRank(groundTree, 2);
+        var aviationRankOne = database.AddTreeRank(aviationTree, 1);
         var mandatory = database.AddVehicle(groundRankOne, "Ground prerequisite", 10);
         var target = database.AddVehicle(groundRankTwo, "Ground target", 20);
         var aviationFiller = database.AddVehicle(aviationRankOne, "Aviation filler", 30);
@@ -64,7 +64,7 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var a = database.AddVehicle(rank, "A", 10);
         var b = database.AddVehicle(rank, "B", 20);
         var c = database.AddVehicle(rank, "C", 30);
@@ -85,7 +85,7 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var a = database.AddVehicle(rank, "A", 10);
         var b = database.AddVehicle(rank, "B", 20);
         var c = database.AddVehicle(rank, "C", 30);
@@ -107,7 +107,7 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var a = database.AddVehicle(rank, "A", 10);
         var b = database.AddVehicle(rank, "B", 20);
         var c = database.AddVehicle(rank, "C", 30);
@@ -130,7 +130,7 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var a = database.AddVehicle(rank, "A", 10);
         var b = database.AddVehicle(rank, "B", 20);
         database.AddPrerequisite(a, b);
@@ -148,7 +148,7 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var c = database.AddVehicle(rank, "C", 30);
         var d = database.AddVehicle(rank, "D", 40);
         var e = database.AddVehicle(rank, "E", 50);
@@ -174,7 +174,7 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var c = database.AddVehicle(rank, "C", 30);
         var d = database.AddVehicle(rank, "D", 40);
         var e = database.AddVehicle(rank, "E", 50);
@@ -196,7 +196,7 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var c = database.AddVehicle(rank, "C", 30);
         var d = database.AddVehicle(rank, "D", 40);
         database.AddPrerequisite(d, c);
@@ -215,9 +215,9 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rankOne = database.AddRank(nation, 1, requiredVehiclesUnlocked: 2);
-        var rankTwo = database.AddRank(nation, 2, requiredVehiclesUnlocked: 2);
-        var rankThree = database.AddRank(nation, 3);
+        var rankOne = database.AddTreeRank(nation, 1, requiredVehiclesUnlocked: 2);
+        var rankTwo = database.AddTreeRank(nation, 2, requiredVehiclesUnlocked: 2);
+        var rankThree = database.AddTreeRank(nation, 3);
         var mandatoryOne = database.AddVehicle(rankOne, "Mandatory I", 10);
         var ownedOne = database.AddVehicle(rankOne, "Owned I", 10);
         var mandatoryTwo = database.AddVehicle(rankTwo, "Mandatory II", 20);
@@ -238,10 +238,10 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rankOne = database.AddRank(nation, 1, requiredVehiclesUnlocked: 1);
-        var rankTwo = database.AddRank(nation, 2, requiredVehiclesUnlocked: 2);
-        var rankThree = database.AddRank(nation, 3, requiredVehiclesUnlocked: 2);
-        var rankFour = database.AddRank(nation, 4);
+        var rankOne = database.AddTreeRank(nation, 1, requiredVehiclesUnlocked: 1);
+        var rankTwo = database.AddTreeRank(nation, 2, requiredVehiclesUnlocked: 2);
+        var rankThree = database.AddTreeRank(nation, 3, requiredVehiclesUnlocked: 2);
+        var rankFour = database.AddTreeRank(nation, 4);
         var ownedOne = database.AddVehicle(rankOne, "Owned I", 10);
         var mandatoryTwo = database.AddVehicle(rankTwo, "Mandatory II", 20);
         var mandatoryThree = database.AddVehicle(rankThree, "Mandatory III", 30);
@@ -264,9 +264,9 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        database.AddRank(nation, 1);
-        var rankTwo = database.AddRank(nation, 2, requiredVehiclesUnlocked: 2);
-        var rankThree = database.AddRank(nation, 3);
+        database.AddTreeRank(nation, 1);
+        var rankTwo = database.AddTreeRank(nation, 2, requiredVehiclesUnlocked: 2);
+        var rankThree = database.AddTreeRank(nation, 3);
         var mandatory = database.AddVehicle(rankTwo, "Mandatory", 20);
         var filler = database.AddVehicle(rankTwo, "Filler", 25);
         var target = database.AddVehicle(rankThree, "Target", 30);
@@ -287,7 +287,7 @@ public class ResearchCalculatorServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
-        var rank = database.AddRank(nation, 1);
+        var rank = database.AddTreeRank(nation, 1);
         var target = database.AddVehicle(rank, "Target", 100);
         await database.SaveChangesAsync();
 

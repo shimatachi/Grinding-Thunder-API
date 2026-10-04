@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<GameUpdate> GameUpdates { get; set; } = null!;
     public DbSet<Rank> Ranks { get; set; } = null!;
     public DbSet<Vehicle> Vehicles { get; set; } = null!;
+    public DbSet<VehicleTreeEntry> VehicleTreeEntries { get; set; } = null!;
     public DbSet<VehiclePrerequisite> VehiclePrerequisites { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -13,16 +13,25 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetVehicles()
     {
+        // TRANSITIONAL (Batch 3): rank/RP/SL now live on VehicleTreeEntry.
+        // Until explicit version selection exists (Batch 7), a vehicle's flat
+        // RankId/RpCost/SlCost fields are only populated when it has exactly
+        // one tree entry; they are null when it has none or spans multiple
+        // versions. We never silently pick an arbitrary entry as canonical.
         var vehicles = await _context.Vehicles
             .AsNoTracking()
             .Select(v => new
             {
                 v.Id,
-                v.RankId,
+                TreeEntries = v.TreeEntries.Select(e => new
+                {
+                    e.ResearchTreeVersionId,
+                    e.RankId,
+                    e.RpCost,
+                    e.SlCost
+                }).ToList(),
                 v.Name,
                 v.ImageUrl,
-                v.RpCost,
-                v.SlCost,
                 v.IsFolderParent,
                 v.FolderParentId,
                 v.TreeColumn,
@@ -31,7 +40,27 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(vehicles);
+        return Ok(vehicles.Select(v =>
+        {
+            // Deterministic: only expose flat values when there is exactly one entry.
+            var singleEntry = v.TreeEntries.Count == 1 ? v.TreeEntries[0] : null;
+
+            return new
+            {
+                v.Id,
+                RankId = singleEntry?.RankId,
+                v.Name,
+                v.ImageUrl,
+                RpCost = singleEntry?.RpCost,
+                SlCost = singleEntry?.SlCost,
+                v.IsFolderParent,
+                v.FolderParentId,
+                v.TreeColumn,
+                v.TreeRow,
+                v.Prerequisites,
+                TreeEntries = v.TreeEntries
+            };
+        }));
     }
 
     [HttpGet("tree")]
@@ -45,36 +74,38 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
             return BadRequest("nationId is required.");
         }
 
-        var query = _context.Vehicles
+                // TRANSITIONAL (Batch 3): rank/RP/SL now live on VehicleTreeEntry; the
+        // tree is filtered through the entry's rank and projected from the entry.
+        var query = _context.VehicleTreeEntries
             .AsNoTracking()
-            .Where(v => v.Rank.ResearchTree.NationId == nationId);
+            .Where(e => e.Rank.ResearchTree.NationId == nationId);
 
         if (!string.IsNullOrWhiteSpace(type))
         {
             var normalizedType = type.ToLowerInvariant();
-            query = query.Where(v => v.Rank.ResearchTree.VehicleType.Name.ToLower() == normalizedType);
+            query = query.Where(e => e.Rank.ResearchTree.VehicleType.Name.ToLower() == normalizedType);
         }
 
-        var vehicles = await query
-            .Select(v => new
+        var entries = await query
+            .Select(e => new
             {
-                v.Id,
-                v.RankId,
-                v.Rank.ResearchTreeId,
-                v.Name,
-                v.ImageUrl,
-                v.RpCost,
-                v.SlCost,
-                v.IsFolderParent,
-                v.FolderParentId,
-                v.TreeColumn,
-                v.TreeRow,
-                PrerequisiteIds = v.Prerequisites
+                e.Vehicle.Id,
+                e.RankId,
+                e.Rank.ResearchTreeId,
+                e.Vehicle.Name,
+                e.Vehicle.ImageUrl,
+                e.RpCost,
+                e.SlCost,
+                e.Vehicle.IsFolderParent,
+                e.Vehicle.FolderParentId,
+                e.Vehicle.TreeColumn,
+                e.Vehicle.TreeRow,
+                PrerequisiteIds = e.Vehicle.Prerequisites
                     .Select(p => p.PrerequisiteVehicleId)
                     .ToList()
             })
             .ToListAsync(cancellationToken);
 
-        return Ok(vehicles);
+        return Ok(entries);
     }
 }

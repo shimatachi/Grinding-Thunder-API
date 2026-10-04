@@ -102,17 +102,74 @@ internal sealed class CalculatorTestDatabase : IDisposable
 
     public Vehicle AddVehicle(Rank rank, string name, int rpCost)
     {
+        return AddVehicle(rank.ResearchTree, rank, name, rpCost);
+    }
+
+    public Vehicle AddVehicle(
+        ResearchTree researchTree,
+        Rank rank,
+        string name,
+        int rpCost,
+        ResearchTreeVersion? treeVersion = null)
+    {
         var vehicle = new Vehicle
         {
             Id = Guid.NewGuid(),
-            RankId = rank.Id,
-            Rank = rank,
-            Name = name,
-            RpCost = rpCost
+            Name = name
         };
 
         Context.Vehicles.Add(vehicle);
+
+        // A vehicle only exists in a tree through a versioned tree entry
+        // carrying its rank and RP cost for that version.
+        var version = treeVersion ?? Context.ResearchTreeVersions.Local
+            .FirstOrDefault(rtv => rtv.ResearchTreeId == researchTree.Id);
+
+        if (version is null)
+        {
+            var gameUpdate = Context.GameUpdates.Local.FirstOrDefault()
+                ?? AddGameUpdate("test-update");
+
+            version = AddResearchTreeVersion(researchTree, gameUpdate);
+        }
+
+        Context.VehicleTreeEntries.Add(new VehicleTreeEntry
+        {
+            Id = Guid.NewGuid(),
+            ResearchTreeVersionId = version.Id,
+            ResearchTreeVersion = version,
+            VehicleId = vehicle.Id,
+            Vehicle = vehicle,
+            RankId = rank.Id,
+            Rank = rank,
+            RpCost = rpCost
+        });
+
         return vehicle;
+    }
+
+    public VehicleTreeEntry AddVehicleTreeEntry(
+        ResearchTreeVersion version,
+        Vehicle vehicle,
+        Rank rank,
+        int rpCost,
+        int slCost = 0)
+    {
+        var entry = new VehicleTreeEntry
+        {
+            Id = Guid.NewGuid(),
+            ResearchTreeVersionId = version.Id,
+            ResearchTreeVersion = version,
+            VehicleId = vehicle.Id,
+            Vehicle = vehicle,
+            RankId = rank.Id,
+            Rank = rank,
+            RpCost = rpCost,
+            SlCost = slCost
+        };
+
+        Context.VehicleTreeEntries.Add(entry);
+        return entry;
     }
 
     public void AddPrerequisite(Vehicle vehicle, Vehicle prerequisite)

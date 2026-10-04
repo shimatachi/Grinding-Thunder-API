@@ -10,7 +10,7 @@ namespace GrindingThunder.Api.Infrastructure.Services;
 /// Calculates the research points (RP) required to unlock a target vehicle by
 /// traversing the explicit prerequisite lines upwards and incorporating
 /// player-chosen filler vehicles for rank-gate requirements.
-/// No auto-picking of fillers — the frontend supplies explicit FillerTargetIds.
+/// No auto-picking of fillers ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the frontend supplies explicit FillerTargetIds.
 /// </summary>
 public class ResearchCalculatorService : IResearchCalculatorService
 {
@@ -42,21 +42,59 @@ public class ResearchCalculatorService : IResearchCalculatorService
             .Distinct()
             .ToHashSet();
 
-        // Locate the target vehicle and its research tree so we can scope the traversal.
-        var target = await _context.Vehicles
+        // Locate the target vehicle's tree entry and its research tree so we can scope the traversal.
+        // TRANSITIONAL (Batch 3): the calculation request is not yet
+        // version-aware (that redesign belongs to Batch 7). The target's tree
+        // is resolved through VehicleTreeEntries; RP cost and rank are read
+        // from the entry, not from the Vehicle itself.
+        var targetEntries = await _context.VehicleTreeEntries
             .AsNoTracking()
-            .Include(v => v.Rank)
-            .FirstOrDefaultAsync(v => v.Id == request.TargetVehicleId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Vehicle '{request.TargetVehicleId}' was not found.");
+            .Include(e => e.Rank)
+            .Where(e => e.VehicleId == request.TargetVehicleId)
+            .ToListAsync(cancellationToken);
 
-        var researchTreeId = target.Rank.ResearchTreeId;
+        if (targetEntries.Count == 0)
+        {
+            throw new KeyNotFoundException(
+                $"Vehicle '{request.TargetVehicleId}' was not found in any research tree version.");
+        }
+
+        if (targetEntries.Select(e => e.ResearchTreeVersionId).Distinct().Count() > 1)
+        {
+            // Fail clearly instead of silently choosing an arbitrary version.
+            throw new InvalidOperationException(
+                $"Vehicle '{request.TargetVehicleId}' appears in multiple research tree versions; " +
+                "version-aware calculation is not implemented yet.");
+        }
+
+        var targetEntry = targetEntries[0];
+        var researchTreeId = targetEntry.Rank.ResearchTreeId;
 
         // Load the full research sub-graph for the target's tree in a few queries,
         // then traverse in memory to avoid N+1 async round trips.
-        var vehicles = await _context.Vehicles
+        var entries = await _context.VehicleTreeEntries
             .AsNoTracking()
-            .Where(v => v.Rank.ResearchTreeId == researchTreeId)
+            .Include(e => e.Vehicle)
+            .Where(e => e.Rank.ResearchTreeId == researchTreeId)
             .ToListAsync(cancellationToken);
+
+        var vehicles = entries.Select(e => e.Vehicle).ToList();
+        // TRANSITIONAL (Batch 3): the request is not version-aware yet (Batch 7).
+        // If any vehicle in the tree — not just the target — appears in multiple
+        // versions, the one-entry-per-vehicle assumption breaks. Fail with a clear
+        // domain error instead of an opaque dictionary failure.
+        var ambiguousVehicleId = entries
+            .GroupBy(e => e.VehicleId)
+            .FirstOrDefault(g => g.Count() > 1)?.Key;
+
+        if (ambiguousVehicleId.HasValue)
+        {
+            throw new InvalidOperationException(
+                $"Vehicle '{ambiguousVehicleId.Value}' appears in multiple research tree versions; " +
+                "version-aware calculation is not implemented yet.");
+        }
+
+        var entryByVehicleId = entries.ToDictionary(e => e.VehicleId);
 
         var vehicleIds = vehicles.Select(v => v.Id).ToList();
 
@@ -71,7 +109,7 @@ public class ResearchCalculatorService : IResearchCalculatorService
             .ToListAsync(cancellationToken);
 
         var vehicleMap = vehicles.ToDictionary(v => v.Id);
-        var vehiclesByRank = vehicles.GroupBy(v => v.RankId).ToDictionary(g => g.Key, g => g.ToList());
+        var vehiclesByRank = entries.GroupBy(e => e.RankId).ToDictionary(g => g.Key, g => g.Select(e => e.Vehicle).ToList());
 
         // VehicleId -> list of prerequisite vehicle ids (dependency direction points up the tree).
         var prereqMap = prerequisites
@@ -117,7 +155,7 @@ public class ResearchCalculatorService : IResearchCalculatorService
             }
         }
 
-        CollectLine(target.Id);
+        CollectLine(targetEntry.VehicleId);
 
         // ------------------------------------------------------------------
         // Step 1b: Collect explicit filler targets and their line prerequisites.
@@ -134,11 +172,11 @@ public class ResearchCalculatorService : IResearchCalculatorService
             if (!vehicleMap.TryGetValue(vehicleId, out var vehicle))
                 return;
 
-            // Already unlocked — skip.
+            // Already unlocked ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â skip.
             if (unlockedSet.Contains(vehicleId))
                 return;
 
-            // Already part of the mandatory line — no need to also track as filler.
+            // Already part of the mandatory line ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no need to also track as filler.
             if (requiredIds.Contains(vehicleId))
             {
                 // Still recurse into prerequisites in case they're not in the line.
@@ -152,7 +190,7 @@ public class ResearchCalculatorService : IResearchCalculatorService
                 return;
             }
 
-            // Already collected as filler — avoid duplicate work.
+            // Already collected as filler ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â avoid duplicate work.
             if (!fillerIds.Add(vehicleId))
                 return;
 
@@ -178,11 +216,11 @@ public class ResearchCalculatorService : IResearchCalculatorService
         //
         // Evaluate each rank sequentially. Count unique vehicles that are
         // either already unlocked, part of the mandatory line, or part of the
-        // explicit filler set. If a rank's quota is not met, STOP — return
+        // explicit filler set. If a rank's quota is not met, STOP ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â return
         // the accumulated results with a RankDeficit for that rank.
         // Do NOT auto-pick fillers.
         // ------------------------------------------------------------------
-        var targetRankNumber = target.Rank.RankNumber;
+        var targetRankNumber = targetEntry.Rank.RankNumber;
         var rankDeficits = new List<RankDeficitDto>();
 
         foreach (var rank in ranks
@@ -205,13 +243,13 @@ public class ResearchCalculatorService : IResearchCalculatorService
             var shortfall = threshold - count;
             if (shortfall > 0)
             {
-                // Rank gate not satisfied — report deficit and stop.
+                // Rank gate not satisfied ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â report deficit and stop.
                 rankDeficits.Add(new RankDeficitDto(
                     rank.RankNumber,
                     shortfall,
                     threshold));
 
-                // Stop evaluating further ranks — the player must resolve
+                // Stop evaluating further ranks ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the player must resolve
                 // this deficit before higher ranks can be calculated.
                 break;
             }
@@ -222,15 +260,15 @@ public class ResearchCalculatorService : IResearchCalculatorService
         // ------------------------------------------------------------------
         var requiredVehicleSummaries = new List<VehicleRpSummary>(required.Count + fillerVehicles.Count);
         requiredVehicleSummaries.AddRange(required.Select(v =>
-            new VehicleRpSummary(v.Id, v.Name, v.RpCost, false)));
+            new VehicleRpSummary(v.Id, v.Name, entryByVehicleId[v.Id].RpCost, false)));
         requiredVehicleSummaries.AddRange(fillerVehicles.Select(v =>
-            new VehicleRpSummary(v.Id, v.Name, v.RpCost, true)));
+            new VehicleRpSummary(v.Id, v.Name, entryByVehicleId[v.Id].RpCost, true)));
 
         var totalRp = requiredVehicleSummaries.Sum(v => v.RpRemaining);
         var estimatedMatches = (int)Math.Ceiling((double)totalRp / request.AverageRpPerMatch);
 
         return new ResearchCalculationResult(
-            target.Id,
+            targetEntry.VehicleId,
             totalRp,
             estimatedMatches,
             requiredVehicleSummaries,

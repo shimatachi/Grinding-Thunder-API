@@ -8,5 +8,5 @@ public class Rank
     public int RequiredVehiclesUnlocked { get; set; }
 
     public ResearchTree ResearchTree { get; set; } = null!;
-    public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+    public ICollection<VehicleTreeEntry> TreeEntries { get; set; } = new List<VehicleTreeEntry>();
 }

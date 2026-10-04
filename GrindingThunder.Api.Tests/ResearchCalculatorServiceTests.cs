@@ -99,7 +99,7 @@ public class ResearchCalculatorServiceTests
             RequestFor(d, unlockedVehicleIds: [c.Id]));
 
         AssertVehicleIds(result, d);
-        Assert.Equal(d.RpCost, result.TotalRpRequired);
+        Assert.Equal(40, result.TotalRpRequired);
     }
 
     [Fact]

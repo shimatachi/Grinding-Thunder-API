@@ -111,7 +111,7 @@ public static class DbInitializer
         await context.SaveChangesAsync();
 
         // 4. Seed a sample game update and one tree version per research tree.
-        //    Development sample data only — real War Thunder update history
+        //    Development sample data only â€” real War Thunder update history
         //    is intentionally not modeled yet.
         var sampleGameUpdate = await context.GameUpdates
             .FirstOrDefaultAsync(gu => gu.Version == SampleGameUpdateVersion);
@@ -151,8 +151,8 @@ public static class DbInitializer
 
         await context.SaveChangesAsync();
 
-        // 5. Seed sample vehicles and prerequisites if missing.
-        if (!await context.Vehicles.AnyAsync())
+        // 5. Seed sample vehicles, tree entries, and prerequisites if missing.
+        if (!await context.VehicleTreeEntries.AnyAsync())
         {
             var usaGroundTree = await context.ResearchTrees
                 .Include(rt => rt.Ranks)
@@ -163,17 +163,19 @@ public static class DbInitializer
             {
                 var rank1 = usaGroundTree.Ranks.FirstOrDefault(r => r.RankNumber == 1);
                 var rank2 = usaGroundTree.Ranks.FirstOrDefault(r => r.RankNumber == 2);
+                var usaGroundVersion = await context.ResearchTreeVersions
+                    .FirstAsync(rtv =>
+                        rtv.ResearchTreeId == usaGroundTree.Id &&
+                        rtv.GameUpdateId == context.GameUpdates.AsNoTracking().Where(gu => gu.Version == SampleGameUpdateVersion).Select(gu => gu.Id).First());
 
-                if (rank1 != null && rank2 != null)
+                if (rank1 != null && rank2 != null && usaGroundVersion != null)
                 {
-                    // Rank I Vehicles
+                    // Stable vehicle identities — version-specific state
+                    // (rank, RP cost, SL cost) lives in their tree entries.
                     var m2Light = new Vehicle
                     {
                         Id = Guid.NewGuid(),
-                        RankId = rank1.Id,
                         Name = "M2 Light",
-                        RpCost = 2900,
-                        SlCost = 700,
                         IsFolderParent = false,
                         TreeColumn = 1,
                         TreeRow = 1,
@@ -183,10 +185,7 @@ public static class DbInitializer
                     var m3Stuart = new Vehicle
                     {
                         Id = Guid.NewGuid(),
-                        RankId = rank1.Id,
                         Name = "M3 Stuart",
-                        RpCost = 4000,
-                        SlCost = 1400,
                         IsFolderParent = false,
                         TreeColumn = 1,
                         TreeRow = 2,
@@ -196,10 +195,7 @@ public static class DbInitializer
                     var m2a4 = new Vehicle
                     {
                         Id = Guid.NewGuid(),
-                        RankId = rank1.Id,
                         Name = "M2A4",
-                        RpCost = 2900,
-                        SlCost = 700,
                         IsFolderParent = false,
                         TreeColumn = 2,
                         TreeRow = 1,
@@ -209,10 +205,7 @@ public static class DbInitializer
                     var m3a1Stuart = new Vehicle
                     {
                         Id = Guid.NewGuid(),
-                        RankId = rank1.Id,
                         Name = "M3A1 Stuart",
-                        RpCost = 4000,
-                        SlCost = 1400,
                         IsFolderParent = false,
                         TreeColumn = 2,
                         TreeRow = 2,
@@ -223,10 +216,7 @@ public static class DbInitializer
                     var m4a1Sherman = new Vehicle
                     {
                         Id = Guid.NewGuid(),
-                        RankId = rank2.Id,
                         Name = "M4A1 Sherman",
-                        RpCost = 9200,
-                        SlCost = 3800,
                         IsFolderParent = false,
                         TreeColumn = 1,
                         TreeRow = 1,
@@ -236,10 +226,7 @@ public static class DbInitializer
                     var m3Lee = new Vehicle
                     {
                         Id = Guid.NewGuid(),
-                        RankId = rank2.Id,
                         Name = "M3 Lee",
-                        RpCost = 5900,
-                        SlCost = 2200,
                         IsFolderParent = false,
                         TreeColumn = 2,
                         TreeRow = 1,
@@ -247,8 +234,69 @@ public static class DbInitializer
                     };
 
                     context.Vehicles.AddRange(m2Light, m3Stuart, m2a4, m3a1Stuart, m4a1Sherman, m3Lee);
+                    await context.SaveChangesAsync();
+
+                    // Version-specific placements (rank, RP cost, SL cost).
+                    context.VehicleTreeEntries.AddRange(
+                        new VehicleTreeEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            ResearchTreeVersionId = usaGroundVersion.Id,
+                            VehicleId = m2Light.Id,
+                            RankId = rank1.Id,
+                            RpCost = 2900,
+                            SlCost = 700
+                        },
+                        new VehicleTreeEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            ResearchTreeVersionId = usaGroundVersion.Id,
+                            VehicleId = m3Stuart.Id,
+                            RankId = rank1.Id,
+                            RpCost = 4000,
+                            SlCost = 1400
+                        },
+                        new VehicleTreeEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            ResearchTreeVersionId = usaGroundVersion.Id,
+                            VehicleId = m2a4.Id,
+                            RankId = rank1.Id,
+                            RpCost = 2900,
+                            SlCost = 700
+                        },
+                        new VehicleTreeEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            ResearchTreeVersionId = usaGroundVersion.Id,
+                            VehicleId = m3a1Stuart.Id,
+                            RankId = rank1.Id,
+                            RpCost = 4000,
+                            SlCost = 1400
+                        },
+                        new VehicleTreeEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            ResearchTreeVersionId = usaGroundVersion.Id,
+                            VehicleId = m4a1Sherman.Id,
+                            RankId = rank2.Id,
+                            RpCost = 9200,
+                            SlCost = 3800
+                        },
+                        new VehicleTreeEntry
+                        {
+                            Id = Guid.NewGuid(),
+                            ResearchTreeVersionId = usaGroundVersion.Id,
+                            VehicleId = m3Lee.Id,
+                            RankId = rank2.Id,
+                            RpCost = 5900,
+                            SlCost = 2200
+                        }
+                    );
 
                     // Set Prerequisite Edges
+                    // TRANSITIONAL (Batch 3): edges still reference Vehicle
+                    // identities; they move to versioned edges in Batch 5.
                     context.VehiclePrerequisites.AddRange(
                         new VehiclePrerequisite
                         {

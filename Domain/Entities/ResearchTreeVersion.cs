@@ -18,6 +18,7 @@ public class ResearchTreeVersion
 
     public ResearchTree ResearchTree { get; set; } = null!;
     public GameUpdate GameUpdate { get; set; } = null!;
+    public ICollection<VehicleTreeEntry> Entries { get; set; } = new List<VehicleTreeEntry>();
 }
 
 /// <summary>Lifecycle states for a research tree version.</summary>

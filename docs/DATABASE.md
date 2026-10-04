@@ -2,7 +2,7 @@
 
 ## CURRENT — EF Core/PostgreSQL model
 
-Migrations build the following entities/tables. `Nation` and `VehicleType` are stable identities; a `ResearchTree` is one Nation + VehicleType combination. `GameUpdate` identifies a War Thunder update, and `ResearchTreeVersion` is one tree's snapshot for one update — the versioning backbone introduced so far.
+Migrations build the following entities/tables. `Nation` and `VehicleType` are stable identities; a `ResearchTree` is one Nation + VehicleType combination. `GameUpdate` identifies a War Thunder update, and `ResearchTreeVersion` is one tree's snapshot for one update with version-owned ranks, entries, prerequisites, and layout/folder data.
 
 | Entity | Current data and relationships |
 | --- | --- |
@@ -34,6 +34,6 @@ The `VersionVehicleLayoutAndFolders` migration adds entry layout/folder columns,
 | `VehicleTreeEntry` or equivalent | Version-specific vehicle membership, cost, rank, availability, visual position, and folder/group placement. |
 | Versioned prerequisite edge | Explicit progression dependency within a tree snapshot. |
 
-These are conceptual names, not committed table or column names. Published versions should be immutable historical snapshots: a new game update creates new tree state instead of overwriting an earlier published version. The repository is early-stage, so the current migrations and sample database may be reset when the corrected foundational model is implemented rather than preserving prototype migrations at all costs. The exact migration plan, keys, and constraints belong to that implementation milestone.
+These concepts now have concrete implementations in the current schema, although future requirements may refine their names or representation. Published versions should be immutable historical snapshots: a new game update creates new tree state instead of overwriting an earlier published version. The draft/clone/publish workflow and enforcement of published-version immutability remain future work.
 
 Acquisition type is expected to belong to versioned vehicle-tree state or closely related progression data. Its final persistence representation will be decided in a later milestone.

@@ -1,26 +1,27 @@
 # Grinding Thunder API
 
-ASP.NET Core backend for planning War Thunder vehicle progression. It models vehicle prerequisites and rank gates so a player can estimate the remaining Research Points (RP) and matches needed to reach a target vehicle.
+ASP.NET Core backend for planning War Thunder vehicle progression. It models versioned vehicle prerequisites and rank gates so a player can estimate the remaining Research Points (RP), Silver Lions (SL), and matches needed to reach a target vehicle.
 
 ## Overview
 
-Grinding Thunder API just helps you keep receipts. It parses tech tree requirements to calculate the exact Research Points (RP), Silver Lions (SL), mandatory prerequisite vehicles, and estimated real-world hours needed to reach your target vehicle from your current progress.
+Grinding Thunder API follows a selected tech-tree snapshot to calculate the remaining Research Points (RP), vehicle-purchase Silver Lions (SL), mandatory prerequisite vehicles, and estimated matches needed to reach a target vehicle from the player's current progress.
 
-The current API exposes nation and vehicle data, traverses explicit prerequisite links, includes player-selected vehicles needed toward rank gates, totals remaining RP, and estimates matches from average RP earned per match. It is an early prototype: it does not yet persist player inventories, calculate total Silver Lions (SL), select rank-gate fillers automatically, or provide historical tech-tree versions.
+The current API exposes nations, research trees, versions, version-owned ranks, and vehicle entries. The calculator requires a `ResearchTreeVersionId`, traverses only that version's explicit prerequisite graph, includes player-selected vehicles needed toward rank gates, totals remaining RP and SL, and estimates matches from both average RP and average net SL earned per match. It does not persist player inventories, select rank-gate fillers automatically, or provide an admin publishing workflow.
 
 Development seed data currently contains USA, USSR, Germany, and Great Britain ground research trees (plus any trees already in the database), a sample `dev-sample` game update with one published tree version each, and a small sample of USA vehicles. This sample does not represent complete game coverage.
 
 ## Key Features
 
-- List nations, their ranks, and data-driven rank unlock thresholds.
-- List vehicles or filter the vehicle tree by nation and vehicle type.
-- Calculate the explicit prerequisite graph for a target vehicle.
-- Exclude supplied unlocked vehicle IDs from the RP total.
+- List nations with their research trees, tree versions, version-owned ranks, and data-driven rank unlock thresholds.
+- List stable vehicles with versioned tree entries, or filter entries by nation and vehicle type.
+- Calculate the explicit prerequisite graph for a target vehicle in a caller-selected tree version.
+- Treat supplied unlocked vehicles as traversal boundaries and exclude them from both RP and SL totals.
 - Include player-selected filler targets and their prerequisite lines.
 - Report the first unmet rank quota below the target rank.
-- Estimate matches as `ceiling(total remaining RP / average RP per match)`.
+- Total RP and vehicle-purchase SL from the same deduplicated set of remaining entries.
+- Estimate RP and SL matches independently with ceiling division, then report the greater value as the combined estimate.
 
-The current calculator can traverse beyond an already-unlocked vehicle and therefore overcount prerequisites behind it. See [Product](docs/PRODUCT.md) for the implemented scope, intended behavior, and roadmap.
+See [Product](docs/PRODUCT.md) for the implemented scope, intended behavior, and future direction.
 
 ## Domain
 
@@ -29,10 +30,10 @@ The core domain separates progression dependencies from how the tech tree is dis
 - A `Vehicle` represents a stable vehicle identity.
 - Prerequisite edges form a directed graph; tree rows and columns do not imply progression requirements.
 - Rank unlock requirements come from data rather than hard-coded calculator rules.
-- RP cost, SL cost, rank, availability, placement, and prerequisites can change between game updates and are intended to belong to versioned tech-tree snapshots.
+- RP cost, SL cost, rank, placement, folder membership, and prerequisites belong to versioned tech-tree snapshots because they can change between game updates.
 - Published snapshots are intended to be immutable historical records.
 
-The current prototype has not completed that versioned model: mutable tree data still lives directly on `Vehicle`, ranks belong to `ResearchTree` rather than to a tree version, and prerequisite edges are unversioned. `GameUpdate` and `ResearchTreeVersion` exist as the versioning backbone, but no versioned content is attached to them yet. The canonical concepts and known gaps are documented in [Domain](docs/DOMAIN.md).
+The implemented model keeps `Vehicle` as stable identity. `VehicleTreeEntry` owns version-specific costs, rank association, layout, and folder membership; `TreeRank` owns version-specific rank-gate configuration; and `VehiclePrerequisite` links entries within one `ResearchTreeVersion`. Database constraints prevent prerequisite and folder relationships from crossing version boundaries. Research availability and acquisition type remain future versioned concerns. The canonical concepts and remaining gaps are documented in [Domain](docs/DOMAIN.md).
 
 ## Architecture
 
@@ -65,11 +66,12 @@ The API uses Entity Framework Core with PostgreSQL. The current schema is define
 | `ResearchTrees` | One unique Nation + VehicleType combination. |
 | `GameUpdates` | War Thunder update identity: unique version string, optional name and release date. |
 | `ResearchTreeVersions` | One tree's snapshot for one update (unique pair), with a Draft/Published status. |
-| `Ranks` | Rank number and required unlocked-vehicle count for a research tree. |
-| `Vehicles` | Vehicle details, RP/SL costs, rank, visual position, optional image, and folder relationship. |
-| `VehiclePrerequisites` | Explicit self-referencing vehicle prerequisite edges. |
+| `TreeRanks` | Version-owned rank numbers and required unlocked-vehicle counts. |
+| `Vehicles` | Stable vehicle identity: name and optional image URL. |
+| `VehicleTreeEntries` | Version-specific vehicle membership, RP/SL costs, rank association, layout, and optional same-version folder parent. |
+| `VehiclePrerequisites` | Explicit prerequisite edges between entries in the same tree version. |
 
-In the Development environment, application startup applies pending migrations and inserts sample data when the corresponding tables are empty. The schema is still a prototype: tree versions exist, but versioned content (costs, ranks, prerequisites, layout) is not attached to them yet; [Database](docs/DATABASE.md) describes both the implemented schema and the conceptual target model.
+In the Development environment, application startup applies pending migrations and inserts sample data when the corresponding tables are empty. [Database](docs/DATABASE.md) describes the implemented versioned schema, its integrity constraints, and the remaining conceptual target.
 
 ## Tech Stack
 
@@ -128,12 +130,25 @@ The CORS policy currently permits `http://localhost:3000` only.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/nations` | List nations with their research trees, ranks, and unlock thresholds. |
-| `GET` | `/api/vehicles` | List all vehicles and prerequisite IDs. |
-| `GET` | `/api/vehicles/tree?nationId={id}&type={type}` | List a nation's vehicles, optionally filtered by its current type. |
-| `POST` | `/api/research/calculate` | Calculate remaining RP, required vehicles, estimated matches, and the first rank deficit. |
+| `GET` | `/api/nations` | List nations with research trees, vehicle types, versions, ranks, and unlock thresholds. |
+| `GET` | `/api/vehicles` | List stable vehicles, their versioned entries, and prerequisite data. |
+| `GET` | `/api/vehicles/tree?nationId={id}&type={type}` | List versioned entries for a nation, optionally filtered by vehicle-type name. |
+| `POST` | `/api/research/calculate` | Calculate remaining vehicles, RP, SL, resource-specific match estimates, the combined estimate, and the first rank deficit. |
 
-`POST /api/research/calculate` expects a target vehicle ID, lists of unlocked vehicle and filler target IDs, and a positive average RP per match. Use the nation and vehicle endpoints to obtain IDs from the current database.
+`POST /api/research/calculate` expects this JSON shape:
+
+```json
+{
+  "researchTreeVersionId": "00000000-0000-0000-0000-000000000000",
+  "targetVehicleId": "00000000-0000-0000-0000-000000000000",
+  "unlockedVehicleIds": [],
+  "fillerTargetIds": [],
+  "averageRpPerMatch": 2500,
+  "averageNetSlPerMatch": 10000
+}
+```
+
+Both averages must be positive, and every supplied vehicle ID must exist in the selected version. An unknown version returns `404`; invalid IDs, membership, or averages return `400`. A successful response contains `targetVehicleId`, `totalRpRequired`, `totalSlRequired`, `rpEstimatedMatches`, `slEstimatedMatches`, `estimatedMatches`, per-vehicle RP/SL summaries in `requiredVehicles`, and any first unmet rank gate in `rankDeficits`. Use the nation and vehicle endpoints to obtain IDs from the current database.
 
 ## Development
 
@@ -190,4 +205,6 @@ dotnet test
 - [Architecture](docs/ARCHITECTURE.md) — current boundaries and architectural direction
 - [Database](docs/DATABASE.md) — implemented persistence model and conceptual target
 - [Decisions](docs/DECISIONS.md) — chronological log of significant design decisions per batch
+- [Roadmap](docs/ROADMAP.md) — batch status and implementation sequence
+- [Development workflow](docs/WORKFLOW.md) — batch execution and verification process
 - [Project instructions](AGENTS.md) — engineering and documentation conventions

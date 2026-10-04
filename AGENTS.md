@@ -55,6 +55,23 @@ Do not require these documents to be read for unrelated trivial changes.
 
 Use `docs/DECISIONS.md` when you are uncertain about past technical decisions or the project's historical context.
 
+## Project execution model
+
+This repository is an ASP.NET Core HTTP REST API backed by PostgreSQL.
+It is not a desktop/GUI application or CLI product.
+
+Use `docs/ROADMAP.md` for implementation sequencing.
+Use `docs/WORKFLOW.md` for the batch implementation and verification process.
+
+Verification must be proportional to the change:
+
+- production code: build + relevant tests;
+- persistence changes: additionally verify migrations/database behavior;
+- HTTP contract changes: manually run the API and call affected REST endpoints only when useful;
+- documentation-only work: do not start the API without a concrete reason.
+
+Do not treat executing the generated `.exe` as a generic acceptance test.
+
 ## Development behavior
 
 Before making a substantial architectural change, inspect the relevant existing implementation and explain significant tradeoffs.

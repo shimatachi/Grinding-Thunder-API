@@ -8,9 +8,9 @@ using GrindingThunder.Api.Infrastructure.Persistence;
 namespace GrindingThunder.Api.Infrastructure.Services;
 
 /// <summary>
-/// Calculates the research points (RP) required to unlock a target vehicle by
-/// traversing the explicit prerequisite lines upwards and incorporating
-/// player-chosen filler vehicles for rank-gate requirements.
+/// Calculates the RP and SL required to obtain a target vehicle by traversing
+/// the explicit prerequisite lines upwards and incorporating player-chosen
+/// filler vehicles for rank-gate requirements.
 /// No auto-picking of fillers - the frontend supplies explicit FillerTargetIds.
 /// </summary>
 public class ResearchCalculatorService : IResearchCalculatorService
@@ -33,6 +33,13 @@ public class ResearchCalculatorService : IResearchCalculatorService
             throw new ArgumentOutOfRangeException(
                 nameof(request.AverageRpPerMatch),
                 "Average RP per match must be greater than zero.");
+        }
+
+        if (request.AverageNetSlPerMatch <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request.AverageNetSlPerMatch),
+                "Average net SL per match must be greater than zero.");
         }
 
         var unlockedSet = (request.UnlockedVehicleIds ?? new List<Guid>())
@@ -258,22 +265,48 @@ public class ResearchCalculatorService : IResearchCalculatorService
         }
 
         // ------------------------------------------------------------------
-        // Step 3: Total RP = mandatory line vehicles + explicit fillers.
+        // Step 3: Total remaining costs = mandatory line vehicles + explicit fillers.
         // ------------------------------------------------------------------
         var requiredVehicleSummaries = new List<VehicleRpSummary>(required.Count + fillerVehicles.Count);
         requiredVehicleSummaries.AddRange(required.Select(v =>
-            new VehicleRpSummary(v.Id, v.Name, entryByVehicleId[v.Id].RpCost, false)));
+            new VehicleRpSummary(
+                v.Id,
+                v.Name,
+                entryByVehicleId[v.Id].RpCost,
+                entryByVehicleId[v.Id].SlCost,
+                false)));
         requiredVehicleSummaries.AddRange(fillerVehicles.Select(v =>
-            new VehicleRpSummary(v.Id, v.Name, entryByVehicleId[v.Id].RpCost, true)));
+            new VehicleRpSummary(
+                v.Id,
+                v.Name,
+                entryByVehicleId[v.Id].RpCost,
+                entryByVehicleId[v.Id].SlCost,
+                true)));
 
-        var totalRp = requiredVehicleSummaries.Sum(v => v.RpRemaining);
-        var estimatedMatches = (int)Math.Ceiling((double)totalRp / request.AverageRpPerMatch);
+        var totalRp = requiredVehicleSummaries.Sum(v => (long)v.RpRemaining);
+        var totalSl = requiredVehicleSummaries.Sum(v => (long)v.SlRemaining);
+        var rpEstimatedMatches = DivideRoundUp(totalRp, request.AverageRpPerMatch);
+        var slEstimatedMatches = DivideRoundUp(totalSl, request.AverageNetSlPerMatch);
+        var estimatedMatches = Math.Max(rpEstimatedMatches, slEstimatedMatches);
 
         return new ResearchCalculationResult(
             targetEntry.VehicleId,
             totalRp,
+            totalSl,
+            rpEstimatedMatches,
+            slEstimatedMatches,
             estimatedMatches,
             requiredVehicleSummaries,
             rankDeficits);
+    }
+
+    private static long DivideRoundUp(long total, int amountPerMatch)
+    {
+        if (total == 0)
+        {
+            return 0;
+        }
+
+        return total / amountPerMatch + (total % amountPerMatch == 0 ? 0 : 1);
     }
 }

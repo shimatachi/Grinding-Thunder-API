@@ -66,10 +66,10 @@ public class ResearchCalculatorServiceTests
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
         var rank = database.AddTreeRank(nation, 1);
-        var a = database.AddVehicle(rank, "A", 10);
-        var b = database.AddVehicle(rank, "B", 20);
-        var c = database.AddVehicle(rank, "C", 30);
-        var d = database.AddVehicle(rank, "D", 40);
+        var a = database.AddVehicle(rank, "A", 10, 100);
+        var b = database.AddVehicle(rank, "B", 20, 200);
+        var c = database.AddVehicle(rank, "C", 30, 300);
+        var d = database.AddVehicle(rank, "D", 40, 400);
         database.AddPrerequisite(b, a);
         database.AddPrerequisite(c, b);
         database.AddPrerequisite(d, c);
@@ -87,10 +87,10 @@ public class ResearchCalculatorServiceTests
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
         var rank = database.AddTreeRank(nation, 1);
-        var a = database.AddVehicle(rank, "A", 10);
-        var b = database.AddVehicle(rank, "B", 20);
-        var c = database.AddVehicle(rank, "C", 30);
-        var d = database.AddVehicle(rank, "D", 40);
+        var a = database.AddVehicle(rank, "A", 10, 100);
+        var b = database.AddVehicle(rank, "B", 20, 200);
+        var c = database.AddVehicle(rank, "C", 30, 300);
+        var d = database.AddVehicle(rank, "D", 40, 400);
         database.AddPrerequisite(b, a);
         database.AddPrerequisite(c, b);
         database.AddPrerequisite(d, c);
@@ -101,6 +101,7 @@ public class ResearchCalculatorServiceTests
 
         AssertVehicleIds(result, d);
         Assert.Equal(40, result.TotalRpRequired);
+        Assert.Equal(400, result.TotalSlRequired);
     }
 
     [Fact]
@@ -109,10 +110,10 @@ public class ResearchCalculatorServiceTests
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
         var rank = database.AddTreeRank(nation, 1);
-        var a = database.AddVehicle(rank, "A", 10);
-        var b = database.AddVehicle(rank, "B", 20);
-        var c = database.AddVehicle(rank, "C", 30);
-        var d = database.AddVehicle(rank, "D", 40);
+        var a = database.AddVehicle(rank, "A", 10, 100);
+        var b = database.AddVehicle(rank, "B", 20, 200);
+        var c = database.AddVehicle(rank, "C", 30, 300);
+        var d = database.AddVehicle(rank, "D", 40, 400);
         database.AddPrerequisite(b, a);
         database.AddPrerequisite(c, a);
         database.AddPrerequisite(d, b);
@@ -124,6 +125,7 @@ public class ResearchCalculatorServiceTests
         AssertVehicleIds(result, d, b, c, a);
         Assert.Single(result.RequiredVehicles, vehicle => vehicle.VehicleId == a.Id);
         Assert.Equal(100, result.TotalRpRequired);
+        Assert.Equal(1_000, result.TotalSlRequired);
     }
 
     [Fact]
@@ -171,10 +173,10 @@ public class ResearchCalculatorServiceTests
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation();
         var rank = database.AddTreeRank(nation, 1);
-        var c = database.AddVehicle(rank, "C", 30);
-        var d = database.AddVehicle(rank, "D", 40);
-        var e = database.AddVehicle(rank, "E", 50);
-        var f = database.AddVehicle(rank, "F", 60);
+        var c = database.AddVehicle(rank, "C", 30, 300);
+        var d = database.AddVehicle(rank, "D", 40, 400);
+        var e = database.AddVehicle(rank, "E", 50, 500);
+        var f = database.AddVehicle(rank, "F", 60, 600);
         database.AddPrerequisite(d, c);
         database.AddPrerequisite(f, e);
         await database.SaveChangesAsync();
@@ -189,6 +191,9 @@ public class ResearchCalculatorServiceTests
                 .Where(vehicle => vehicle.IsRankGateFiller)
                 .Select(vehicle => vehicle.VehicleId)
                 .OrderBy(id => id));
+        Assert.Equal(180, result.TotalRpRequired);
+        Assert.Equal(1_800, result.TotalSlRequired);
+        Assert.Equal(4, result.RequiredVehicles.Count);
     }
 
     [Fact]
@@ -317,10 +322,94 @@ public class ResearchCalculatorServiceTests
             RequestFor(target, averageRpPerMatch: 30));
 
         Assert.Equal(100, result.TotalRpRequired);
+        Assert.Equal(4, result.RpEstimatedMatches);
+        Assert.Equal(0, result.SlEstimatedMatches);
         Assert.Equal(4, result.EstimatedMatches);
-        Assert.Equal(
-            (int)Math.Ceiling((double)result.TotalRpRequired / 30),
-            result.EstimatedMatches);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_SlDivision_RoundsUpAndZeroRpProducesZeroRpMatches()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        var target = database.AddVehicle(rank, "Target", rpCost: 0, slCost: 25_000);
+        await database.SaveChangesAsync();
+
+        var result = await database.Calculator.CalculateResearchAsync(
+            RequestFor(
+                target,
+                averageRpPerMatch: 2_000,
+                averageNetSlPerMatch: 10_000));
+
+        Assert.Equal(0, result.TotalRpRequired);
+        Assert.Equal(25_000, result.TotalSlRequired);
+        Assert.Equal(0, result.RpEstimatedMatches);
+        Assert.Equal(3, result.SlEstimatedMatches);
+        Assert.Equal(3, result.EstimatedMatches);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_RpIsLimitingResource_UsesRpEstimate()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        var target = database.AddVehicle(rank, "Target", rpCost: 8_000, slCost: 5_000);
+        await database.SaveChangesAsync();
+
+        var result = await database.Calculator.CalculateResearchAsync(
+            RequestFor(target, averageRpPerMatch: 1_000, averageNetSlPerMatch: 1_000));
+
+        Assert.Equal(8, result.RpEstimatedMatches);
+        Assert.Equal(5, result.SlEstimatedMatches);
+        Assert.Equal(8, result.EstimatedMatches);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_SlIsLimitingResource_UsesSlEstimate()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        var target = database.AddVehicle(rank, "Target", rpCost: 4_000, slCost: 9_000);
+        await database.SaveChangesAsync();
+
+        var result = await database.Calculator.CalculateResearchAsync(
+            RequestFor(target, averageRpPerMatch: 1_000, averageNetSlPerMatch: 1_000));
+
+        Assert.Equal(4, result.RpEstimatedMatches);
+        Assert.Equal(9, result.SlEstimatedMatches);
+        Assert.Equal(9, result.EstimatedMatches);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_EqualResourceEstimates_UsesThatEstimate()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        var target = database.AddVehicle(rank, "Target", rpCost: 4_000, slCost: 10_000);
+        await database.SaveChangesAsync();
+
+        var result = await database.Calculator.CalculateResearchAsync(
+            RequestFor(target, averageRpPerMatch: 1_000, averageNetSlPerMatch: 2_500));
+
+        Assert.Equal(4, result.RpEstimatedMatches);
+        Assert.Equal(4, result.SlEstimatedMatches);
+        Assert.Equal(4, result.EstimatedMatches);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_ZeroSlCost_ProducesZeroSlMatches()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        var target = database.AddVehicle(rank, "Target", rpCost: 5_000, slCost: 0);
+        await database.SaveChangesAsync();
+
+        var result = await database.Calculator.CalculateResearchAsync(
+            RequestFor(target, averageRpPerMatch: 2_000, averageNetSlPerMatch: 10_000));
+
+        Assert.Equal(3, result.RpEstimatedMatches);
+        Assert.Equal(0, result.SlEstimatedMatches);
+        Assert.Equal(3, result.EstimatedMatches);
     }
 
     [Fact]
@@ -341,9 +430,9 @@ public class ResearchCalculatorServiceTests
         await database.SaveChangesAsync();
 
         var resultA = await database.Calculator.CalculateResearchAsync(
-            new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 100));
+            new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 100, int.MaxValue));
         var resultB = await database.Calculator.CalculateResearchAsync(
-            new ResearchCalculationRequest(versionB.Id, target.Id, [], [], 100));
+            new ResearchCalculationRequest(versionB.Id, target.Id, [], [], 100, int.MaxValue));
 
         Assert.Equal(110, resultA.TotalRpRequired);
         Assert.Equal(new[] { target.Id, prerequisiteA.Id }.OrderBy(id => id),
@@ -369,9 +458,9 @@ public class ResearchCalculatorServiceTests
         await database.SaveChangesAsync();
 
         var resultA = await database.Calculator.CalculateResearchAsync(
-            new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 100));
+            new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 100, int.MaxValue));
         var resultB = await database.Calculator.CalculateResearchAsync(
-            new ResearchCalculationRequest(versionB.Id, target.Id, [], [], 100));
+            new ResearchCalculationRequest(versionB.Id, target.Id, [], [], 100, int.MaxValue));
 
         var deficitA = Assert.Single(resultA.RankDeficits);
         Assert.Equal(1, deficitA.Required);
@@ -395,7 +484,7 @@ public class ResearchCalculatorServiceTests
 
         var exception = await Assert.ThrowsAsync<ResearchCalculationInputException>(() =>
             database.Calculator.CalculateResearchAsync(
-                new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 100)));
+                new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 100, int.MaxValue)));
 
         Assert.Contains("Target vehicle", exception.Message);
         Assert.Contains(target.Id.ToString(), exception.Message);
@@ -410,7 +499,7 @@ public class ResearchCalculatorServiceTests
 
         var exception = await Assert.ThrowsAsync<ResearchTreeVersionNotFoundException>(() =>
             database.Calculator.CalculateResearchAsync(
-                new ResearchCalculationRequest(unknownVersionId, Guid.NewGuid(), [], [], 100)));
+                new ResearchCalculationRequest(unknownVersionId, Guid.NewGuid(), [], [], 100, int.MaxValue)));
 
         Assert.Contains(unknownVersionId.ToString(), exception.Message);
     }
@@ -435,7 +524,8 @@ public class ResearchCalculatorServiceTests
                     target.Id,
                     [otherVersionVehicle.Id],
                     [],
-                    100)));
+                    100,
+                    int.MaxValue)));
 
         Assert.Contains("Unlocked vehicle IDs", exception.Message);
         Assert.Contains(otherVersionVehicle.Id.ToString(), exception.Message);
@@ -462,7 +552,8 @@ public class ResearchCalculatorServiceTests
                     target.Id,
                     [],
                     [otherVersionVehicle.Id],
-                    100)));
+                    100,
+                    int.MaxValue)));
 
         Assert.Contains("Filler target IDs", exception.Message);
         Assert.Contains(otherVersionVehicle.Id.ToString(), exception.Message);
@@ -476,7 +567,7 @@ public class ResearchCalculatorServiceTests
 
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             database.Calculator.CalculateResearchAsync(
-                new ResearchCalculationRequest(Guid.NewGuid(), Guid.NewGuid(), [], [], 0)));
+                new ResearchCalculationRequest(Guid.NewGuid(), Guid.NewGuid(), [], [], 0, 100)));
 
         Assert.Equal("AverageRpPerMatch", exception.ParamName);
     }
@@ -488,9 +579,30 @@ public class ResearchCalculatorServiceTests
 
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             database.Calculator.CalculateResearchAsync(
-                new ResearchCalculationRequest(Guid.NewGuid(), Guid.NewGuid(), [], [], -1)));
+                new ResearchCalculationRequest(Guid.NewGuid(), Guid.NewGuid(), [], [], -1, 100)));
 
         Assert.Equal("AverageRpPerMatch", exception.ParamName);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task CalculateResearchAsync_NonPositiveAverageNetSlPerMatch_ThrowsArgumentOutOfRangeException(
+        int averageNetSlPerMatch)
+    {
+        using var database = new CalculatorTestDatabase();
+
+        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            database.Calculator.CalculateResearchAsync(
+                new ResearchCalculationRequest(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    [],
+                    [],
+                    100,
+                    averageNetSlPerMatch)));
+
+        Assert.Equal("AverageNetSlPerMatch", exception.ParamName);
     }
 
     [Fact]
@@ -508,7 +620,8 @@ public class ResearchCalculatorServiceTests
                     unknownTargetId,
                     [],
                     [],
-                    100)));
+                    100,
+                    int.MaxValue)));
 
         Assert.Contains(unknownTargetId.ToString(), exception.Message);
         Assert.Contains(rank.ResearchTreeVersionId.ToString(), exception.Message);
@@ -519,6 +632,7 @@ public class ResearchCalculatorServiceTests
         List<Guid>? unlockedVehicleIds = null,
         List<Guid>? fillerTargetIds = null,
         int averageRpPerMatch = 100,
+        int averageNetSlPerMatch = int.MaxValue,
         ResearchTreeVersion? version = null)
     {
         var researchTreeVersionId = version?.Id
@@ -529,7 +643,8 @@ public class ResearchCalculatorServiceTests
             target.Id,
             unlockedVehicleIds ?? [],
             fillerTargetIds ?? [],
-            averageRpPerMatch);
+            averageRpPerMatch,
+            averageNetSlPerMatch);
     }
 
     private static void AssertVehicleIds(
@@ -545,6 +660,33 @@ public class ResearchCalculatorServiceTests
 
 public class ResearchControllerTests
 {
+    [Theory]
+    [InlineData(0, 100, "Average RP per match")]
+    [InlineData(-1, 100, "Average RP per match")]
+    [InlineData(100, 0, "Average net SL per match")]
+    [InlineData(100, -1, "Average net SL per match")]
+    public async Task CalculateResearch_NonPositiveAverage_ReturnsBadRequest(
+        int averageRpPerMatch,
+        int averageNetSlPerMatch,
+        string expectedMessage)
+    {
+        using var database = new CalculatorTestDatabase();
+        var controller = new GrindingThunder.Api.Controllers.ResearchController(database.Calculator);
+
+        var result = await controller.CalculateResearch(
+            new ResearchCalculationRequest(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                [],
+                [],
+                averageRpPerMatch,
+                averageNetSlPerMatch),
+            CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains(expectedMessage, Assert.IsType<string>(badRequest.Value));
+    }
+
     [Fact]
     public async Task CalculateResearch_UnknownVersion_ReturnsNotFound()
     {
@@ -553,7 +695,7 @@ public class ResearchControllerTests
         var controller = new GrindingThunder.Api.Controllers.ResearchController(database.Calculator);
 
         var result = await controller.CalculateResearch(
-            new ResearchCalculationRequest(versionId, Guid.NewGuid(), [], [], 100),
+            new ResearchCalculationRequest(versionId, Guid.NewGuid(), [], [], 100, int.MaxValue),
             CancellationToken.None);
 
         var notFound = Assert.IsType<NotFoundObjectResult>(result);
@@ -574,7 +716,8 @@ public class ResearchControllerTests
                 Guid.NewGuid(),
                 [],
                 [],
-                100),
+                100,
+                int.MaxValue),
             CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);

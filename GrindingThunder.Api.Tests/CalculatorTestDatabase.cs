@@ -121,9 +121,14 @@ internal sealed class CalculatorTestDatabase : IDisposable
         return rank;
     }
 
-    public Vehicle AddVehicle(TreeRank rank, string name, int rpCost)
+    public Vehicle AddVehicle(TreeRank rank, string name, int rpCost, int slCost = 0)
     {
-        return AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, name, rpCost);
+        return AddVehicle(
+            rank.ResearchTreeVersion.ResearchTree,
+            rank,
+            name,
+            rpCost,
+            slCost: slCost);
     }
 
     public Vehicle AddVehicle(
@@ -133,7 +138,8 @@ internal sealed class CalculatorTestDatabase : IDisposable
         int rpCost,
         ResearchTreeVersion? treeVersion = null,
         int treeColumn = 0,
-        int treeRow = 0)
+        int treeRow = 0,
+        int slCost = 0)
     {
         var vehicle = new Vehicle
         {
@@ -165,6 +171,7 @@ internal sealed class CalculatorTestDatabase : IDisposable
             Vehicle = vehicle,
             TreeRankId = ResolveRank(version, rank).Id,
             RpCost = rpCost,
+            SlCost = slCost,
             TreeColumn = treeColumn,
             TreeRow = treeRow
         });

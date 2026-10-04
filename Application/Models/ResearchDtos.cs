@@ -5,12 +5,14 @@ public record ResearchCalculationRequest(
     Guid TargetVehicleId,
     List<Guid> UnlockedVehicleIds,
     List<Guid> FillerTargetIds,
-    int AverageRpPerMatch);
+    int AverageRpPerMatch,
+    int AverageNetSlPerMatch);
 
 public record VehicleRpSummary(
     Guid VehicleId,
     string Name,
     int RpRemaining,
+    int SlRemaining,
     bool IsRankGateFiller);
 
 public record RankDeficitDto(
@@ -20,7 +22,10 @@ public record RankDeficitDto(
 
 public record ResearchCalculationResult(
     Guid TargetVehicleId,
-    int TotalRpRequired,
-    int EstimatedMatches,
+    long TotalRpRequired,
+    long TotalSlRequired,
+    long RpEstimatedMatches,
+    long SlEstimatedMatches,
+    long EstimatedMatches,
     List<VehicleRpSummary> RequiredVehicles,
     List<RankDeficitDto> RankDeficits);

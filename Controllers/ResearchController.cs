@@ -31,6 +31,11 @@ public class ResearchController(IResearchCalculatorService calculatorService) : 
             return BadRequest("Average RP per match must be greater than 0.");
         }
 
+        if (request.AverageNetSlPerMatch <= 0)
+        {
+            return BadRequest("Average net SL per match must be greater than 0.");
+        }
+
         try
         {
             var result = await _calculatorService.CalculateResearchAsync(request, cancellationToken);

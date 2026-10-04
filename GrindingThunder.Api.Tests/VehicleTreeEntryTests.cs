@@ -106,6 +106,7 @@ public class VehicleTreeEntryCalculatorTests
                     ResearchTreeVersionId: rank.ResearchTreeVersionId,
                     TargetVehicleId: orphan.Id,
                     AverageRpPerMatch: 1000,
+                    AverageNetSlPerMatch: int.MaxValue,
                     UnlockedVehicleIds: [],
                     FillerTargetIds: [])));
 
@@ -124,19 +125,27 @@ public class VehicleTreeEntryCalculatorTests
         var versionA = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateA);
         var versionB = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateB);
         var a = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "A", 10, treeVersion: versionA);
-        var d = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "D", 40, treeVersion: versionA);
+        var d = database.AddVehicle(
+            rank.ResearchTreeVersion.ResearchTree,
+            rank,
+            "D",
+            40,
+            treeVersion: versionA,
+            slCost: 400);
 
-        // The same target vehicle placed in a second version with a different cost.
-        database.AddVehicleTreeEntry(versionB, d, rank, 99);
+        // The same target vehicle placed in a second version with different costs.
+        database.AddVehicleTreeEntry(versionB, d, rank, rpCost: 99, slCost: 990);
         await database.SaveChangesAsync();
 
         var resultA = await database.Calculator.CalculateResearchAsync(
-            new ResearchCalculationRequest(versionA.Id, d.Id, [], [], 1000));
+            new ResearchCalculationRequest(versionA.Id, d.Id, [], [], 1000, int.MaxValue));
         var resultB = await database.Calculator.CalculateResearchAsync(
-            new ResearchCalculationRequest(versionB.Id, d.Id, [], [], 1000));
+            new ResearchCalculationRequest(versionB.Id, d.Id, [], [], 1000, int.MaxValue));
 
         Assert.Equal(40, resultA.TotalRpRequired);
+        Assert.Equal(400, resultA.TotalSlRequired);
         Assert.Equal(99, resultB.TotalRpRequired);
+        Assert.Equal(990, resultB.TotalSlRequired);
     }
 
     [Fact]
@@ -158,6 +167,7 @@ public class VehicleTreeEntryCalculatorTests
                 ResearchTreeVersionId: version.Id,
                 TargetVehicleId: b.Id,
                 AverageRpPerMatch: 1000,
+                AverageNetSlPerMatch: int.MaxValue,
                 UnlockedVehicleIds: [],
                 FillerTargetIds: []));
 
@@ -207,7 +217,7 @@ public class VehicleTreeEntryCalculatorTests
         await database.SaveChangesAsync();
 
         var result = await database.Calculator.CalculateResearchAsync(
-            new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 1000));
+            new ResearchCalculationRequest(versionA.Id, target.Id, [], [], 1000, int.MaxValue));
 
         Assert.Equal(50, result.TotalRpRequired);
         Assert.Contains(result.RequiredVehicles, vehicle =>

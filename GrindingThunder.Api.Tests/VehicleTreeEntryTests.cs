@@ -275,13 +275,17 @@ public class VehiclesControllerTests
 
         var ok = Assert.IsType<OkObjectResult>(actionResult);
         var body = Assert.IsAssignableFrom<System.Collections.IEnumerable>(ok.Value!).Cast<object>().ToList();
-        Assert.Equal(1, body.Count);
+        Assert.Single(body);
         var dto = body[0];
 
         // No arbitrary version picked as canonical; flat values are null.
         Assert.Null(GetProp(dto, "RankId"));
         Assert.Null(GetProp(dto, "RpCost"));
         Assert.Null(GetProp(dto, "SlCost"));
+        Assert.Null(GetProp(dto, "TreeColumn"));
+        Assert.Null(GetProp(dto, "TreeRow"));
+        Assert.Null(GetProp(dto, "FolderParentId"));
+        Assert.Null(GetProp(dto, "IsFolderParent"));
 
         // The full, honest list of entries is still exposed.
         var entries = Assert.IsAssignableFrom<System.Collections.IEnumerable>(GetProp(dto, "TreeEntries"));

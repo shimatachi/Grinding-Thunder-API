@@ -2,10 +2,8 @@ namespace GrindingThunder.Api.Domain.Entities;
 
 /// <summary>
 /// A vehicle's placement and state inside ONE specific research-tree version.
-/// RP cost, SL cost, and rank association are version-specific: the same stable
-/// Vehicle may appear in many versions with different values. The referenced
-/// TreeRank must belong to the same ResearchTreeVersion as this entry (enforced
-/// by seed/application logic and tests; the schema cannot express it simply).
+/// Costs, rank, visual layout, and folder membership are version-specific: the
+/// same stable Vehicle may appear in many versions with different values.
 /// </summary>
 public class VehicleTreeEntry
 {
@@ -15,10 +13,15 @@ public class VehicleTreeEntry
     public Guid TreeRankId { get; set; }
     public int RpCost { get; set; }
     public int SlCost { get; set; }
+    public int TreeColumn { get; set; }
+    public int TreeRow { get; set; }
+    public Guid? FolderParentEntryId { get; set; }
 
     public ResearchTreeVersion ResearchTreeVersion { get; set; } = null!;
     public Vehicle Vehicle { get; set; } = null!;
     public TreeRank TreeRank { get; set; } = null!;
+    public VehicleTreeEntry? FolderParentEntry { get; set; }
+    public ICollection<VehicleTreeEntry> FolderChildren { get; set; } = new List<VehicleTreeEntry>();
 
     // Version-specific prerequisite edges (Batch 5); both ends always share
     // this entry's ResearchTreeVersion, enforced by composite foreign keys.

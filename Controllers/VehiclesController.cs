@@ -13,13 +13,12 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetVehicles()
     {
-        // TRANSITIONAL (Batch 3): rank/RP/SL now live on VehicleTreeEntry.
-        // Until explicit version selection exists (Batch 7), a vehicle's flat
-        // RankId/RpCost/SlCost fields are only populated when it has exactly
-        // one tree entry; they are null when it has none or spans multiple
-        // versions. We never silently pick an arbitrary entry as canonical.
+        // TRANSITIONAL (Batches 3-6): all versioned values are projected from
+        // VehicleTreeEntry. Until explicit version selection exists (Batch 7),
+        // flat values are populated only when a vehicle has exactly one entry.
         var vehicles = await _context.Vehicles
             .AsNoTracking()
+            .AsSplitQuery()
             .Select(v => new
             {
                 v.Id,
@@ -30,16 +29,18 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                     RankNumber = (int?)e.TreeRank.RankNumber,
                     e.RpCost,
                     e.SlCost,
+                    e.TreeColumn,
+                    e.TreeRow,
+                    FolderParentId = e.FolderParentEntry == null
+                        ? (Guid?)null
+                        : e.FolderParentEntry.VehicleId,
+                    IsFolderParent = e.FolderChildren.Any(),
                     PrerequisiteIds = e.Prerequisites
                         .Select(pr => pr.PrerequisiteVehicleTreeEntryId)
                         .ToList()
                 }).ToList(),
                 v.Name,
                 v.ImageUrl,
-                v.IsFolderParent,
-                v.FolderParentId,
-                v.TreeColumn,
-                v.TreeRow,
                 PrerequisiteEntryIds = v.TreeEntries
                     .SelectMany(te => te.Prerequisites.Select(pr => pr.PrerequisiteVehicleTreeEntryId))
                     .ToList()
@@ -67,10 +68,10 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 v.ImageUrl,
                 RpCost = singleEntry?.RpCost,
                 SlCost = singleEntry?.SlCost,
-                v.IsFolderParent,
-                v.FolderParentId,
-                v.TreeColumn,
-                v.TreeRow,
+                IsFolderParent = singleEntry?.IsFolderParent,
+                FolderParentId = singleEntry?.FolderParentId,
+                TreeColumn = singleEntry?.TreeColumn,
+                TreeRow = singleEntry?.TreeRow,
                 Prerequisites = v.PrerequisiteEntryIds
                     .Select(entryId => entryVehicleIds[entryId])
                     .Distinct()
@@ -91,7 +92,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
             return BadRequest("nationId is required.");
         }
 
-                // TRANSITIONAL (Batch 3): rank/RP/SL now live on VehicleTreeEntry; the
+        // TRANSITIONAL (Batch 3): rank/RP/SL now live on VehicleTreeEntry; the
         // tree is filtered through the entry's rank and projected from the entry.
         var query = _context.VehicleTreeEntries
             .AsNoTracking()
@@ -113,10 +114,12 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 e.Vehicle.ImageUrl,
                 e.RpCost,
                 e.SlCost,
-                e.Vehicle.IsFolderParent,
-                e.Vehicle.FolderParentId,
-                e.Vehicle.TreeColumn,
-                e.Vehicle.TreeRow,
+                IsFolderParent = e.FolderChildren.Any(),
+                FolderParentId = e.FolderParentEntry == null
+                    ? (Guid?)null
+                    : e.FolderParentEntry.VehicleId,
+                e.TreeColumn,
+                e.TreeRow,
                 PrerequisiteIds = e.Prerequisites
                     .Select(p => p.PrerequisiteVehicleTreeEntry.VehicleId)
                     .ToList()

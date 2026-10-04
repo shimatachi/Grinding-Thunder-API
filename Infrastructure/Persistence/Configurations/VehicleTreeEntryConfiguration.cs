@@ -30,6 +30,15 @@ public class VehicleTreeEntryConfiguration : IEntityTypeConfiguration<VehicleTre
             .HasForeignKey(e => e.TreeRankId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Folder membership is layout metadata within one snapshot. Including
+        // ResearchTreeVersionId in both sides of the FK makes a cross-version
+        // parent impossible at the database level.
+        builder.HasOne(e => e.FolderParentEntry)
+            .WithMany(e => e.FolderChildren)
+            .HasForeignKey(e => new { e.ResearchTreeVersionId, e.FolderParentEntryId })
+            .HasPrincipalKey(e => new { e.ResearchTreeVersionId, e.Id })
+            .OnDelete(DeleteBehavior.Restrict);
+
         // A vehicle appears at most once per research-tree version.
         builder.HasIndex(e => new { e.ResearchTreeVersionId, e.VehicleId })
             .IsUnique();

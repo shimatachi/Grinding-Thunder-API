@@ -14,9 +14,5 @@ public class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
             .IsRequired()
             .HasMaxLength(150);
 
-        builder.HasOne(v => v.FolderParent)
-            .WithMany(v => v.FolderChildren)
-            .HasForeignKey(v => v.FolderParentId)
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

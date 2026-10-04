@@ -2,9 +2,8 @@ namespace GrindingThunder.Api.Domain.Entities;
 
 /// <summary>
 /// A snapshot of one research tree as it exists for a particular game update.
-/// Belongs to exactly one ResearchTree and one GameUpdate. Later batches will
-/// move update-dependent vehicle data (costs, rank, prerequisites, layout)
-/// onto the version; this batch only establishes the versioning backbone.
+/// Belongs to exactly one ResearchTree and one GameUpdate. Its entries, ranks,
+/// prerequisite graph, and layout/grouping form the versioned snapshot.
 /// </summary>
 public class ResearchTreeVersion
 {

@@ -186,9 +186,6 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         Name = "M2 Light",
-                        IsFolderParent = false,
-                        TreeColumn = 1,
-                        TreeRow = 1,
                         ImageUrl = ""
                     };
 
@@ -196,9 +193,6 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         Name = "M3 Stuart",
-                        IsFolderParent = false,
-                        TreeColumn = 1,
-                        TreeRow = 2,
                         ImageUrl = "https://static.encyclopedia.warthunder.com/images/us_m2a4.png"
                     };
 
@@ -206,9 +200,6 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         Name = "M2A4",
-                        IsFolderParent = false,
-                        TreeColumn = 2,
-                        TreeRow = 1,
                         ImageUrl = ""
                     };
 
@@ -216,9 +207,6 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         Name = "M3A1 Stuart",
-                        IsFolderParent = false,
-                        TreeColumn = 2,
-                        TreeRow = 2,
                         ImageUrl = ""
                     };
 
@@ -227,9 +215,6 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         Name = "M4A1 Sherman",
-                        IsFolderParent = false,
-                        TreeColumn = 1,
-                        TreeRow = 1,
                         ImageUrl = ""
                     };
 
@@ -237,106 +222,115 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         Name = "M3 Lee",
-                        IsFolderParent = false,
-                        TreeColumn = 2,
-                        TreeRow = 1,
                         ImageUrl = ""
                     };
 
                     context.Vehicles.AddRange(m2Light, m3Stuart, m2a4, m3a1Stuart, m4a1Sherman, m3Lee);
                     await context.SaveChangesAsync();
 
-                    // Version-specific placements (rank, RP cost, SL cost).
-                                            // Version-specific placements (rank, RP cost, SL cost).
-                        // Local variables so prerequisite edges can reference entry ids (Batch 5).
-                        var m2LightEntry = new VehicleTreeEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            ResearchTreeVersionId = usaGroundVersion.Id,
-                            VehicleId = m2Light.Id,
-                            TreeRankId = rank1.Id,
-                            RpCost = 2900,
-                            SlCost = 700
-                        };
-                        var m3StuartEntry = new VehicleTreeEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            ResearchTreeVersionId = usaGroundVersion.Id,
-                            VehicleId = m3Stuart.Id,
-                            TreeRankId = rank1.Id,
-                            RpCost = 4000,
-                            SlCost = 1400
-                        };
-                        var m2a4Entry = new VehicleTreeEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            ResearchTreeVersionId = usaGroundVersion.Id,
-                            VehicleId = m2a4.Id,
-                            TreeRankId = rank1.Id,
-                            RpCost = 2900,
-                            SlCost = 700
-                        };
-                        var m3a1StuartEntry = new VehicleTreeEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            ResearchTreeVersionId = usaGroundVersion.Id,
-                            VehicleId = m3a1Stuart.Id,
-                            TreeRankId = rank1.Id,
-                            RpCost = 4000,
-                            SlCost = 1400
-                        };
-                        var m4a1ShermanEntry = new VehicleTreeEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            ResearchTreeVersionId = usaGroundVersion.Id,
-                            VehicleId = m4a1Sherman.Id,
-                            TreeRankId = rank2.Id,
-                            RpCost = 9200,
-                            SlCost = 3800
-                        };
-                        var m3LeeEntry = new VehicleTreeEntry
-                        {
-                            Id = Guid.NewGuid(),
-                            ResearchTreeVersionId = usaGroundVersion.Id,
-                            VehicleId = m3Lee.Id,
-                            TreeRankId = rank2.Id,
-                            RpCost = 5900,
-                            SlCost = 2200
-                        };
+                    // Version-specific placements, including costs and layout.
+                    // Local variables let versioned relationships reference entry ids.
+                    var m2LightEntry = new VehicleTreeEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        ResearchTreeVersionId = usaGroundVersion.Id,
+                        VehicleId = m2Light.Id,
+                        TreeRankId = rank1.Id,
+                        RpCost = 2900,
+                        SlCost = 700,
+                        TreeColumn = 1,
+                        TreeRow = 1
+                    };
+                    var m3StuartEntry = new VehicleTreeEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        ResearchTreeVersionId = usaGroundVersion.Id,
+                        VehicleId = m3Stuart.Id,
+                        TreeRankId = rank1.Id,
+                        RpCost = 4000,
+                        SlCost = 1400,
+                        TreeColumn = 1,
+                        TreeRow = 2
+                    };
+                    var m2a4Entry = new VehicleTreeEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        ResearchTreeVersionId = usaGroundVersion.Id,
+                        VehicleId = m2a4.Id,
+                        TreeRankId = rank1.Id,
+                        RpCost = 2900,
+                        SlCost = 700,
+                        TreeColumn = 2,
+                        TreeRow = 1
+                    };
+                    var m3a1StuartEntry = new VehicleTreeEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        ResearchTreeVersionId = usaGroundVersion.Id,
+                        VehicleId = m3a1Stuart.Id,
+                        TreeRankId = rank1.Id,
+                        RpCost = 4000,
+                        SlCost = 1400,
+                        TreeColumn = 2,
+                        TreeRow = 2
+                    };
+                    var m4a1ShermanEntry = new VehicleTreeEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        ResearchTreeVersionId = usaGroundVersion.Id,
+                        VehicleId = m4a1Sherman.Id,
+                        TreeRankId = rank2.Id,
+                        RpCost = 9200,
+                        SlCost = 3800,
+                        TreeColumn = 1,
+                        TreeRow = 1
+                    };
+                    var m3LeeEntry = new VehicleTreeEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        ResearchTreeVersionId = usaGroundVersion.Id,
+                        VehicleId = m3Lee.Id,
+                        TreeRankId = rank2.Id,
+                        RpCost = 5900,
+                        SlCost = 2200,
+                        TreeColumn = 2,
+                        TreeRow = 1
+                    };
 
-                        context.VehicleTreeEntries.AddRange(
-                            m2LightEntry, m3StuartEntry, m2a4Entry, m3a1StuartEntry,
-                            m4a1ShermanEntry, m3LeeEntry);
+                    context.VehicleTreeEntries.AddRange(
+                        m2LightEntry, m3StuartEntry, m2a4Entry, m3a1StuartEntry,
+                        m4a1ShermanEntry, m3LeeEntry);
 
-                                            // Set Prerequisite Edges
-                        // Version-specific edges (Batch 5): both ends are VehicleTreeEntries in
-                        // the same version; Vehicle identities are never referenced directly.
-                        context.VehiclePrerequisites.AddRange(
-                            new VehiclePrerequisite
-                            {
-                                VehicleTreeEntryId = m3StuartEntry.Id,
-                                PrerequisiteVehicleTreeEntryId = m2LightEntry.Id,
-                                ResearchTreeVersionId = usaGroundVersion.Id
-                            },
-                            new VehiclePrerequisite
-                            {
-                                VehicleTreeEntryId = m4a1ShermanEntry.Id,
-                                PrerequisiteVehicleTreeEntryId = m3StuartEntry.Id,
-                                ResearchTreeVersionId = usaGroundVersion.Id
-                            },
-                            new VehiclePrerequisite
-                            {
-                                VehicleTreeEntryId = m3a1StuartEntry.Id,
-                                PrerequisiteVehicleTreeEntryId = m2a4Entry.Id,
-                                ResearchTreeVersionId = usaGroundVersion.Id
-                            },
-                            new VehiclePrerequisite
-                            {
-                                VehicleTreeEntryId = m3LeeEntry.Id,
-                                PrerequisiteVehicleTreeEntryId = m3a1StuartEntry.Id,
-                                ResearchTreeVersionId = usaGroundVersion.Id
-                            }
-                        );
+                    // Set prerequisite edges. Folder membership is separate and
+                    // these sample entries intentionally have no folders.
+                    // Version-specific edges (Batch 5): both ends are VehicleTreeEntries in
+                    // the same version; Vehicle identities are never referenced directly.
+                    context.VehiclePrerequisites.AddRange(
+                        new VehiclePrerequisite
+                        {
+                            VehicleTreeEntryId = m3StuartEntry.Id,
+                            PrerequisiteVehicleTreeEntryId = m2LightEntry.Id,
+                            ResearchTreeVersionId = usaGroundVersion.Id
+                        },
+                        new VehiclePrerequisite
+                        {
+                            VehicleTreeEntryId = m4a1ShermanEntry.Id,
+                            PrerequisiteVehicleTreeEntryId = m3StuartEntry.Id,
+                            ResearchTreeVersionId = usaGroundVersion.Id
+                        },
+                        new VehiclePrerequisite
+                        {
+                            VehicleTreeEntryId = m3a1StuartEntry.Id,
+                            PrerequisiteVehicleTreeEntryId = m2a4Entry.Id,
+                            ResearchTreeVersionId = usaGroundVersion.Id
+                        },
+                        new VehiclePrerequisite
+                        {
+                            VehicleTreeEntryId = m3LeeEntry.Id,
+                            PrerequisiteVehicleTreeEntryId = m3a1StuartEntry.Id,
+                            ResearchTreeVersionId = usaGroundVersion.Id
+                        }
+                    );
 
                     await context.SaveChangesAsync();
                 }

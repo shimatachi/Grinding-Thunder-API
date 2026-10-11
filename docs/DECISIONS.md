@@ -99,7 +99,22 @@ A chronological log of significant design decisions, one short entry per batch. 
   - `DeleteDraftVersionAsync`: allows deleting versions only while in `Draft` status; attempts to delete a published version are rejected.
 - Avoided generic repository and UnitOfWork abstractions, keeping implementation directly with `ApplicationDbContext` and plain, maintainable C#.
 
+## 2026 — Batch 13: version validation engine and historical diff
+
+- Introduced a comprehensive validation engine executed prior to publication via `PublishVersionAsync` and accessible via `ValidateVersionAsync`:
+  - Enforced graph acyclicity (DAG) using a 3-state (unvisited/visiting/visited) DFS cycle detection on the version's prerequisite edges. Why: cyclic prerequisite dependencies would deadlock recursive progression calculation or cause infinite loops.
+  - Enforced rank progression consistency: prerequisite edges cannot point to higher ranks (`prereq.TreeRank.RankNumber <= entry.TreeRank.RankNumber`), and rank-gate quotas (`RequiredVehiclesUnlocked`) must be feasible (available eligible vehicles in preceding ranks, or the rank itself for lowest ranks, must equal or exceed the quota). Why: prevents publishing tech trees where vehicles are mathematically impossible to unlock.
+  - Enforced folder hierarchy constraints: maximum 1 level of folder nesting (folder parents cannot themselves have folder parents), folder children must share the same `TreeRank` as their folder parent, and folder parent relationships cannot form circular references.
+  - Enforced entity, cost, and coordinate invariants: a version must have at least one rank and one entry, RP/SL costs and coordinates must be non-negative, and root (non-folder-child) entries cannot collide on identical `(TreeColumn, TreeRow)` coordinates.
+  - Enforced progression acquisition integrity: `Researchable` vehicles cannot have non-researchable entries (`Premium`, `Hidden`, `Event`, etc.) as mandatory prerequisites. Why: players cannot research non-researchable vehicles with standard tech-tree RP, so requiring one would block tech-tree progression.
+- Reusable historical diff engine (`CompareVersionsAsync`):
+  - Compares two versions belonging to the same research tree and reports added, removed, and modified vehicles (with detailed deltas for RP, SL, rank, acquisition type, and coordinates), added and removed prerequisite edges, and rank quota changes.
+  - Generates aggregate summary statistics (`AddedVehiclesCount`, `RemovedVehiclesCount`, `ModifiedVehiclesCount`, and net RP/SL deltas) in a single pass.
+  - Exposed read-only REST endpoints on `ResearchTreeVersionsController` (`/api/research-tree-versions/diff` and `/api/research-trees/{treeId}/diff`) without requiring admin authentication (deferred to Batch 14).
+- Kept implementation directly in `IVersionLifecycleService` / `VersionLifecycleService` and `Application/Models`: avoiding dedicated generic diff/validation frameworks or external graph libraries. Plain, idiomatic C# with EF Core split queries preserves modular monolith simplicity.
+
 ## Log format
 
 Append new entries at the end. Keep each entry to the decisions and tradeoffs that are not obvious from the code; do not duplicate content that belongs in DOMAIN.md, DATABASE.md, or ARCHITECTURE.md.
+
 

@@ -22,8 +22,8 @@ public class VersionLifecycleServiceTests
         var update2 = database.AddGameUpdate("2.45");
 
         var sourceVersion = database.AddResearchTreeVersion(tree, update1, ResearchTreeVersionStatus.Draft);
-        var rank1 = database.AddTreeRank(sourceVersion, 1, 3);
-        var rank2 = database.AddTreeRank(sourceVersion, 2, 4);
+        var rank1 = database.AddTreeRank(sourceVersion, 1, 2);
+        var rank2 = database.AddTreeRank(sourceVersion, 2, 2);
 
         var veh1 = new Vehicle { Id = Guid.NewGuid(), Name = "M2 Light" };
         var veh2 = new Vehicle { Id = Guid.NewGuid(), Name = "M3 Stuart" };
@@ -66,8 +66,8 @@ public class VersionLifecycleServiceTests
 
         var clonedRank1 = persistedClone.TreeRanks.Single(r => r.RankNumber == 1);
         var clonedRank2 = persistedClone.TreeRanks.Single(r => r.RankNumber == 2);
-        Assert.Equal(3, clonedRank1.RequiredVehiclesUnlocked);
-        Assert.Equal(4, clonedRank2.RequiredVehiclesUnlocked);
+        Assert.Equal(2, clonedRank1.RequiredVehiclesUnlocked);
+        Assert.Equal(2, clonedRank2.RequiredVehiclesUnlocked);
 
         // Assert: Deep-cloned entries with layout and acquisition types
         Assert.Equal(3, persistedClone.Entries.Count);
@@ -202,6 +202,10 @@ public class VersionLifecycleServiceTests
         var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
         var update = database.AddGameUpdate("2.43");
         var draft = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
+        var rank = database.AddTreeRank(draft, 1, 1);
+        var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
+        database.Context.Vehicles.Add(veh);
+        database.AddVehicleTreeEntry(draft, veh, rank, 1000);
         await database.SaveChangesAsync();
 
         await lifecycleService.PublishVersionAsync(draft.Id);
@@ -220,6 +224,10 @@ public class VersionLifecycleServiceTests
         var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
         var update = database.AddGameUpdate("2.43");
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
+        var rank = database.AddTreeRank(version, 1, 1);
+        var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
+        database.Context.Vehicles.Add(veh);
+        database.AddVehicleTreeEntry(version, veh, rank, 1000);
         await database.SaveChangesAsync();
 
         await lifecycleService.PublishVersionAsync(version.Id);
@@ -276,6 +284,10 @@ public class VersionLifecycleServiceTests
         var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
         var update = database.AddGameUpdate("2.43");
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
+        var rank = database.AddTreeRank(version, 1, 1);
+        var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
+        database.Context.Vehicles.Add(veh);
+        database.AddVehicleTreeEntry(version, veh, rank, 1000);
         await database.SaveChangesAsync();
 
         await lifecycleService.PublishVersionAsync(version.Id);
@@ -295,7 +307,7 @@ public class VersionLifecycleServiceTests
         var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
         var update = database.AddGameUpdate("2.43");
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
-        var rank = database.AddTreeRank(version, 1, 3);
+        var rank = database.AddTreeRank(version, 1, 1);
         var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
         database.Context.Vehicles.Add(veh);
         var entry = database.AddVehicleTreeEntry(version, veh, rank, 1000);

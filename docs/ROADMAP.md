@@ -86,12 +86,13 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batch 12.
   Result: implemented comprehensive version validation engine in `IVersionLifecycleService` / `VersionLifecycleService` verifying prerequisite graph acyclicity (DAG DFS cycle detection), rank progression consistency (prerequisite rank <= entry rank, feasible rank-gate quotas against available preceding/same rank vehicles), folder grouping constraints (maximum 1 level of nesting, same rank membership, cycle prevention), coordinate and non-negative cost invariants (root entry collision rejection), and acquisition progression integrity (researchable vehicles cannot depend on non-researchable prerequisites). Integrated validation into `PublishVersionAsync` to reject publication of invalid drafts. Implemented historical diff engine (`CompareVersionsAsync`) evaluating added, removed, and modified vehicles (with RP/SL deltas, rank/coordinate/acquisition shifts), added and removed prerequisite edges, and rank quota changes with net economic summaries. Exposed read-only REST endpoints on `ResearchTreeVersionsController` (`/api/research-tree-versions/diff` and `/api/research-tree-versions/{versionId}/validate`).
 
-## Planned
-
-- **Batch 14 — Admin authentication and authorization foundation** (status: Planned)
+- **Batch 14 — Admin authentication and authorization foundation** (status: Completed)
   Goal: introduce administrator authentication and Editor/Publisher/Admin permissions
   before exposing substantial mutation workflows.
   Dependency: Batch 12.
+  Result: configured JWT Bearer authentication scheme and granular role-based authorization policies (`RequireEditorRole`, `RequirePublisherRole`, `RequireAdminRole`) in ASP.NET Core; defined administrative roles (`Editor`, `Publisher`, `Admin`); introduced `IPasswordHasher` using PBKDF2 (HMAC-SHA256, 128-bit salt, 100k iterations, constant-time verification) and `IJwtTokenService` for signed token issuance; configured credentials avoiding plaintext secrets in source control (supporting configuration, environment variables, user secrets, and secure development fallbacks); exposed administrative authentication endpoints on `AuthController` (`POST /api/auth/login`, `GET /api/auth/me`, and policy probe endpoints); preserved full backward compatibility for public endpoints (`GET /api/nations`, `GET /api/vehicles`, `POST /api/research/calculate`, `GET /api/research-tree-versions/diff`); and verified with unit and integration tests.
+
+## Planned
 
 - **Batch 15 — Admin CRUD/workflow APIs** (status: Planned)
   Goal: manage nations, vehicle types, vehicles, updates, drafts, ranks, entries,

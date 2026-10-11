@@ -113,6 +113,20 @@ A chronological log of significant design decisions, one short entry per batch. 
   - Exposed read-only REST endpoints on `ResearchTreeVersionsController` (`/api/research-tree-versions/diff` and `/api/research-trees/{treeId}/diff`) without requiring admin authentication (deferred to Batch 14).
 - Kept implementation directly in `IVersionLifecycleService` / `VersionLifecycleService` and `Application/Models`: avoiding dedicated generic diff/validation frameworks or external graph libraries. Plain, idiomatic C# with EF Core split queries preserves modular monolith simplicity.
 
+## 2026 — Batch 14: admin authentication and authorization foundation
+
+- Chosen standard JWT Bearer token authentication over ASP.NET Core Identity or third-party auth platforms (Auth0, Firebase). Why: ASP.NET Core Identity introduces massive database bloat (7 identity tables for users, roles, logins, claims, tokens, etc.), and third-party SaaS services introduce external runtime network dependencies and test complexity. Stateless JWT Bearer provides clean REST API authentication, works natively with SPAs/admin UIs, and runs self-contained in in-memory test harnesses.
+- Granular administrative roles and policies:
+  - Modeled roles `Editor`, `Publisher`, and `Admin`.
+  - Modeled authorization policies `RequireEditorRole`, `RequirePublisherRole`, and `RequireAdminRole`.
+  - Granted `Admin` role supervisory access across `RequireEditorRole` and `RequirePublisherRole` policies, enabling full administrative oversight while restricting single-role accounts (`Editor` cannot publish, `Publisher` cannot modify drafts or layout, neither can delete drafts or perform admin tasks).
+- Avoided plaintext secrets in source control and database:
+  - Implemented `IPasswordHasher` / `PasswordHasher` using PBKDF2 with HMAC-SHA256, 16-byte random salt, 100,000 iterations, and constant-time byte comparison (`CryptographicOperations.FixedTimeEquals`).
+  - Stored non-sensitive JWT settings (`Issuer`, `Audience`, `TokenLifetimeMinutes`) in `appsettings.json`, and configured environment variable / User Secret overrides for signing keys (`JWT_SIGNING_KEY`).
+  - Enforced that Production fails fast on missing signing keys, while Development and Testing provide deterministic, zero-configuration fallbacks and seeded development credentials (`admin`, `publisher`, `editor`).
+- Preserved anonymous access on player-facing endpoints:
+  - Registered `UseAuthentication()` and `UseAuthorization()` in `Program.cs`. Existing query and calculation endpoints (`GET /api/nations`, `GET /api/vehicles`, `POST /api/research/calculate`, `GET /api/research-tree-versions/diff`, `GET /api/research-tree-versions/{versionId}/validate`) remain public without authentication challenges.
+
 ## Log format
 
 Append new entries at the end. Keep each entry to the decisions and tradeoffs that are not obvious from the code; do not duplicate content that belongs in DOMAIN.md, DATABASE.md, or ARCHITECTURE.md.

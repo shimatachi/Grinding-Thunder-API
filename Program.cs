@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using GrindingThunder.Api.Domain.Services;
 using GrindingThunder.Api.Infrastructure.Persistence;
+using GrindingThunder.Api.Infrastructure.Security;
 using GrindingThunder.Api.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,11 +9,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+}
 
 builder.Services.AddScoped<IResearchCalculatorService, ResearchCalculatorService>();
 builder.Services.AddScoped<IVersionLifecycleService, VersionLifecycleService>();
+
+builder.Services.AddAdminSecurity(builder.Configuration, builder.Environment);
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -38,8 +44,11 @@ if (app.Environment.IsDevelopment())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        await dbContext.Database.MigrateAsync();
-        await DbInitializer.InitializeAsync(dbContext);
+        if (dbContext.Database.IsNpgsql())
+        {
+            await dbContext.Database.MigrateAsync();
+            await DbInitializer.InitializeAsync(dbContext);
+        }
     }
 
     app.MapOpenApi();
@@ -49,6 +58,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontend");
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }
+

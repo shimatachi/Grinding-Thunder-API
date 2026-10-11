@@ -8,9 +8,9 @@ Migrations build the following entities/tables. `Nation` and `VehicleType` are s
 | --- | --- |
 | `Nation` | ID and name; has many `ResearchTree` rows. |
 | `VehicleType` | ID and name (Ground, Aviation, ...); has many `ResearchTree` rows. |
-| `ResearchTree` | Unique Nation + VehicleType combination; has many `ResearchTreeVersion` rows. |
-| `GameUpdate` | ID, unique version string, optional name and release date; has many `ResearchTreeVersion` rows. |
-| `ResearchTreeVersion` | Belongs to one `ResearchTree` and one `GameUpdate` (pair is unique); has a `Status` (Draft/Published). |
+| `ResearchTree` | Unique Nation + VehicleType combination; has many `ResearchTreeVersion` rows. Deleting a research tree is restricted while versions exist. |
+| `GameUpdate` | ID, unique version string, optional name and release date; has many `ResearchTreeVersion` rows. Deleting a game update is restricted while versions exist. |
+| `ResearchTreeVersion` | Belongs to one `ResearchTree` and one `GameUpdate` (pair is unique); has a `Status` (Draft/Published). Foreign keys from `ResearchTree` and `GameUpdate` use `DeleteBehavior.Restrict` to protect historical snapshot data. |
 | `TreeRank` | Belongs to a `ResearchTreeVersion` (version + rank number is unique); holds `RequiredVehiclesUnlocked`; has many `VehicleTreeEntry` rows. Deleting a version cascades its ranks. |
 | `Vehicle` | Stable identity and presentation metadata: name and optional image URL. Has many `VehicleTreeEntry` rows; owns no tree layout or folder state. |
 | `VehicleTreeEntry` | Version-specific placement: belongs to one `ResearchTreeVersion`, one `Vehicle`, and one `TreeRank` (version + vehicle pair is unique); holds RP/SL costs, acquisition type (`VehicleAcquisitionType`, integer-backed, default `Researchable`), integer tree row/column, and an optional same-version folder-parent entry. |
@@ -34,6 +34,6 @@ The `VersionVehicleLayoutAndFolders` migration adds entry layout/folder columns,
 | `VehicleTreeEntry` or equivalent | Version-specific vehicle membership, cost, rank, availability, visual position, and folder/group placement. |
 | Versioned prerequisite edge | Explicit progression dependency within a tree snapshot. |
 
-These concepts now have concrete implementations in the current schema, although future requirements may refine their names or representation. Published versions should be immutable historical snapshots: a new game update creates new tree state instead of overwriting an earlier published version. The draft/clone/publish workflow and enforcement of published-version immutability remain future work.
+These concepts have concrete implementations in the current schema. Published versions are immutable historical snapshots: a new game update creates new tree state by cloning an existing version into an editable `Draft` via `IVersionLifecycleService.CloneVersionAsync`, editing the draft, and publishing via `PublishVersionAsync`. Immutability is enforced in `ApplicationDbContext`, rejecting any additions, modifications, or deletions of `ResearchTreeVersion`, `TreeRank`, `VehicleTreeEntry`, and `VehiclePrerequisite` entities belonging to published versions.
 
 Acquisition type is stored on `VehicleTreeEntry.AcquisitionType` as an integer-backed `VehicleAcquisitionType` enum (default `Researchable = 0`). The `AddVehicleAcquisitionType` migration safely adds the non-null integer column with default 0.

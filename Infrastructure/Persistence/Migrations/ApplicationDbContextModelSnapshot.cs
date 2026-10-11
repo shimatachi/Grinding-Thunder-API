@@ -267,13 +267,13 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
                     b.HasOne("GrindingThunder.Api.Domain.Entities.GameUpdate", "GameUpdate")
                         .WithMany("ResearchTreeVersions")
                         .HasForeignKey("GameUpdateId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("GrindingThunder.Api.Domain.Entities.ResearchTree", "ResearchTree")
                         .WithMany("Versions")
                         .HasForeignKey("ResearchTreeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("GameUpdate");

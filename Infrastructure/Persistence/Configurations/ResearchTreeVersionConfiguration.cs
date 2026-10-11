@@ -16,12 +16,12 @@ public class ResearchTreeVersionConfiguration : IEntityTypeConfiguration<Researc
         builder.HasOne(rtv => rtv.ResearchTree)
             .WithMany(rt => rt.Versions)
             .HasForeignKey(rtv => rtv.ResearchTreeId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(rtv => rtv.GameUpdate)
             .WithMany(gu => gu.ResearchTreeVersions)
             .HasForeignKey(rtv => rtv.GameUpdateId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         // One research tree must not have two versions of the same game update.
         // A later explicit revision model (if ever needed) would change this rule.

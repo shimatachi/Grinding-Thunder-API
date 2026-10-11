@@ -89,6 +89,17 @@ A chronological log of significant design decisions, one short entry per batch. 
   - `FewestMatches`: projects the concurrent match ceiling `max(ceil((CurrentRP + AddRP) / avgRP), ceil((CurrentSL + AddSL) / avgSL))` and orders candidates by projected matches ascending, then `AddRP asc, AddSL asc, Name asc`. Why: aligns filler choices with the concurrent progression model introduced in Batch 8, picking zero- or low-cost vehicles on whichever economy resource currently bottlenecks match completion.
 - Kept the implementation in-memory and lightweight using the existing read-only snapshot aggregate. Did not introduce external solver packages (e.g. Google OR-Tools), MediatR, or generic abstractions. Why: tech-tree ranks are small bounded graphs (rarely more than 10-20 candidates per rank) and greedy simulation provides fast, predictable, and deterministic results without dependency or runtime overhead.
 
+## 2026 — Batch 12: draft / clone / publish workflow and published version immutability
+
+- Changed deletion behavior on `ResearchTreeVersion.ResearchTree` and `ResearchTreeVersion.GameUpdate` from `DeleteBehavior.Cascade` to `DeleteBehavior.Restrict` via the `RestrictResearchTreeVersionCascadeDelete` migration. Why: as anticipated in Batch 2, once versions hold historical tech-tree data (ranks, entries, layout, prerequisites), deleting a tree or game update record must never silently wipe out historical version snapshots.
+- Enforced published version immutability at the EF Core interceptor level (`ApplicationDbContext.SaveChangesAsync` and `SaveChanges`). Why: published tech-tree versions represent immutable historical snapshots; allowing modifications, deletions, or additions of ranks, entries, or prerequisites on published versions would corrupt historical player progression calculations. The only allowed modification on a version is transitioning a `Draft` version to `Published`.
+- Implemented `IVersionLifecycleService` (`VersionLifecycleService`) to manage version lifecycle workflows:
+  - `CloneVersionAsync`: deep-clones an existing version into an editable `Draft` version for a target `GameUpdate`. It validates target game update existence and tree-update uniqueness, deep-copies `TreeRank` rows with new IDs, deep-copies `VehicleTreeEntry` rows with remapped `TreeRankId` and `FolderParentEntryId` (same-version parent hierarchy), and deep-copies `VehiclePrerequisite` rows with remapped endpoints and `ResearchTreeVersionId`. Deep-cloning isolates the draft completely from historical versions without cross-version foreign key violations or data leakage.
+  - `PublishVersionAsync`: validates that a version is in `Draft` status and transitions it to `Published`, locking it against future mutations.
+  - `DeleteDraftVersionAsync`: allows deleting versions only while in `Draft` status; attempts to delete a published version are rejected.
+- Avoided generic repository and UnitOfWork abstractions, keeping implementation directly with `ApplicationDbContext` and plain, maintainable C#.
+
 ## Log format
 
 Append new entries at the end. Keep each entry to the decisions and tradeoffs that are not obvious from the code; do not duplicate content that belongs in DOMAIN.md, DATABASE.md, or ARCHITECTURE.md.
+

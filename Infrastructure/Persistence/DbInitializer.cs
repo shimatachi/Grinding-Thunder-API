@@ -140,7 +140,7 @@ public static class DbInitializer
                 ResearchTree = researchTree,
                 GameUpdateId = sampleGameUpdate.Id,
                 GameUpdate = sampleGameUpdate,
-                Status = ResearchTreeVersionStatus.Published
+                Status = ResearchTreeVersionStatus.Draft
             };
 
             // Rank configuration is version-specific (Batch 4): each new
@@ -170,7 +170,7 @@ public static class DbInitializer
                 .FirstOrDefaultAsync(rtv =>
                     rtv.ResearchTree.Nation.Name == "USA" &&
                     rtv.ResearchTree.VehicleTypeId == groundType.Id &&
-                    rtv.Status == ResearchTreeVersionStatus.Published);
+                    rtv.GameUpdateId == sampleGameUpdate.Id);
 
             if (usaGroundVersion != null)
             {
@@ -341,6 +341,22 @@ public static class DbInitializer
                     await context.SaveChangesAsync();
                 }
             }
+        }
+
+        // 6. Transition all seeded dev-sample draft versions to Published status,
+        //    turning them into immutable historical snapshots.
+        var draftSampleVersions = await context.ResearchTreeVersions
+            .Where(rtv => rtv.GameUpdateId == sampleGameUpdate.Id && rtv.Status == ResearchTreeVersionStatus.Draft)
+            .ToListAsync();
+
+        foreach (var draftVersion in draftSampleVersions)
+        {
+            draftVersion.Status = ResearchTreeVersionStatus.Published;
+        }
+
+        if (draftSampleVersions.Count > 0)
+        {
+            await context.SaveChangesAsync();
         }
     }
 }

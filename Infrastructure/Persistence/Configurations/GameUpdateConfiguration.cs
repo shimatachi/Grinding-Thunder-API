@@ -25,6 +25,6 @@ public class GameUpdateConfiguration : IEntityTypeConfiguration<GameUpdate>
         builder.HasMany(gu => gu.ResearchTreeVersions)
             .WithOne(rtv => rtv.GameUpdate)
             .HasForeignKey(rtv => rtv.GameUpdateId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

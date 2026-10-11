@@ -12,6 +12,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IResearchCalculatorService, ResearchCalculatorService>();
+builder.Services.AddScoped<IVersionLifecycleService, VersionLifecycleService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

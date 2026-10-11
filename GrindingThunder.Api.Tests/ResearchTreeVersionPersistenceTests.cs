@@ -113,7 +113,7 @@ public class ResearchTreeVersionPersistenceTests
     }
 
     [Fact]
-    public async Task DeletingResearchTree_CascadesItsVersions()
+    public async Task DeletingResearchTree_WithVersions_IsRejectedByRestrict()
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
@@ -126,19 +126,12 @@ public class ResearchTreeVersionPersistenceTests
         database.Context.ChangeTracker.Clear();
         database.Context.ResearchTrees.Remove(
             await database.Context.ResearchTrees.SingleAsync(rt => rt.Id == researchTree.Id));
-        await database.SaveChangesAsync();
 
-        var remainingVersions = await database.Context.ResearchTreeVersions
-            .AsNoTracking()
-            .CountAsync();
-        Assert.Equal(0, remainingVersions);
-        Assert.Equal(
-            1,
-            await database.Context.GameUpdates.AsNoTracking().CountAsync(gu => gu.Id == update.Id));
+        await Assert.ThrowsAsync<DbUpdateException>(() => database.SaveChangesAsync());
     }
 
     [Fact]
-    public async Task DeletingGameUpdate_CascadesItsVersions()
+    public async Task DeletingGameUpdate_WithVersions_IsRejectedByRestrict()
     {
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
@@ -149,16 +142,10 @@ public class ResearchTreeVersionPersistenceTests
         await database.SaveChangesAsync();
 
         database.Context.ChangeTracker.Clear();
-        database.Context.GameUpdates.Remove(update);
-        await database.SaveChangesAsync();
+        database.Context.GameUpdates.Remove(
+            await database.Context.GameUpdates.SingleAsync(gu => gu.Id == update.Id));
 
-        var remainingVersions = await database.Context.ResearchTreeVersions
-            .AsNoTracking()
-            .CountAsync();
-        Assert.Equal(0, remainingVersions);
-        Assert.Equal(
-            1,
-            await database.Context.ResearchTrees.AsNoTracking().CountAsync(rt => rt.Id == usaGroundTree.Id));
+        await Assert.ThrowsAsync<DbUpdateException>(() => database.SaveChangesAsync());
     }
 
     [Fact]

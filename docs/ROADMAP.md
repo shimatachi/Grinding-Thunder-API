@@ -73,14 +73,14 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   to calculation requests, defaulting to `LeastRp`. Auto-selection evaluates candidates
   according to the selected mode while enforcing researchable status, pulling transitive
   prerequisite chains, and ending on deterministic vehicle name tie-breaks.
-
-## Planned
-
-- **Batch 12 — Draft / clone / publish workflow** (status: Planned)
+- **Batch 12 — Draft / clone / publish workflow** (status: Completed)
   Goal: create editable drafts from existing versions and publish immutable historical
   snapshots. Revisit destructive cascade-delete behavior now that versions contain
   historical data.
   Dependency: Batches 3–7.
+  Result: changed foreign-key deletion behavior from `ResearchTree` and `GameUpdate` to `ResearchTreeVersion` to `DeleteBehavior.Restrict` (preventing silent destruction of historical snapshot records) via `RestrictResearchTreeVersionCascadeDelete` migration. Enforced published-version immutability in `ApplicationDbContext` intercepting changes to `ResearchTreeVersion`, `TreeRank`, `VehicleTreeEntry`, and `VehiclePrerequisite`. Implemented `IVersionLifecycleService` / `VersionLifecycleService` supporting deep-cloning versions into isolated Draft snapshots (remapping ranks, layout coordinates, folder parents, and composite-FK prerequisite edges), publishing Draft versions to Published status, and deleting unneeded Draft versions while protecting Published snapshots.
+
+## Planned
 
 - **Batch 13 — Version validation and historical diff** (status: Planned)
   Goal: validate graph/version integrity before publication and compare versions for

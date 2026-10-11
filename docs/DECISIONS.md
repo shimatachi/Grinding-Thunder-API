@@ -158,8 +158,20 @@ A chronological log of significant design decisions, one short entry per batch. 
 - Maintained exact application and domain behavior:
   - Preserved namespaces (`GrindingThunder.Api...`), UserSecretsId, launch profile ports, migrations history, seed behavior, and zero schema changes.
 
+## 2026 — Batch 17: admin back-office foundation (Razor Pages client)
+
+- Implemented the back-office as an isolated ASP.NET Core Razor Pages project under `src/GrindingThunder.Admin` (port 5035) communicating with `GrindingThunder.Api` (port 5034) exclusively over HTTP via a typed `ApiClient`.
+- Zero database or EF Core dependencies in the admin project: the back office treats the API as its single source of truth, avoiding dual-context synchronization issues and maintaining strict domain separation.
+- Cookie-to-JWT bridge architecture:
+  - Web users authenticate via `/Login` submitting credentials to the existing `POST /api/auth/login` endpoint.
+  - On authentication success, the server establishes a secure ASP.NET Core cookie session (`GrindingThunder.Admin.Session`) containing user claims (Username, Roles) and securely stores the JWT Bearer token in the authentication ticket.
+  - A custom `BearerTokenHandler` (`DelegatingHandler`) injected into `IHttpClientFactory` retrieves the token from the active `HttpContext` and automatically attaches `Authorization: Bearer <token>` to outbound requests to secured API endpoints.
+- Provided modern responsive layout, user profile badge rendering (`Admin`, `Publisher`, `Editor`), live connectivity probe to `GET /api/auth/me`, sign-out workflow clearing cookies, and placeholder pages for Batches 18–20.
+- Added comprehensive unit and integration test coverage under `tests/GrindingThunder.Admin.Tests` using `WebApplicationFactory` and mock backend message handlers, validating cookie creation, unauthenticated redirects, error feedback, and Bearer token propagation without requiring external service dependencies.
+
 ## Log format
 
 Append new entries at the end. Keep each entry to the decisions and tradeoffs that are not obvious from the code; do not duplicate content that belongs in DOMAIN.md, DATABASE.md, or ARCHITECTURE.md.
+
 
 

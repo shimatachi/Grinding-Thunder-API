@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} - " : "")Grinding Thunder Admin</title>
+    <link rel="stylesheet" href="~/css/admin.css" />
+</head>
+<body>
+    <header>
+        <nav class="admin-navbar">
+            <a class="navbar-brand" asp-page="/Index">
+                <span class="brand-icon">⚡</span>
+                <span>Grinding Thunder Admin</span>
+            </a>
+
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <ul class="navbar-nav">
+                    <li>
+                        <a class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Index" ? "active" : "")" asp-page="/Index">
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Catalog" ? "active" : "")" asp-page="/Catalog">
+                            Catalog <span class="badge badge-pill-outline">Batch 18</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Trees" ? "active" : "")" asp-page="/Trees">
+                            Tech Trees <span class="badge badge-pill-outline">Batch 19</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="nav-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Import" ? "active" : "")" asp-page="/Import">
+                            Import <span class="badge badge-pill-outline">Batch 20</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="navbar-user">
+                    <div class="user-identity">
+                        <span class="user-name">@User.Identity.Name</span>
+                        @foreach (var role in User.FindAll(ClaimTypes.Role).Select(c => c.Value).Distinct())
+                        {
+                            var badgeClass = role.ToLowerInvariant() switch
+                            {
+                                "admin" => "badge-admin",
+                                "publisher" => "badge-publisher",
+                                "editor" => "badge-editor",
+                                _ => "badge-pill-outline"
+                            };
+                            <span class="badge @badgeClass">@role</span>
+                        }
+                    </div>
+
+                    <form method="post" asp-page="/Logout" style="margin: 0; display: inline;">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" id="logout-button">Logout</button>
+                    </form>
+                </div>
+            }
+        </nav>
+    </header>
+
+    <main class="main-content">
+        @RenderBody()
+    </main>
+
+    <footer class="admin-footer">
+        <div>Grinding Thunder Admin Back-Office &bull; Connected to War Thunder Progression Platform</div>
+    </footer>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+

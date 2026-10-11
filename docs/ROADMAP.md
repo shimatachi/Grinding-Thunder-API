@@ -115,11 +115,17 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   paths for root build context; verified builds, all 235 unit/integration tests pass, EF migrations list resolves,
   and HTTP profile starts successfully.
 
-## Next
-
-- **Batch 17 — Admin back-office foundation** (status: Planned)
+- **Batch 17 — Admin back-office foundation** (status: Completed)
   Goal: add a separate ASP.NET Core Razor Pages admin client that authenticates
   against and consumes the existing REST API.
+  Result: added separate ASP.NET Core Razor Pages application under `src/GrindingThunder.Admin` (port 5035);
+  implemented cookie session authentication with login/logout workflows communicating with `POST /api/auth/login`;
+  implemented `BearerTokenHandler` delegating handler for propagating stored JWT tokens to outgoing REST API calls;
+  built responsive back-office navigation shell, dark theme layout, role badges, live session dashboard verifying connectivity
+  via `GET /api/auth/me`, and placeholder modules for Batches 18–20; added test suite in `tests/GrindingThunder.Admin.Tests`
+  covering unauthenticated redirects, login sessions, error feedback, and token propagation.
+
+## Next
 
 - **Batch 18 — Admin catalog management** (status: Planned)
   Goal: provide back-office CRUD screens for nations, vehicle types, vehicles,

@@ -1,0 +1,18 @@
+@page "/Import"
+@model GrindingThunder.Admin.Pages.ImportModel
+@{
+    ViewData["Title"] = "Data Import & Diff";
+}
+
+<div class="card" style="max-width: 650px; margin: 2rem auto; text-align: center;">
+    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📥</div>
+    <h1 style="font-size: 1.5rem; margin-bottom: 0.5rem; color: #fff;">Tabular Data Import & Diff</h1>
+    <span class="badge badge-pill-outline" style="align-self: center; margin-bottom: 1rem;">Scheduled for Batch 20</span>
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+        Two-phase CSV/XLSX file upload, non-mutating preview validation, historical diff comparison, and draft commit workflows will be exposed here in Batch 20.
+    </p>
+    <div>
+        <a asp-page="/Index" class="btn btn-primary">Return to Dashboard</a>
+    </div>
+</div>
+

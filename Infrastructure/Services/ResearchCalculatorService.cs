@@ -11,7 +11,10 @@ namespace GrindingThunder.Api.Infrastructure.Services;
 /// Calculates the RP and SL required to obtain a target vehicle by traversing
 /// the explicit prerequisite lines upwards and incorporating player-chosen
 /// filler vehicles for rank-gate requirements.
-/// No auto-picking of fillers - the frontend supplies explicit FillerTargetIds.
+/// When an explicit filler set leaves a rank-gate shortfall, the calculator
+/// automatically selects eligible researchable candidates in that rank according
+/// to the caller-selected ResearchOptimizationMode (Least RP, Least SL, Fewest
+/// additional vehicles, or Estimated fewest matches).
 /// </summary>
 public class ResearchCalculatorService : IResearchCalculatorService
 {
@@ -40,6 +43,13 @@ public class ResearchCalculatorService : IResearchCalculatorService
             throw new ArgumentOutOfRangeException(
                 nameof(request.AverageNetSlPerMatch),
                 "Average net SL per match must be greater than zero.");
+        }
+
+        if (!Enum.IsDefined(request.OptimizationMode))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request.OptimizationMode),
+                $"Unknown research optimization mode: {request.OptimizationMode}.");
         }
 
         var unlockedSet = (request.UnlockedVehicleIds ?? new List<Guid>())
@@ -237,14 +247,109 @@ public class ResearchCalculatorService : IResearchCalculatorService
         }
 
         // ------------------------------------------------------------------
+        // Step 1c: Auto-select rank-gate filler candidates.
+        //
+        // A local traversal helper that behaves like CollectFillerLine, but
+        // adds visited ids to the shared fillerVisited/fillerIds/fillerVehicles
+        // collections so the main filler path and the auto-selection path
+        // share de-duplication state.
+        // ------------------------------------------------------------------
+        void CollectAutoFillerLine(Guid vehicleId)
+        {
+            if (!vehicleMap.TryGetValue(vehicleId, out var vehicle)
+                || !fillerVisited.Add(vehicleId))
+                return;
+
+            if (unlockedSet.Contains(vehicleId))
+                return;
+
+            if (requiredIds.Contains(vehicleId))
+            {
+                if (prereqMap.TryGetValue(vehicleId, out var prereqIds))
+                {
+                    foreach (var prereqId in prereqIds)
+                    {
+                        CollectAutoFillerLine(prereqId);
+                    }
+                }
+                return;
+            }
+
+            fillerIds.Add(vehicleId);
+            fillerVehicles.Add(vehicle);
+
+            if (prereqMap.TryGetValue(vehicleId, out var autoFillerPrereqIds))
+            {
+                foreach (var prereqId in autoFillerPrereqIds)
+                {
+                    CollectAutoFillerLine(prereqId);
+                }
+            }
+        }
+
+        // Helper to simulate which additional vehicles would be added as fillers
+        // if a candidate were selected, without mutating calculator state.
+        List<Vehicle> GetCandidateChain(Guid vehicleId)
+        {
+            var chainVisited = new HashSet<Guid>(fillerVisited);
+            var chain = new List<Vehicle>();
+
+            void TraverseChain(Guid vId)
+            {
+                if (!vehicleMap.TryGetValue(vId, out var vehicle)
+                    || !chainVisited.Add(vId))
+                    return;
+
+                if (unlockedSet.Contains(vId))
+                    return;
+
+                if (requiredIds.Contains(vId))
+                {
+                    if (prereqMap.TryGetValue(vId, out var prereqIds))
+                    {
+                        foreach (var prereqId in prereqIds)
+                        {
+                            TraverseChain(prereqId);
+                        }
+                    }
+                    return;
+                }
+
+                if (!fillerIds.Contains(vId))
+                {
+                    chain.Add(vehicle);
+                }
+
+                if (prereqMap.TryGetValue(vId, out var autoFillerPrereqIds))
+                {
+                    foreach (var prereqId in autoFillerPrereqIds)
+                    {
+                        TraverseChain(prereqId);
+                    }
+                }
+            }
+
+            TraverseChain(vehicleId);
+            return chain;
+        }
+
+        // ------------------------------------------------------------------
         // Step 2: Rank gate verification (Rank I up to TargetRank - 1).
         //
         // Evaluate each rank sequentially. Count unique vehicles that are
         // either already unlocked, part of the mandatory line, or part of the
-        // explicit filler set. If a rank's quota is not met, STOP - return
-        // the accumulated results with a RankDeficit for that rank.
-        // Do NOT auto-pick fillers.
+        // explicit/auto filler set. When a shortfall remains after explicit
+        // fillers, auto-select eligible researchable candidates in that rank
+        // according to the caller's selected ResearchOptimizationMode.
+        // Any remaining deficit after exhausting candidates is recorded in
+        // RankDeficits; evaluation continues to higher ranks so the caller
+        // sees all rank-gate issues in one pass.
         // ------------------------------------------------------------------
+        // Build an index of entries by rank for efficient candidate lookup.
+        var entriesByRankId = entries
+            .GroupBy(e => e.TreeRankId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         var targetRankNumber = ranksById[targetEntry.TreeRankId].RankNumber;
         var rankDeficits = new List<RankDeficitDto>();
 
@@ -266,17 +371,116 @@ public class ResearchCalculatorService : IResearchCalculatorService
                 || fillerIds.Contains(v.Id));
 
             var shortfall = threshold - count;
+            if (shortfall <= 0)
+            {
+                continue;
+            }
+
+            var rankEntries = entriesByRankId.TryGetValue(rank.Id, out var re) ? re : new List<VehicleTreeEntry>();
+
+            while (shortfall > 0)
+            {
+                var eligibleCandidates = rankEntries
+                    .Where(e =>
+                        e.AcquisitionType == VehicleAcquisitionType.Researchable
+                        && !unlockedSet.Contains(e.VehicleId)
+                        && !requiredIds.Contains(e.VehicleId)
+                        && !fillerIds.Contains(e.VehicleId))
+                    .ToList();
+
+                if (eligibleCandidates.Count == 0)
+                {
+                    break;
+                }
+
+                VehicleTreeEntry bestCandidate;
+                switch (request.OptimizationMode)
+                {
+                    case ResearchOptimizationMode.LeastRp:
+                        // Match Batch 10 greedy baseline: lowest RP, lowest SL, name tie-break.
+                        bestCandidate = eligibleCandidates
+                            .OrderBy(e => e.RpCost)
+                            .ThenBy(e => e.SlCost)
+                            .ThenBy(e => e.Vehicle.Name)
+                            .First();
+                        break;
+
+                    case ResearchOptimizationMode.LeastSl:
+                        // Minimize vehicle purchase SL cost: lowest SL, lowest RP, name tie-break.
+                        bestCandidate = eligibleCandidates
+                            .OrderBy(e => e.SlCost)
+                            .ThenBy(e => e.RpCost)
+                            .ThenBy(e => e.Vehicle.Name)
+                            .First();
+                        break;
+
+                    case ResearchOptimizationMode.FewestVehicles:
+                        // Minimize total additional filler vehicles added (including prerequisite chain).
+                        bestCandidate = eligibleCandidates
+                            .Select(e => new { Entry = e, Chain = GetCandidateChain(e.VehicleId) })
+                            .OrderBy(x => x.Chain.Count)
+                            .ThenBy(x => x.Chain.Sum(v => (long)entryByVehicleId[v.Id].RpCost))
+                            .ThenBy(x => x.Chain.Sum(v => (long)entryByVehicleId[v.Id].SlCost))
+                            .ThenBy(x => x.Entry.Vehicle.Name)
+                            .First()
+                            .Entry;
+                        break;
+
+                    case ResearchOptimizationMode.FewestMatches:
+                        // Minimize estimated matches: max(ceil(TotalRP / avgRP), ceil(TotalSL / avgSL)).
+                        var currentTotalRp = required.Sum(v => (long)entryByVehicleId[v.Id].RpCost)
+                            + fillerVehicles.Sum(v => (long)entryByVehicleId[v.Id].RpCost);
+                        var currentTotalSl = required.Sum(v => (long)entryByVehicleId[v.Id].SlCost)
+                            + fillerVehicles.Sum(v => (long)entryByVehicleId[v.Id].SlCost);
+
+                        bestCandidate = eligibleCandidates
+                            .Select(e =>
+                            {
+                                var chain = GetCandidateChain(e.VehicleId);
+                                var addRp = chain.Sum(v => (long)entryByVehicleId[v.Id].RpCost);
+                                var addSl = chain.Sum(v => (long)entryByVehicleId[v.Id].SlCost);
+                                var projRp = currentTotalRp + addRp;
+                                var projSl = currentTotalSl + addSl;
+                                var rpMatches = DivideRoundUp(projRp, request.AverageRpPerMatch);
+                                var slMatches = DivideRoundUp(projSl, request.AverageNetSlPerMatch);
+                                var matches = Math.Max(rpMatches, slMatches);
+                                return new
+                                {
+                                    Entry = e,
+                                    Matches = matches,
+                                    AddRp = addRp,
+                                    AddSl = addSl
+                                };
+                            })
+                            .OrderBy(x => x.Matches)
+                            .ThenBy(x => x.AddRp)
+                            .ThenBy(x => x.AddSl)
+                            .ThenBy(x => x.Entry.Vehicle.Name)
+                            .First()
+                            .Entry;
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException(
+                            nameof(request.OptimizationMode),
+                            $"Unknown research optimization mode: {request.OptimizationMode}");
+                }
+
+                CollectAutoFillerLine(bestCandidate.VehicleId);
+
+                count = rankVehicles.Count(v =>
+                    unlockedSet.Contains(v.Id)
+                    || requiredIds.Contains(v.Id)
+                    || fillerIds.Contains(v.Id));
+                shortfall = threshold - count;
+            }
+
             if (shortfall > 0)
             {
-                // Rank gate not satisfied - report deficit and stop.
                 rankDeficits.Add(new RankDeficitDto(
                     rank.RankNumber,
                     shortfall,
                     threshold));
-
-                // Stop evaluating further ranks - the player must resolve
-                // this deficit before higher ranks can be calculated.
-                break;
             }
         }
 

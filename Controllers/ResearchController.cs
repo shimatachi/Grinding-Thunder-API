@@ -36,6 +36,11 @@ public class ResearchController(IResearchCalculatorService calculatorService) : 
             return BadRequest("Average net SL per match must be greater than 0.");
         }
 
+        if (!Enum.IsDefined(request.OptimizationMode))
+        {
+            return BadRequest("Invalid optimization mode.");
+        }
+
         try
         {
             var result = await _calculatorService.CalculateResearchAsync(request, cancellationToken);

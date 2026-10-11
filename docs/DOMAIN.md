@@ -24,9 +24,18 @@ Acquisition type is version-specific and modeled on `VehicleTreeEntry` via `Vehi
 - `Premium` (1), `Squadron` (2), `Event` (3), `Pack` (4), `Hidden` (5): non-standard acquisition categories.
 
 Progression rules:
-- Only `Researchable` vehicles can be researched via normal vehicle RP progression (targeting or selecting non-researchable entries as fillers throws a calculation error).
+- Only `Researchable` vehicles can be researched via normal vehicle RP progression (targeting or selecting non-researchable entries as fillers throws a calculation error). Non-researchable entries are never auto-selected as rank-gate fillers.
 - Any owned/unlocked vehicle (regardless of acquisition type, including Premium, Squadron, and Event vehicles) counts towards fulfilling rank-gate unlock quotas for higher ranks.
 - Owned vehicles are never added to the remaining required research set or costs.
+- When explicit fillers leave a shortfall for a rank gate below the target rank, the calculator automatically selects eligible `Researchable` vehicles in that rank to satisfy the quota.
+- Auto-selected vehicles transitively pull any unresearched prerequisite vehicles they require, and all of them are included in `RequiredVehicles` with `IsRankGateFiller = true`.
+- Route optimization mode (`ResearchOptimizationMode`) controls candidate ordering:
+  - `LeastRp` (default): lowest `RpCost` ascending, then `SlCost` ascending, then `Vehicle.Name` ascending (greedy baseline).
+  - `LeastSl`: lowest `SlCost` ascending, then `RpCost` ascending, then `Vehicle.Name` ascending.
+  - `FewestVehicles`: lowest additional vehicle count (including transitive prerequisites) ascending, then total chain RP ascending, then total chain SL ascending, then `Vehicle.Name` ascending.
+  - `FewestMatches`: lowest projected concurrent match requirement $\max(\lceil\text{TotalRP} / \text{avgRP}\rceil, \lceil\text{TotalSL} / \text{avgSL}\rceil)$ ascending, then additional RP ascending, then additional SL ascending, then `Vehicle.Name` ascending.
+- Tie-breaking across all modes deterministically ends on `Vehicle.Name` ascending.
+- Evaluation continues across all prerequisite ranks; if available researchable candidates in a rank are exhausted before the quota is satisfied, remaining deficits are reported in `RankDeficits`.
 
 ## Current model gaps
 
@@ -34,4 +43,4 @@ Progression rules:
 
 `TreeRank` owns version-specific rank numbers and rank-gate requirements. `VehiclePrerequisite` links two versioned entries; composite foreign keys make the database reject cross-version prerequisite edges. Folder membership uses the same version-carrying composite-FK approach, so the database also rejects cross-version folder relationships. Folder layout never affects calculation.
 
-Every calculator request selects one `ResearchTreeVersionId`. The target and every filler must have an entry in that version and must be `Researchable`. Every owned vehicle ID must have an entry in that version, but can be of any acquisition type. Unknown versions fail distinctly from invalid vehicle membership. The calculator reads RP/SL costs, ranks, rank gates, and prerequisite edges only from the selected snapshot; it never infers or falls back to another version. The same deduplicated remaining-entry set supplies both cost totals. Owned vehicles (including premiums) count toward rank gates, owned vehicles remain traversal boundaries, shared prerequisite ancestors are counted once, and traversal protects against cycles. Flat vehicle-list projections remain transitional: flat values are emitted only for a vehicle with exactly one entry, while entry-based projections include their version ID. No publishing workflow exists yet.
+Every calculator request selects one `ResearchTreeVersionId` and an optional `OptimizationMode` (defaulting to `LeastRp`). The target and every filler must have an entry in that version and must be `Researchable`. Every owned vehicle ID must have an entry in that version, but can be of any acquisition type. Unknown versions fail distinctly from invalid vehicle membership. The calculator reads RP/SL costs, ranks, rank gates, and prerequisite edges only from the selected snapshot; it never infers or falls back to another version. The same deduplicated remaining-entry set supplies both cost totals. Owned vehicles (including premiums) count toward rank gates, owned vehicles remain traversal boundaries, shared prerequisite ancestors are counted once, auto-selected candidates satisfy rank shortfalls according to the selected optimization mode without duplicating prerequisites, and traversal protects against cycles. Flat vehicle-list projections remain transitional: flat values are emitted only for a vehicle with exactly one entry, while entry-based projections include their version ID. No publishing workflow exists yet.

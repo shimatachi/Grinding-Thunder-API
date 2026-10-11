@@ -53,17 +53,28 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batch 7 and product/domain decisions.
   Result: modeled `VehicleAcquisitionType` enum on `VehicleTreeEntry`; configured integer-backed persistence with default `Researchable`; added `AddVehicleAcquisitionType` migration; calculator enforces that target and filler vehicles must be `Researchable`, while owned vehicles of any acquisition type count towards rank-gate thresholds; exposed `AcquisitionType` in vehicle and tree API projections.
 
-## Planned
-
-- **Batch 10 — Automatic rank-gate candidate selection** (status: Planned)
+- **Batch 10 — Automatic rank-gate candidate selection** (status: Completed)
   Goal: replace manual filler selection with automatic selection of valid additional
   vehicles required to satisfy rank-gate deficits.
   Dependency: Batches 8–9.
+  Result: when explicit fillers leave a rank-gate shortfall, the calculator
+  automatically selects the cheapest eligible researchable vehicles in that rank
+  (RP asc, SL asc, name asc for deterministic tie-breaking). Each auto-selected
+  vehicle's transitive prerequisite chain is gathered and marked `IsRankGateFiller = true`.
+  Evaluation continues through all prerequisite ranks rather than stopping at the
+  first deficit. Any remaining shortfall after exhausting candidates is reported
+  in `RankDeficits`.
 
-- **Batch 11 — Route optimization modes** (status: Planned)
+- **Batch 11 — Route optimization modes** (status: Completed)
   Goal: optimize valid progression routes by least RP, least SL, fewest additional
   vehicles, or estimated fewest matches.
   Dependency: Batch 10.
+  Result: added `ResearchOptimizationMode` (`LeastRp`, `LeastSl`, `FewestVehicles`, `FewestMatches`)
+  to calculation requests, defaulting to `LeastRp`. Auto-selection evaluates candidates
+  according to the selected mode while enforcing researchable status, pulling transitive
+  prerequisite chains, and ending on deterministic vehicle name tie-breaks.
+
+## Planned
 
 - **Batch 12 — Draft / clone / publish workflow** (status: Planned)
   Goal: create editable drafts from existing versions and publish immutable historical

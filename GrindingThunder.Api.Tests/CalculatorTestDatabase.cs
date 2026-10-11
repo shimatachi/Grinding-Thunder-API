@@ -121,14 +121,20 @@ internal sealed class CalculatorTestDatabase : IDisposable
         return rank;
     }
 
-    public Vehicle AddVehicle(TreeRank rank, string name, int rpCost, int slCost = 0)
+    public Vehicle AddVehicle(
+        TreeRank rank,
+        string name,
+        int rpCost,
+        int slCost = 0,
+        VehicleAcquisitionType acquisitionType = VehicleAcquisitionType.Researchable)
     {
         return AddVehicle(
             rank.ResearchTreeVersion.ResearchTree,
             rank,
             name,
             rpCost,
-            slCost: slCost);
+            slCost: slCost,
+            acquisitionType: acquisitionType);
     }
 
     public Vehicle AddVehicle(
@@ -139,7 +145,8 @@ internal sealed class CalculatorTestDatabase : IDisposable
         ResearchTreeVersion? treeVersion = null,
         int treeColumn = 0,
         int treeRow = 0,
-        int slCost = 0)
+        int slCost = 0,
+        VehicleAcquisitionType acquisitionType = VehicleAcquisitionType.Researchable)
     {
         var vehicle = new Vehicle
         {
@@ -172,6 +179,7 @@ internal sealed class CalculatorTestDatabase : IDisposable
             TreeRankId = ResolveRank(version, rank).Id,
             RpCost = rpCost,
             SlCost = slCost,
+            AcquisitionType = acquisitionType,
             TreeColumn = treeColumn,
             TreeRow = treeRow
         });
@@ -187,7 +195,8 @@ internal sealed class CalculatorTestDatabase : IDisposable
         int slCost = 0,
         int treeColumn = 0,
         int treeRow = 0,
-        VehicleTreeEntry? folderParent = null)
+        VehicleTreeEntry? folderParent = null,
+        VehicleAcquisitionType acquisitionType = VehicleAcquisitionType.Researchable)
     {
         var resolvedRank = ResolveRank(version, rank);
 
@@ -201,6 +210,7 @@ internal sealed class CalculatorTestDatabase : IDisposable
             TreeRankId = resolvedRank.Id,
             RpCost = rpCost,
             SlCost = slCost,
+            AcquisitionType = acquisitionType,
             TreeColumn = treeColumn,
             TreeRow = treeRow,
             FolderParentEntryId = folderParent?.Id,

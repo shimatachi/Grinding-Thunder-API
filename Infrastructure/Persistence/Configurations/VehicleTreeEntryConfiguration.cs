@@ -10,6 +10,10 @@ public class VehicleTreeEntryConfiguration : IEntityTypeConfiguration<VehicleTre
     {
         builder.HasKey(e => e.Id);
 
+        builder.Property(e => e.AcquisitionType)
+            .HasConversion<int>()
+            .HasDefaultValue(VehicleAcquisitionType.Researchable);
+
         builder.HasOne(e => e.ResearchTreeVersion)
             .WithMany(rtv => rtv.Entries)
             .HasForeignKey(e => e.ResearchTreeVersionId)

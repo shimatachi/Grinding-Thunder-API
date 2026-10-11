@@ -63,6 +63,13 @@ A chronological log of significant design decisions, one short entry per batch. 
 - Require positive average RP and average net SL per match, calculate each ceiling estimate independently, and use their maximum as the simple combined estimate. Why: both resources accrue concurrently, so the slower constraint determines the estimate; broader economy simulation remains out of scope.
 - Use `long` totals and integer ceiling division, and expose each required vehicle's remaining SL alongside its RP. Why: this avoids premature truncation or narrow total overflow while giving a future frontend enough information to explain the totals. No persistence change or migration was needed because `VehicleTreeEntry` already owns both costs.
 
+## 2026 — Batch 9: acquisition types and progression eligibility
+
+- Added `VehicleAcquisitionType` (`Researchable = 0`, `Premium = 1`, `Squadron = 2`, `Event = 3`, `Pack = 4`, `Hidden = 5`) to `VehicleTreeEntry` rather than `Vehicle`. Why: in War Thunder, availability and acquisition status can change between updates (e.g. vehicles becoming hidden, event vehicles returning as store packs, or vehicles moving between tech-tree and premium/event categories), so acquisition type belongs to versioned snapshot state, preserving the stable identity of `Vehicle`.
+- Enforced that target and filler vehicles must have `AcquisitionType == VehicleAcquisitionType.Researchable`, rejecting non-researchable entries with `ResearchCalculationInputException`. Why: premium, pack, squadron, and event vehicles cannot be researched with standard vehicle RP progression.
+- Permitted any acquisition type in `UnlockedVehicleIds` and counted owned non-researchable vehicles towards rank-gate quotas. Why: in War Thunder, purchasing or owning premium or squadron vehicles in a rank counts toward the rank unlock requirement for subsequent ranks without requiring standard tech-tree RP expenditure.
+- Stored `AcquisitionType` as an integer with default `0` (`Researchable`) in the database. Why: aligns with existing enum storage patterns (e.g., `ResearchTreeVersionStatus`), and safely defaults all existing snapshot rows without data-migration overhead.
+
 ## Log format
 
 Append new entries at the end. Keep each entry to the decisions and tradeoffs that are not obvious from the code; do not duplicate content that belongs in DOMAIN.md, DATABASE.md, or ARCHITECTURE.md.

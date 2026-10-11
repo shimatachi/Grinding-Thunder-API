@@ -184,6 +184,11 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AcquisitionType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<Guid?>("FolderParentEntryId")
                         .HasColumnType("uuid");
 

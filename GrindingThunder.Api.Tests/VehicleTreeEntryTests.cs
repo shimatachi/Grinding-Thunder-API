@@ -85,6 +85,39 @@ public class VehicleTreeEntryTests
         Assert.Equal(2, entries.Count);
         Assert.Equal(new[] { 2900, 4000 }, entries.Select(e => e.RpCost).OrderBy(c => c));
     }
+
+    [Fact]
+    public async Task VehicleTreeEntry_AcquisitionType_PersistsAndDefaultsCorrectly()
+    {
+        using var database = new CalculatorTestDatabase();
+        var nation = database.AddNation("USA");
+        var update = database.AddGameUpdate("2.43");
+        var version = database.AddResearchTreeVersion(
+            database.AddResearchTree(nation, database.AddVehicleType("Ground")), update);
+        var rank1 = database.AddTreeRank(version, 1);
+
+        var researchable = new Vehicle { Id = Guid.NewGuid(), Name = "Regular Tank" };
+        var premium = new Vehicle { Id = Guid.NewGuid(), Name = "Premium Tank" };
+        database.Context.Vehicles.AddRange(researchable, premium);
+
+        var defaultEntry = database.AddVehicleTreeEntry(
+            version, researchable, rank1, rpCost: 2900, slCost: 700);
+        var premiumEntry = database.AddVehicleTreeEntry(
+            version, premium, rank1, rpCost: 0, slCost: 0, acquisitionType: VehicleAcquisitionType.Premium);
+
+        await database.SaveChangesAsync();
+        database.Context.ChangeTracker.Clear();
+
+        var persistedDefault = await database.Context.VehicleTreeEntries
+            .AsNoTracking()
+            .SingleAsync(e => e.Id == defaultEntry.Id);
+        var persistedPremium = await database.Context.VehicleTreeEntries
+            .AsNoTracking()
+            .SingleAsync(e => e.Id == premiumEntry.Id);
+
+        Assert.Equal(VehicleAcquisitionType.Researchable, persistedDefault.AcquisitionType);
+        Assert.Equal(VehicleAcquisitionType.Premium, persistedPremium.AcquisitionType);
+    }
 }
 
 
@@ -191,6 +224,7 @@ public class VehicleTreeEntryCalculatorTests
         Assert.All(entries, entry =>
         {
             Assert.Equal(ResearchTreeVersionStatus.Published, entry.ResearchTreeVersion.Status);
+            Assert.Equal(VehicleAcquisitionType.Researchable, entry.AcquisitionType);
             Assert.False(string.IsNullOrWhiteSpace(entry.Vehicle.Name));
             Assert.NotEqual(0, entry.RpCost);
         });
@@ -222,6 +256,111 @@ public class VehicleTreeEntryCalculatorTests
         Assert.Equal(50, result.TotalRpRequired);
         Assert.Contains(result.RequiredVehicles, vehicle =>
             vehicle.VehicleId == ambiguous.Id && vehicle.RpRemaining == 10);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_TargetNonResearchableVehicle_ThrowsException()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        var premiumVehicle = database.AddVehicle(
+            rank,
+            "Premium Tank",
+            rpCost: 0,
+            slCost: 0,
+            acquisitionType: VehicleAcquisitionType.Premium);
+        await database.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<ResearchCalculationInputException>(() =>
+            database.Calculator.CalculateResearchAsync(
+                new ResearchCalculationRequest(
+                    ResearchTreeVersionId: rank.ResearchTreeVersionId,
+                    TargetVehicleId: premiumVehicle.Id,
+                    AverageRpPerMatch: 1000,
+                    AverageNetSlPerMatch: int.MaxValue,
+                    UnlockedVehicleIds: [],
+                    FillerTargetIds: [])));
+
+        Assert.Contains(premiumVehicle.Id.ToString(), exception.Message);
+        Assert.Contains("not researchable", exception.Message);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_NonResearchableFiller_ThrowsException()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        var target = database.AddVehicle(rank, "Target Tank", 10000);
+        var squadronFiller = database.AddVehicle(
+            rank,
+            "Squadron Tank",
+            rpCost: 50000,
+            slCost: 10000,
+            acquisitionType: VehicleAcquisitionType.Squadron);
+        await database.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<ResearchCalculationInputException>(() =>
+            database.Calculator.CalculateResearchAsync(
+                new ResearchCalculationRequest(
+                    ResearchTreeVersionId: rank.ResearchTreeVersionId,
+                    TargetVehicleId: target.Id,
+                    AverageRpPerMatch: 1000,
+                    AverageNetSlPerMatch: int.MaxValue,
+                    UnlockedVehicleIds: [],
+                    FillerTargetIds: [squadronFiller.Id])));
+
+        Assert.Contains("Filler target IDs must be researchable", exception.Message);
+        Assert.Contains(squadronFiller.Id.ToString(), exception.Message);
+    }
+
+    [Fact]
+    public async Task CalculateResearchAsync_OwnedPremiumVehicle_CountsTowardRankGateThreshold()
+    {
+        using var database = new CalculatorTestDatabase();
+        var nation = database.AddNation("USA");
+        var tree = database.AddResearchTree(nation, database.AddVehicleType("Ground"));
+        var version = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.43"));
+        var rank1 = database.AddTreeRank(version, 1, requiredVehiclesUnlocked: 2);
+        var rank2 = database.AddTreeRank(version, 2);
+
+        var rank1Mandatory = database.AddVehicle(tree, rank1, "Rank 1 Prereq", 1000, treeVersion: version);
+        var rank1Premium = database.AddVehicle(
+            tree,
+            rank1,
+            "Rank 1 Premium",
+            0,
+            treeVersion: version,
+            acquisitionType: VehicleAcquisitionType.Premium);
+        var rank2Target = database.AddVehicle(tree, rank2, "Rank 2 Target", 5000, treeVersion: version);
+
+        database.AddPrerequisite(rank2Target, rank1Mandatory);
+        await database.SaveChangesAsync();
+
+        var resultWithOwnedPremium = await database.Calculator.CalculateResearchAsync(
+            new ResearchCalculationRequest(
+                ResearchTreeVersionId: version.Id,
+                TargetVehicleId: rank2Target.Id,
+                AverageRpPerMatch: 1000,
+                AverageNetSlPerMatch: int.MaxValue,
+                UnlockedVehicleIds: [rank1Premium.Id],
+                FillerTargetIds: []));
+
+        Assert.Empty(resultWithOwnedPremium.RankDeficits);
+        Assert.Equal(6000, resultWithOwnedPremium.TotalRpRequired);
+        Assert.DoesNotContain(resultWithOwnedPremium.RequiredVehicles, v => v.VehicleId == rank1Premium.Id);
+
+        var resultWithoutOwnedPremium = await database.Calculator.CalculateResearchAsync(
+            new ResearchCalculationRequest(
+                ResearchTreeVersionId: version.Id,
+                TargetVehicleId: rank2Target.Id,
+                AverageRpPerMatch: 1000,
+                AverageNetSlPerMatch: int.MaxValue,
+                UnlockedVehicleIds: [],
+                FillerTargetIds: []));
+
+        var deficit = Assert.Single(resultWithoutOwnedPremium.RankDeficits);
+        Assert.Equal(1, deficit.RankNumber);
+        Assert.Equal(1, deficit.Shortfall);
     }
 }
 
@@ -300,6 +439,87 @@ public class VehiclesControllerTests
         // The full, honest list of entries is still exposed.
         var entries = Assert.IsAssignableFrom<System.Collections.IEnumerable>(GetProp(dto, "TreeEntries"));
         Assert.Equal(2, entries.Cast<object>().Count());
+    }
+
+    [Fact]
+    public async Task GetVehicles_ProjectsAcquisitionTypeCorrectly()
+    {
+        using var database = new CalculatorTestDatabase();
+        var nation = database.AddNation("USA");
+        var update = database.AddGameUpdate("2.43");
+        var version = database.AddResearchTreeVersion(
+            database.AddResearchTree(nation, database.AddVehicleType("Ground")), update);
+        var rank = database.AddTreeRank(version, 1);
+
+        var techTreeVehicle = database.AddVehicle(
+            rank.ResearchTreeVersion.ResearchTree,
+            rank,
+            "Tech Tree Tank",
+            1000,
+            treeVersion: version,
+            acquisitionType: VehicleAcquisitionType.Researchable);
+        var premiumVehicle = database.AddVehicle(
+            rank.ResearchTreeVersion.ResearchTree,
+            rank,
+            "Premium Tank",
+            0,
+            treeVersion: version,
+            acquisitionType: VehicleAcquisitionType.Premium);
+
+        await database.SaveChangesAsync();
+
+        var controller = new GrindingThunder.Api.Controllers.VehiclesController(database.Context);
+        var actionResult = await controller.GetVehicles();
+
+        var ok = Assert.IsType<OkObjectResult>(actionResult);
+        var body = Assert.IsAssignableFrom<System.Collections.IEnumerable>(ok.Value!).Cast<object>().ToList();
+
+        var techTreeDto = body.Single(dto => (Guid)GetProp(dto, "Id")! == techTreeVehicle.Id);
+        var premiumDto = body.Single(dto => (Guid)GetProp(dto, "Id")! == premiumVehicle.Id);
+
+        // Flat projection
+        Assert.Equal(VehicleAcquisitionType.Researchable, GetProp(techTreeDto, "AcquisitionType"));
+        Assert.Equal(VehicleAcquisitionType.Premium, GetProp(premiumDto, "AcquisitionType"));
+
+        // Versioned TreeEntries projection
+        var techTreeEntries = Assert.IsAssignableFrom<System.Collections.IEnumerable>(GetProp(techTreeDto, "TreeEntries")).Cast<object>().ToList();
+        var premiumEntries = Assert.IsAssignableFrom<System.Collections.IEnumerable>(GetProp(premiumDto, "TreeEntries")).Cast<object>().ToList();
+
+        Assert.Equal(VehicleAcquisitionType.Researchable, GetProp(techTreeEntries[0], "AcquisitionType"));
+        Assert.Equal(VehicleAcquisitionType.Premium, GetProp(premiumEntries[0], "AcquisitionType"));
+    }
+
+    [Fact]
+    public async Task GetVehicleTree_ProjectsAcquisitionTypeCorrectly()
+    {
+        using var database = new CalculatorTestDatabase();
+        var nation = database.AddNation("USA");
+        var ground = database.AddVehicleType("Ground");
+        var update = database.AddGameUpdate("2.43");
+        var tree = database.AddResearchTree(nation, ground);
+        var version = database.AddResearchTreeVersion(tree, update);
+        var rank = database.AddTreeRank(version, 1);
+
+        var premiumVehicle = database.AddVehicle(
+            tree,
+            rank,
+            "Premium Tank",
+            0,
+            treeVersion: version,
+            acquisitionType: VehicleAcquisitionType.Premium);
+
+        await database.SaveChangesAsync();
+
+        var controller = new GrindingThunder.Api.Controllers.VehiclesController(database.Context);
+        var actionResult = await controller.GetVehicleTree(nation.Id, "Ground", CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(actionResult);
+        var body = Assert.IsAssignableFrom<System.Collections.IEnumerable>(ok.Value!).Cast<object>().ToList();
+
+        Assert.Single(body);
+        var entryDto = body[0];
+        Assert.Equal(premiumVehicle.Id, GetProp(entryDto, "Id"));
+        Assert.Equal(VehicleAcquisitionType.Premium, GetProp(entryDto, "AcquisitionType"));
     }
 
     private static object? GetProp(object obj, string name) =>

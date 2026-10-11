@@ -16,6 +16,7 @@ public class VehicleTreeEntry
     public int TreeColumn { get; set; }
     public int TreeRow { get; set; }
     public Guid? FolderParentEntryId { get; set; }
+    public VehicleAcquisitionType AcquisitionType { get; set; } = VehicleAcquisitionType.Researchable;
 
     public ResearchTreeVersion ResearchTreeVersion { get; set; } = null!;
     public Vehicle Vehicle { get; set; } = null!;

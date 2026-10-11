@@ -238,6 +238,7 @@ public static class DbInitializer
                         TreeRankId = rank1.Id,
                         RpCost = 2900,
                         SlCost = 700,
+                        AcquisitionType = VehicleAcquisitionType.Researchable,
                         TreeColumn = 1,
                         TreeRow = 1
                     };
@@ -249,6 +250,7 @@ public static class DbInitializer
                         TreeRankId = rank1.Id,
                         RpCost = 4000,
                         SlCost = 1400,
+                        AcquisitionType = VehicleAcquisitionType.Researchable,
                         TreeColumn = 1,
                         TreeRow = 2
                     };
@@ -260,6 +262,7 @@ public static class DbInitializer
                         TreeRankId = rank1.Id,
                         RpCost = 2900,
                         SlCost = 700,
+                        AcquisitionType = VehicleAcquisitionType.Researchable,
                         TreeColumn = 2,
                         TreeRow = 1
                     };
@@ -271,6 +274,7 @@ public static class DbInitializer
                         TreeRankId = rank1.Id,
                         RpCost = 4000,
                         SlCost = 1400,
+                        AcquisitionType = VehicleAcquisitionType.Researchable,
                         TreeColumn = 2,
                         TreeRow = 2
                     };
@@ -282,6 +286,7 @@ public static class DbInitializer
                         TreeRankId = rank2.Id,
                         RpCost = 9200,
                         SlCost = 3800,
+                        AcquisitionType = VehicleAcquisitionType.Researchable,
                         TreeColumn = 1,
                         TreeRow = 1
                     };
@@ -293,6 +298,7 @@ public static class DbInitializer
                         TreeRankId = rank2.Id,
                         RpCost = 5900,
                         SlCost = 2200,
+                        AcquisitionType = VehicleAcquisitionType.Researchable,
                         TreeColumn = 2,
                         TreeRow = 1
                     };

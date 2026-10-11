@@ -723,4 +723,51 @@ public class ResearchControllerTests
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Contains("Target vehicle", Assert.IsType<string>(badRequest.Value));
     }
+
+    [Fact]
+    public async Task CalculateResearch_TargetNonResearchable_ReturnsBadRequest()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        var premium = database.AddVehicle(rank, "Premium", 0, acquisitionType: VehicleAcquisitionType.Premium);
+        await database.SaveChangesAsync();
+        var controller = new GrindingThunder.Api.Controllers.ResearchController(database.Calculator);
+
+        var result = await controller.CalculateResearch(
+            new ResearchCalculationRequest(
+                rank.ResearchTreeVersionId,
+                premium.Id,
+                [],
+                [],
+                100,
+                int.MaxValue),
+            CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("not researchable", Assert.IsType<string>(badRequest.Value));
+    }
+
+    [Fact]
+    public async Task CalculateResearch_FillerNonResearchable_ReturnsBadRequest()
+    {
+        using var database = new CalculatorTestDatabase();
+        var rank = database.AddTreeRank(database.AddNation(), 1);
+        var target = database.AddVehicle(rank, "Target", 100);
+        var squadron = database.AddVehicle(rank, "Squadron", 100, acquisitionType: VehicleAcquisitionType.Squadron);
+        await database.SaveChangesAsync();
+        var controller = new GrindingThunder.Api.Controllers.ResearchController(database.Calculator);
+
+        var result = await controller.CalculateResearch(
+            new ResearchCalculationRequest(
+                rank.ResearchTreeVersionId,
+                target.Id,
+                [],
+                [squadron.Id],
+                100,
+                int.MaxValue),
+            CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("Filler target IDs must be researchable", Assert.IsType<string>(badRequest.Value));
+    }
 }

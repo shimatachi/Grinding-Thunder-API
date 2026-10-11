@@ -80,6 +80,12 @@ public class ResearchCalculatorService : IResearchCalculatorService
                 $"'{request.ResearchTreeVersionId}'.");
         }
 
+        if (targetEntry.AcquisitionType != VehicleAcquisitionType.Researchable)
+        {
+            throw new ResearchCalculationInputException(
+                $"Target vehicle '{request.TargetVehicleId}' is not researchable (acquisition type: '{targetEntry.AcquisitionType}'). Only researchable vehicles can be researched.");
+        }
+
         var invalidOwnedIds = unlockedSet
             .Where(id => !entryByVehicleId.ContainsKey(id))
             .OrderBy(id => id)
@@ -100,6 +106,16 @@ public class ResearchCalculatorService : IResearchCalculatorService
             throw new ResearchCalculationInputException(
                 $"Filler target IDs are not present in research tree version " +
                 $"'{request.ResearchTreeVersionId}': {string.Join(", ", invalidFillerIds)}.");
+        }
+
+        var nonResearchableFillerIds = fillerTargetIds
+            .Where(id => entryByVehicleId.TryGetValue(id, out var entry) && entry.AcquisitionType != VehicleAcquisitionType.Researchable)
+            .OrderBy(id => id)
+            .ToList();
+        if (nonResearchableFillerIds.Count > 0)
+        {
+            throw new ResearchCalculationInputException(
+                $"Filler target IDs must be researchable: {string.Join(", ", nonResearchableFillerIds)}.");
         }
 
         var ranks = version.TreeRanks.ToList();

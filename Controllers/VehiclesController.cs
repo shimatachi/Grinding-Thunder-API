@@ -29,6 +29,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                     RankNumber = (int?)e.TreeRank.RankNumber,
                     e.RpCost,
                     e.SlCost,
+                    e.AcquisitionType,
                     e.TreeColumn,
                     e.TreeRow,
                     FolderParentId = e.FolderParentEntry == null
@@ -68,6 +69,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 v.ImageUrl,
                 RpCost = singleEntry?.RpCost,
                 SlCost = singleEntry?.SlCost,
+                AcquisitionType = singleEntry?.AcquisitionType,
                 IsFolderParent = singleEntry?.IsFolderParent,
                 FolderParentId = singleEntry?.FolderParentId,
                 TreeColumn = singleEntry?.TreeColumn,
@@ -114,6 +116,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 e.Vehicle.ImageUrl,
                 e.RpCost,
                 e.SlCost,
+                e.AcquisitionType,
                 IsFolderParent = e.FolderChildren.Any(),
                 FolderParentId = e.FolderParentEntry == null
                     ? (Guid?)null

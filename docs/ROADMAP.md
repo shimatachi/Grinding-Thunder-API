@@ -46,12 +46,14 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   each resource estimate rounds up independently, and the combined estimate is
   the greater value. Both per-match averages must be positive.
 
-## Planned
 
-- **Batch 9 — Acquisition types and progression eligibility** (status: Planned)
+- **Batch 9 — Acquisition types and progression eligibility** (status: Completed)
   Goal: model researchable, premium, squadron, event, pack/marketplace, hidden,
   and define which entries may participate in normal research/rank-gate progression.
   Dependency: Batch 7 and product/domain decisions.
+  Result: modeled `VehicleAcquisitionType` enum on `VehicleTreeEntry`; configured integer-backed persistence with default `Researchable`; added `AddVehicleAcquisitionType` migration; calculator enforces that target and filler vehicles must be `Researchable`, while owned vehicles of any acquisition type count towards rank-gate thresholds; exposed `AcquisitionType` in vehicle and tree API projections.
+
+## Planned
 
 - **Batch 10 — Automatic rank-gate candidate selection** (status: Planned)
   Goal: replace manual filler selection with automatic selection of valid additional

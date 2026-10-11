@@ -93,20 +93,20 @@ In the Development environment, application startup applies pending migrations a
 1. Restore and build the project:
 
    ```console
-   dotnet restore GrindingThunder.Api.csproj
-   dotnet build GrindingThunder.Api.csproj --no-restore
+   dotnet restore GrindingThunder.sln
+   dotnet build GrindingThunder.sln --no-restore
    ```
 
 2. Configure a PostgreSQL connection. The application reads `ConnectionStrings:DefaultConnection`. Prefer overriding the checked-in local default with an environment variable or .NET user secrets:
 
    ```console
-   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=warthunder_db;Username=postgres;Password=YOUR_PASSWORD" --project GrindingThunder.Api.csproj
+   dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=warthunder_db;Username=postgres;Password=YOUR_PASSWORD" --project src/GrindingThunder.Api/GrindingThunder.Api.csproj
    ```
 
 3. Run the Development launch profile:
 
    ```console
-   dotnet run --project GrindingThunder.Api.csproj --launch-profile http
+   dotnet run --project src/GrindingThunder.Api/GrindingThunder.Api.csproj --launch-profile http
    ```
 
    The profile listens on `http://localhost:5034`. On startup, the application connects to PostgreSQL, applies its EF Core migrations, and seeds the development sample data. The PostgreSQL user must have the permissions required to create or update the configured database schema.
@@ -155,26 +155,26 @@ Both averages must be positive, and every supplied vehicle ID must exist in the 
 Run with automatic rebuild and hot reload:
 
 ```console
-dotnet watch --project GrindingThunder.Api.csproj run --launch-profile http
+dotnet watch --project src/GrindingThunder.Api/GrindingThunder.Api.csproj run --launch-profile http
 ```
 
 Create a release build:
 
 ```console
-dotnet build GrindingThunder.Api.csproj -c Release
+dotnet build src/GrindingThunder.Api/GrindingThunder.Api.csproj -c Release
 ```
 
 Build the provided container image:
 
 ```console
-docker build -t grinding-thunder-api .
+docker build -f src/GrindingThunder.Api/Dockerfile -t grinding-thunder-api .
 ```
 
 The image listens on port `8080`. A running container still requires a reachable PostgreSQL instance and an appropriate `ConnectionStrings__DefaultConnection` value. Migration and seed startup behavior occurs only when the container environment is `Development`.
 
 ## Testing
 
-The solution includes an xUnit test project (`GrindingThunder.Api.Tests`) covering the research calculator and persistence behavior. SQLite in-memory databases are used so tests do not require PostgreSQL:
+The solution includes an xUnit test project (`GrindingThunder.Api.Tests`) located under `tests/GrindingThunder.Api.Tests` covering the research calculator, lifecycle services, tabular import, authentication, and persistence behavior. SQLite in-memory databases are used so tests do not require PostgreSQL:
 
 ```console
 dotnet test
@@ -184,18 +184,30 @@ dotnet test
 
 ```text
 .
-|-- Application/                 # Calculation request and result models
-|-- Controllers/                 # HTTP API controllers
-|-- Domain/                      # Entities and calculator contract
-|-- GrindingThunder.Api.Tests/  # xUnit tests (calculator + persistence, SQLite in-memory)
-|-- Infrastructure/
-|   |-- Persistence/             # DbContext, mappings, migrations, and seed data
-|   `-- Services/                # Research calculator implementation
-|-- docs/                        # Canonical product and design documentation
-|-- Program.cs                   # Application composition and middleware
-|-- GrindingThunder.Api.csproj   # Project and NuGet dependencies
-|-- GrindingThunder.Api.sln      # Solution (API + test project)
-`-- Dockerfile                   # Production image build
+|-- src/
+|   `-- GrindingThunder.Api/
+|       |-- Application/                 # Calculation request and result models
+|       |-- Controllers/                 # HTTP API controllers
+|       |-- Domain/                      # Entities and calculator contract
+|       |-- Infrastructure/
+|       |   |-- Persistence/             # DbContext, mappings, migrations, and seed data
+|       |   `-- Services/                # Research calculator, lifecycle, and import implementations
+|       |-- Properties/                  # Launch profiles
+|       |-- Program.cs                   # Application composition and middleware
+|       |-- appsettings.json
+|       |-- appsettings.Development.json
+|       |-- GrindingThunder.Api.csproj   # Project and NuGet dependencies
+|       `-- Dockerfile                   # Production image build
+|-- tests/
+|   `-- GrindingThunder.Api.Tests/       # xUnit tests (calculator, lifecycle, import, and auth)
+|       `-- GrindingThunder.Api.Tests.csproj
+|-- docs/                                # Canonical product and design documentation
+|-- tools/                               # Tooling and external reference data
+|-- GrindingThunder.sln                  # Solution (API + test projects)
+|-- AGENTS.md                            # Project instructions
+|-- .clinerules                          # Agent instructions
+|-- .gitignore                           # Git ignore rules
+`-- README.md                            # Project documentation
 ```
 
 ## Documentation

@@ -1,14 +1,14 @@
 # Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
-WORKDIR /src
+WORKDIR /app
 
 # Copy csproj and restore dependencies
-COPY GrindingThunder.Api.csproj .
-RUN dotnet restore
+COPY src/GrindingThunder.Api/GrindingThunder.Api.csproj src/GrindingThunder.Api/
+RUN dotnet restore src/GrindingThunder.Api/GrindingThunder.Api.csproj
 
 # Copy source code and publish
-COPY . .
-RUN dotnet publish -c Release -o /app/out
+COPY src/GrindingThunder.Api/ src/GrindingThunder.Api/
+RUN dotnet publish src/GrindingThunder.Api/GrindingThunder.Api.csproj -c Release -o /app/out
 
 # Stage 2: Runtime
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime

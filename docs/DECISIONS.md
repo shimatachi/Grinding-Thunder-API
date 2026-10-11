@@ -144,6 +144,20 @@ A chronological log of significant design decisions, one short entry per batch. 
   - Phase 2 (Commit): targets strictly Draft versions (rejects published versions with 409 Conflict), auto-creates catalog vehicles when enabled, ensures TreeRanks exist, upserts vehicle entries, links folder parents, and synchronizes prerequisite edges in an atomic database transaction.
 - Secured REST endpoints exposed at `/api/admin/drafts/{versionId}/import/preview` and `/api/admin/drafts/{versionId}/import` accepting `multipart/form-data` under the `RequireEditorRole` policy.
 
+## 2026 — Batch 16.5: repository reorganization (src / tests layout)
+
+- Reorganized repository from a root-level API project into standard `src/` and `tests/` solution structure:
+  - Moved API project source files, configurations, and Dockerfile to `src/GrindingThunder.Api/`.
+  - Moved test project to `tests/GrindingThunder.Api.Tests/`.
+  - Renamed root solution from `GrindingThunder.Api.sln` to `GrindingThunder.sln` and updated relative project paths.
+  - Updated test project reference from `..\GrindingThunder.Api.csproj` to `..\..\src\GrindingThunder.Api\GrindingThunder.Api.csproj`.
+  - Removed artificial compile and content exclusions (`GrindingThunder.Api.Tests\**\*`) from `GrindingThunder.Api.csproj` that were previously necessary when tests were nested inside the API project directory.
+- Preserved Docker packaging behavior while updating to root build context:
+  - Relocated `Dockerfile` beside the API project under `src/GrindingThunder.Api/Dockerfile`.
+  - Updated container COPY and build instructions to reference `src/GrindingThunder.Api/` relative to repository root build context (`docker build -f src/GrindingThunder.Api/Dockerfile -t grinding-thunder-api .`).
+- Maintained exact application and domain behavior:
+  - Preserved namespaces (`GrindingThunder.Api...`), UserSecretsId, launch profile ports, migrations history, seed behavior, and zero schema changes.
+
 ## Log format
 
 Append new entries at the end. Keep each entry to the decisions and tradeoffs that are not obvious from the code; do not duplicate content that belongs in DOMAIN.md, DATABASE.md, or ARCHITECTURE.md.

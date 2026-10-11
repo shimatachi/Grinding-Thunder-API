@@ -106,6 +106,40 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   not the application's canonical import format.
   Result: defined a strict canonical schema (`VehicleName`, `RankNumber`, `RpCost`, `SlCost`, `TreeColumn`, `TreeRow`, `AcquisitionType`, `FolderParentVehicleName`, `PrerequisiteVehicleNames`, `RequiredVehiclesUnlocked`); implemented a lightweight BCL-based tabular parser (`TabularDataParser`) supporting RFC 4180 CSV, TSV, and OpenXML XLSX without third-party dependencies; implemented `ITechTreeImportService` / `TechTreeImportService` delivering a two-phase workflow (Preview and Commit); preview inspects format, data types, vehicle catalog matching, rank definitions, coordinate collisions, folder hierarchy limits, prerequisite consistency, DAG acyclicity, and rank gate quotas without mutating database state; commit validates Draft status (rejecting published versions with 409 Conflict) and applies vehicles, ranks, entries, layout, folder links, and prerequisite edges inside an atomic database transaction; exposed secured admin endpoints under `/api/admin/drafts/{versionId}/import/preview` and `/api/admin/drafts/{versionId}/import` (Editor role, multipart/form-data); verified with unit and integration tests.
 
+- **Batch 16.5 — Repository reorganization (src / tests monorepo layout)** (status: Completed)
+  Goal: reorganize repository into a clean monorepo layout with API project under `src/GrindingThunder.Api`
+  and test project under `tests/GrindingThunder.Api.Tests`, without changing application behavior.
+  Result: relocated API project and Dockerfile under `src/GrindingThunder.Api`; relocated tests under
+  `tests/GrindingThunder.Api.Tests`; renamed root solution to `GrindingThunder.sln` with updated project paths;
+  cleaned up redundant test folder compile/content exclusions from `GrindingThunder.Api.csproj`; updated Dockerfile
+  paths for root build context; verified builds, all 235 unit/integration tests pass, EF migrations list resolves,
+  and HTTP profile starts successfully.
+
+## Next
+
+- **Batch 17 — Admin back-office foundation** (status: Planned)
+  Goal: add a separate ASP.NET Core Razor Pages admin client that authenticates
+  against and consumes the existing REST API.
+
+- **Batch 18 — Admin catalog management** (status: Planned)
+  Goal: provide back-office CRUD screens for nations, vehicle types, vehicles,
+  game updates, and research trees.
+  Dependency: Batch 17.
+
+- **Batch 19 — Research-tree version editor** (status: Planned)
+  Goal: provide admin workflows for drafts, ranks, entries, prerequisites,
+  folder membership, and visual layout.
+  Dependency: Batches 17–18.
+
+- **Batch 20 — Import, validation, diff, and publishing UI** (status: Planned)
+  Goal: expose the existing CSV/XLSX preview/import, version validation,
+  historical diff, and publishing workflows through the back office.
+  Dependency: Batch 19.
+
+- **Batch 21 — Player accounts and synchronized progress** (status: Planned)
+  Goal: persist player-owned vehicles and calculator preferences across sessions.
+  Dependency: stable production-quality tree data.
+
 ## Later
 
 - Back-office web UI for the admin APIs

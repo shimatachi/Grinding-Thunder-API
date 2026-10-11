@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrindingThunder.Api", "GrindingThunder.Api.csproj", "{75C4D5CE-83F7-4E73-B142-1621094D5357}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrindingThunder.Api", "src\GrindingThunder.Api\GrindingThunder.Api.csproj", "{75C4D5CE-83F7-4E73-B142-1621094D5357}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrindingThunder.Api.Tests", "GrindingThunder.Api.Tests\GrindingThunder.Api.Tests.csproj", "{1EA91531-1490-4DA9-9851-90548038EB7C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrindingThunder.Api.Tests", "tests\GrindingThunder.Api.Tests\GrindingThunder.Api.Tests.csproj", "{1EA91531-1490-4DA9-9851-90548038EB7C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

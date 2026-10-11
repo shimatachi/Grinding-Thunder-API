@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GrindingThunder.Api.csproj" />
+    <ProjectReference Include="..\..\src\GrindingThunder.Api\GrindingThunder.Api.csproj" />
   </ItemGroup>
 
 </Project>

@@ -8,13 +8,22 @@ namespace GrindingThunder.Api.Application.Models;
 public record CloneVersionRequest(Guid TargetGameUpdateId);
 
 /// <summary>
-/// Response returned upon successfully cloning a research tree version.
+/// Request to create an initial blank draft research tree version for a research tree and game update.
+/// </summary>
+public record CreateDraftVersionRequest(Guid ResearchTreeId, Guid GameUpdateId);
+
+/// <summary>
+/// Response returned upon successfully cloning or creating a research tree version.
 /// </summary>
 public record ClonedVersionResponse(
     Guid Id,
     Guid ResearchTreeId,
     Guid GameUpdateId,
     string Status);
+
+// Catalog DTOs - ResearchTree
+public record CreateResearchTreeRequest(Guid NationId, Guid VehicleTypeId);
+public record ResearchTreeDto(Guid Id, Guid NationId, string NationName, Guid VehicleTypeId, string VehicleTypeName);
 
 // Catalog DTOs - Nation
 public record CreateNationRequest(string Name);

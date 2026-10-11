@@ -220,6 +220,38 @@ public class AdminDraftsController(ApplicationDbContext context) : ControllerBas
         return NoContent();
     }
 
+    [HttpDelete("ranks/{rankId:guid}")]
+    [Authorize(Policy = AuthPolicies.RequireEditorRole)]
+    public async Task<IActionResult> DeleteRank(
+        [FromRoute] Guid versionId,
+        [FromRoute] Guid rankId,
+        CancellationToken cancellationToken)
+    {
+        var (_, error) = await EnsureDraftVersionAsync(versionId, cancellationToken);
+        if (error is not null) return error;
+
+        var rank = await _context.TreeRanks
+            .FirstOrDefaultAsync(r => r.Id == rankId && r.ResearchTreeVersionId == versionId, cancellationToken);
+
+        if (rank is null)
+        {
+            return NotFound($"Tree rank '{rankId}' was not found in version '{versionId}'.");
+        }
+
+        var hasEntries = await _context.VehicleTreeEntries
+            .AnyAsync(e => e.TreeRankId == rankId && e.ResearchTreeVersionId == versionId, cancellationToken);
+
+        if (hasEntries)
+        {
+            return Conflict($"Cannot delete tree rank '{rankId}' because it contains vehicle tree entries.");
+        }
+
+        _context.TreeRanks.Remove(rank);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
+
     #endregion
 
     #region VehicleTreeEntry Management
@@ -322,6 +354,11 @@ public class AdminDraftsController(ApplicationDbContext context) : ControllerBas
             return BadRequest("TreeColumn and TreeRow must be non-negative.");
         }
 
+        if (!Enum.IsDefined(request.AcquisitionType))
+        {
+            return BadRequest("Invalid AcquisitionType.");
+        }
+
         var vehicle = await _context.Vehicles
             .AsNoTracking()
             .FirstOrDefaultAsync(v => v.Id == request.VehicleId, cancellationToken);
@@ -414,6 +451,11 @@ public class AdminDraftsController(ApplicationDbContext context) : ControllerBas
         if (request.TreeColumn < 0 || request.TreeRow < 0)
         {
             return BadRequest("TreeColumn and TreeRow must be non-negative.");
+        }
+
+        if (!Enum.IsDefined(request.AcquisitionType))
+        {
+            return BadRequest("Invalid AcquisitionType.");
         }
 
         var entry = await _context.VehicleTreeEntries

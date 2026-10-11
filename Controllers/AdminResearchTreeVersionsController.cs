@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using GrindingThunder.Api.Application.Exceptions;
 using GrindingThunder.Api.Application.Models;
 using GrindingThunder.Api.Application.Security;
+using GrindingThunder.Api.Domain.Entities;
 using GrindingThunder.Api.Domain.Services;
 using GrindingThunder.Api.Infrastructure.Persistence;
 
@@ -49,6 +50,69 @@ public class AdminResearchTreeVersionsController(
             RankCount = version.TreeRanks.Count,
             EntryCount = version.Entries.Count
         });
+    }
+
+    /// <summary>
+    /// Creates an initial blank draft research tree version for a research tree and game update.
+    /// </summary>
+    [HttpPost]
+    [Authorize(Policy = AuthPolicies.RequireEditorRole)]
+    public async Task<IActionResult> CreateDraftVersion(
+        [FromBody] CreateDraftVersionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return BadRequest("Request body is required.");
+        }
+
+        if (request.ResearchTreeId == Guid.Empty || request.GameUpdateId == Guid.Empty)
+        {
+            return BadRequest("ResearchTreeId and GameUpdateId are required.");
+        }
+
+        var researchTreeExists = await _context.ResearchTrees
+            .AnyAsync(rt => rt.Id == request.ResearchTreeId, cancellationToken);
+
+        if (!researchTreeExists)
+        {
+            return BadRequest($"Research tree '{request.ResearchTreeId}' was not found.");
+        }
+
+        var gameUpdateExists = await _context.GameUpdates
+            .AnyAsync(gu => gu.Id == request.GameUpdateId, cancellationToken);
+
+        if (!gameUpdateExists)
+        {
+            return BadRequest($"Game update '{request.GameUpdateId}' was not found.");
+        }
+
+        var versionExists = await _context.ResearchTreeVersions
+            .AnyAsync(v => v.ResearchTreeId == request.ResearchTreeId && v.GameUpdateId == request.GameUpdateId, cancellationToken);
+
+        if (versionExists)
+        {
+            return Conflict($"A research tree version already exists for research tree '{request.ResearchTreeId}' and game update '{request.GameUpdateId}'.");
+        }
+
+        var version = new ResearchTreeVersion
+        {
+            Id = Guid.NewGuid(),
+            ResearchTreeId = request.ResearchTreeId,
+            GameUpdateId = request.GameUpdateId,
+            Status = ResearchTreeVersionStatus.Draft
+        };
+
+        _context.ResearchTreeVersions.Add(version);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var response = new ClonedVersionResponse(
+            version.Id,
+            version.ResearchTreeId,
+            version.GameUpdateId,
+            version.Status.ToString());
+
+        return Created($"/api/admin/drafts/{version.Id}", response);
     }
 
     /// <summary>

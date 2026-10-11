@@ -669,5 +669,184 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         Assert.Equal(HttpStatusCode.NotFound, delAgainResp.StatusCode);
     }
 
+    [Fact]
+    public async Task DraftEditing_TreeRanks_DeleteWorkflow()
+    {
+        using var db = CreateDbContext();
+        var editorToken = await GetEditorTokenAsync();
+
+        var update = new GameUpdate { Id = Guid.NewGuid(), Version = $"delrank-{Guid.NewGuid():N}"[..18] };
+        db.GameUpdates.Add(update);
+        var tree = await db.ResearchTrees.FirstAsync();
+        var draft = new ResearchTreeVersion
+        {
+            Id = Guid.NewGuid(),
+            ResearchTreeId = tree.Id,
+            GameUpdateId = update.Id,
+            Status = ResearchTreeVersionStatus.Draft
+        };
+        var rank1 = new TreeRank { Id = Guid.NewGuid(), ResearchTreeVersionId = draft.Id, RankNumber = 1, RequiredVehiclesUnlocked = 0 };
+        var rank2 = new TreeRank { Id = Guid.NewGuid(), ResearchTreeVersionId = draft.Id, RankNumber = 2, RequiredVehiclesUnlocked = 1 };
+        draft.TreeRanks.Add(rank1);
+        draft.TreeRanks.Add(rank2);
+
+        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = $"RankTank_{Guid.NewGuid():N}"[..18] };
+        db.Vehicles.Add(v1);
+
+        var entry1 = new VehicleTreeEntry
+        {
+            Id = Guid.NewGuid(),
+            ResearchTreeVersionId = draft.Id,
+            VehicleId = v1.Id,
+            TreeRankId = rank1.Id,
+            RpCost = 1000,
+            SlCost = 500,
+            TreeColumn = 1,
+            TreeRow = 1,
+            AcquisitionType = VehicleAcquisitionType.Researchable
+        };
+        draft.Entries.Add(entry1);
+        db.ResearchTreeVersions.Add(draft);
+        await db.SaveChangesAsync();
+
+        // 1. Delete rank containing entries -> 409 Conflict
+        using var delRank1Req = CreateAuthorizedRequest(HttpMethod.Delete, $"/api/admin/drafts/{draft.Id}/ranks/{rank1.Id}", editorToken);
+        var delRank1Resp = await _client.SendAsync(delRank1Req);
+        Assert.Equal(HttpStatusCode.Conflict, delRank1Resp.StatusCode);
+
+        // 2. Delete empty rank -> 204 NoContent
+        using var delRank2Req = CreateAuthorizedRequest(HttpMethod.Delete, $"/api/admin/drafts/{draft.Id}/ranks/{rank2.Id}", editorToken);
+        var delRank2Resp = await _client.SendAsync(delRank2Req);
+        Assert.Equal(HttpStatusCode.NoContent, delRank2Resp.StatusCode);
+
+        // 3. Delete non-existent rank -> 404 NotFound
+        using var delAgainReq = CreateAuthorizedRequest(HttpMethod.Delete, $"/api/admin/drafts/{draft.Id}/ranks/{rank2.Id}", editorToken);
+        var delAgainResp = await _client.SendAsync(delAgainReq);
+        Assert.Equal(HttpStatusCode.NotFound, delAgainResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task DraftEditing_VehicleTreeEntries_InvalidAcquisitionType_Returns400BadRequest()
+    {
+        using var db = CreateDbContext();
+        var editorToken = await GetEditorTokenAsync();
+
+        var draft = await db.ResearchTreeVersions.Include(v => v.TreeRanks).FirstAsync(v => v.Status == ResearchTreeVersionStatus.Draft);
+        var rank = draft.TreeRanks.First();
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = $"EnumTank_{Guid.NewGuid():N}"[..18] };
+        db.Vehicles.Add(vehicle);
+        await db.SaveChangesAsync();
+
+        // Add with invalid AcquisitionType enum value -> 400 BadRequest
+        using var addReq = CreateAuthorizedRequest(HttpMethod.Post, $"/api/admin/drafts/{draft.Id}/entries", editorToken,
+            new AddVehicleTreeEntryRequest(vehicle.Id, rank.Id, 1000, 500, 1, 1, (VehicleAcquisitionType)999));
+        var addResp = await _client.SendAsync(addReq);
+        Assert.Equal(HttpStatusCode.BadRequest, addResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task ResearchTrees_CrudWorkflowsAndPolicyGuards()
+    {
+        var editorToken = await GetEditorTokenAsync();
+        var adminToken = await GetAdminTokenAsync();
+
+        using var db = CreateDbContext();
+        var nation = new Nation { Id = Guid.NewGuid(), Name = $"RT_Nation_{Guid.NewGuid():N}"[..18] };
+        var vehicleType = new VehicleType { Id = Guid.NewGuid(), Name = $"RT_Type_{Guid.NewGuid():N}"[..18] };
+        db.Nations.Add(nation);
+        db.VehicleTypes.Add(vehicleType);
+        await db.SaveChangesAsync();
+
+        // 1. Editor create ResearchTree -> 201 Created
+        using var createReq = CreateAuthorizedRequest(HttpMethod.Post, "/api/admin/research-trees", editorToken,
+            new CreateResearchTreeRequest(nation.Id, vehicleType.Id));
+        var createResp = await _client.SendAsync(createReq);
+        Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
+        var created = await createResp.Content.ReadFromJsonAsync<ResearchTreeDto>();
+        Assert.NotNull(created);
+        Assert.Equal(nation.Id, created.NationId);
+        Assert.Equal(vehicleType.Id, created.VehicleTypeId);
+
+        // 2. Duplicate ResearchTree -> 409 Conflict
+        using var dupReq = CreateAuthorizedRequest(HttpMethod.Post, "/api/admin/research-trees", editorToken,
+            new CreateResearchTreeRequest(nation.Id, vehicleType.Id));
+        var dupResp = await _client.SendAsync(dupReq);
+        Assert.Equal(HttpStatusCode.Conflict, dupResp.StatusCode);
+
+        // 3. Get all -> 200 OK
+        using var getAllReq = CreateAuthorizedRequest(HttpMethod.Get, "/api/admin/research-trees", editorToken);
+        var getAllResp = await _client.SendAsync(getAllReq);
+        Assert.Equal(HttpStatusCode.OK, getAllResp.StatusCode);
+        var allTrees = await getAllResp.Content.ReadFromJsonAsync<List<ResearchTreeDto>>();
+        Assert.NotNull(allTrees);
+        Assert.Contains(allTrees, t => t.Id == created.Id);
+
+        // 4. Get by ID -> 200 OK
+        using var getByIdReq = CreateAuthorizedRequest(HttpMethod.Get, $"/api/admin/research-trees/{created.Id}", editorToken);
+        var getByIdResp = await _client.SendAsync(getByIdReq);
+        Assert.Equal(HttpStatusCode.OK, getByIdResp.StatusCode);
+
+        // 5. Editor cannot delete ResearchTree -> 403 Forbidden
+        using var editDelReq = CreateAuthorizedRequest(HttpMethod.Delete, $"/api/admin/research-trees/{created.Id}", editorToken);
+        var editDelResp = await _client.SendAsync(editDelReq);
+        Assert.Equal(HttpStatusCode.Forbidden, editDelResp.StatusCode);
+
+        // 6. Admin delete in-use ResearchTree -> 409 Conflict
+        var inUseTree = await db.ResearchTrees.FirstAsync(rt => rt.Versions.Any());
+        using var delInUseReq = CreateAuthorizedRequest(HttpMethod.Delete, $"/api/admin/research-trees/{inUseTree.Id}", adminToken);
+        var delInUseResp = await _client.SendAsync(delInUseReq);
+        Assert.Equal(HttpStatusCode.Conflict, delInUseResp.StatusCode);
+
+        // 7. Admin delete empty ResearchTree -> 204 NoContent
+        using var adminDelReq = CreateAuthorizedRequest(HttpMethod.Delete, $"/api/admin/research-trees/{created.Id}", adminToken);
+        var adminDelResp = await _client.SendAsync(adminDelReq);
+        Assert.Equal(HttpStatusCode.NoContent, adminDelResp.StatusCode);
+
+        // 8. Delete non-existent -> 404 NotFound
+        using var delMissingReq = CreateAuthorizedRequest(HttpMethod.Delete, $"/api/admin/research-trees/{created.Id}", adminToken);
+        var delMissingResp = await _client.SendAsync(delMissingReq);
+        Assert.Equal(HttpStatusCode.NotFound, delMissingResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task VersionLifecycle_CreateInitialDraftVersion_FromScratch()
+    {
+        var editorToken = await GetEditorTokenAsync();
+
+        using var db = CreateDbContext();
+        var nation = new Nation { Id = Guid.NewGuid(), Name = $"DraftNation_{Guid.NewGuid():N}"[..18] };
+        var vehicleType = new VehicleType { Id = Guid.NewGuid(), Name = $"DraftType_{Guid.NewGuid():N}"[..18] };
+        var tree = new ResearchTree { Id = Guid.NewGuid(), NationId = nation.Id, VehicleTypeId = vehicleType.Id };
+        var update = new GameUpdate { Id = Guid.NewGuid(), Version = $"ScratchUpd_{Guid.NewGuid():N}"[..18] };
+        db.Nations.Add(nation);
+        db.VehicleTypes.Add(vehicleType);
+        db.ResearchTrees.Add(tree);
+        db.GameUpdates.Add(update);
+        await db.SaveChangesAsync();
+
+        // 1. Create blank draft version -> 201 Created
+        using var createReq = CreateAuthorizedRequest(HttpMethod.Post, "/api/admin/research-tree-versions", editorToken,
+            new CreateDraftVersionRequest(tree.Id, update.Id));
+        var createResp = await _client.SendAsync(createReq);
+        Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
+        var created = await createResp.Content.ReadFromJsonAsync<ClonedVersionResponse>();
+        Assert.NotNull(created);
+        Assert.Equal("Draft", created.Status);
+        Assert.Equal(tree.Id, created.ResearchTreeId);
+        Assert.Equal(update.Id, created.GameUpdateId);
+
+        // 2. Duplicate draft for same tree and update -> 409 Conflict
+        using var dupReq = CreateAuthorizedRequest(HttpMethod.Post, "/api/admin/research-tree-versions", editorToken,
+            new CreateDraftVersionRequest(tree.Id, update.Id));
+        var dupResp = await _client.SendAsync(dupReq);
+        Assert.Equal(HttpStatusCode.Conflict, dupResp.StatusCode);
+
+        // 3. Missing research tree -> 400 BadRequest
+        using var missingTreeReq = CreateAuthorizedRequest(HttpMethod.Post, "/api/admin/research-tree-versions", editorToken,
+            new CreateDraftVersionRequest(Guid.NewGuid(), update.Id));
+        var missingTreeResp = await _client.SendAsync(missingTreeReq);
+        Assert.Equal(HttpStatusCode.BadRequest, missingTreeResp.StatusCode);
+    }
+
     #endregion
 }

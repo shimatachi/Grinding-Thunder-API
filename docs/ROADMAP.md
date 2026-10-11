@@ -142,9 +142,14 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   historical diff, and publishing workflows through the back office.
   Dependency: Batch 19.
 
-- **Batch 21 — Player accounts and synchronized progress** (status: Planned)
+- **Batch 21 — Persistent admin accounts** (status: Planned)
+  Goal: replace configuration-backed administrator credentials with persistent
+  database-backed admin accounts, roles, and account lifecycle management.
+  Dependency: Batch 20.
+
+- **Batch 22 — Player accounts and synchronized progress** (status: Planned)
   Goal: persist player-owned vehicles and calculator preferences across sessions.
-  Dependency: stable production-quality tree data.
+  Dependency: stable production-quality tree data and completed identity planning.
 
 ## Later
 

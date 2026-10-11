@@ -127,6 +127,23 @@ A chronological log of significant design decisions, one short entry per batch. 
 - Preserved anonymous access on player-facing endpoints:
   - Registered `UseAuthentication()` and `UseAuthorization()` in `Program.cs`. Existing query and calculation endpoints (`GET /api/nations`, `GET /api/vehicles`, `POST /api/research/calculate`, `GET /api/research-tree-versions/diff`, `GET /api/research-tree-versions/{versionId}/validate`) remain public without authentication challenges.
 
+## 2026 — Batch 15: admin CRUD and draft workflow APIs
+
+- Implemented comprehensive administrative REST endpoints for catalog entities (`Nation`, `VehicleType`, `Vehicle`, `GameUpdate`, `ResearchTree`) and versioned draft management (`TreeRank`, `VehicleTreeEntry`, layout coordinates, folder parents, and `VehiclePrerequisite`).
+- Enforced role-based access control policies (`RequireEditorRole`, `RequirePublisherRole`, `RequireAdminRole`) with Admin supervisory coverage.
+- Guarded draft-mutating endpoints with `EnsureDraftVersionAsync`, immediately rejecting non-existent versions with 404 and published versions with 409 Conflict to uphold published version immutability.
+
+## 2026 — Batch 16: two-phase tabular import workflow (CSV/XLSX)
+
+- Defined an application-owned canonical tabular schema (`VehicleName`, `RankNumber`, `RpCost`, `SlCost`, `TreeColumn`, `TreeRow`, `AcquisitionType`, `FolderParentVehicleName`, `PrerequisiteVehicleNames`, `RequiredVehiclesUnlocked`). Scraped files (such as `tools/import/wt_israel_aviation.csv`) are external reference datasets, not the application's internal canonical import schema. Flexible header aliases normalize common casing and column name variations without relaxing required column invariants.
+- Built a lightweight, zero-dependency parser (`TabularDataParser`) using pure .NET BCL:
+  - RFC 4180-compliant CSV/TSV streaming parser with delimiter auto-detection, quote escaping, multiline cells, and whitespace trimming.
+  - OpenXML XLSX parser utilizing standard `System.IO.Compression.ZipArchive` and `System.Xml.XmlReader` to extract shared strings and worksheet cells without pulling heavy third-party Excel dependencies (e.g. EPPlus or ClosedXML).
+- Implemented a two-phase import engine in `ITechTreeImportService` / `TechTreeImportService`:
+  - Phase 1 (Preview): non-mutating validation checking format, data types, stable vehicle catalog matching, rank definitions, coordinate collisions (intra-file and against unimported draft entries), folder nesting constraints (max 1 level, same rank, no cycles), prerequisite consistency, DAG acyclicity, and rank gate quotas. Returns a detailed preview payload with detected rows, counts of new vs updated entries, auto-created vehicles, created ranks, errors, and warnings.
+  - Phase 2 (Commit): targets strictly Draft versions (rejects published versions with 409 Conflict), auto-creates catalog vehicles when enabled, ensures TreeRanks exist, upserts vehicle entries, links folder parents, and synchronizes prerequisite edges in an atomic database transaction.
+- Secured REST endpoints exposed at `/api/admin/drafts/{versionId}/import/preview` and `/api/admin/drafts/{versionId}/import` accepting `multipart/form-data` under the `RequireEditorRole` policy.
+
 ## Log format
 
 Append new entries at the end. Keep each entry to the decisions and tradeoffs that are not obvious from the code; do not duplicate content that belongs in DOMAIN.md, DATABASE.md, or ARCHITECTURE.md.

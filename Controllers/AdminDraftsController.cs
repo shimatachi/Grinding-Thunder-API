@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using GrindingThunder.Api.Application.Models;
 using GrindingThunder.Api.Application.Security;
 using GrindingThunder.Api.Domain.Entities;
+using GrindingThunder.Api.Domain.Services;
 using GrindingThunder.Api.Infrastructure.Persistence;
 
 namespace GrindingThunder.Api.Controllers;
@@ -11,9 +12,12 @@ namespace GrindingThunder.Api.Controllers;
 [ApiController]
 [Route("api/admin/drafts/{versionId:guid}")]
 [Authorize(Policy = AuthPolicies.RequireEditorRole)]
-public class AdminDraftsController(ApplicationDbContext context) : ControllerBase
+public class AdminDraftsController(
+    ApplicationDbContext context,
+    ITechTreeImportService importService) : ControllerBase
 {
     private readonly ApplicationDbContext _context = context;
+    private readonly ITechTreeImportService _importService = importService;
 
     /// <summary>
     /// Guards all draft-editing endpoints: verifies existence and ensures the target version is in Draft status.
@@ -764,6 +768,87 @@ public class AdminDraftsController(ApplicationDbContext context) : ControllerBas
         await _context.SaveChangesAsync(cancellationToken);
 
         return NoContent();
+    }
+
+    #endregion
+
+    #region Tabular Import Management
+
+    [HttpPost("import/preview")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> PreviewImport(
+        [FromRoute] Guid versionId,
+        [FromForm] IFormFile? file,
+        [FromQuery] bool autoCreateMissingVehicles = true,
+        CancellationToken cancellationToken = default)
+    {
+        var (_, error) = await EnsureDraftVersionAsync(versionId, cancellationToken);
+        if (error is not null) return error;
+
+        var uploadedFile = file ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+        if (uploadedFile is null || uploadedFile.Length == 0)
+        {
+            return BadRequest("A non-empty file must be uploaded.");
+        }
+
+        if (Request.HasFormContentType && Request.Form.TryGetValue("autoCreateMissingVehicles", out var formVal))
+        {
+            if (bool.TryParse(formVal, out var parsed))
+            {
+                autoCreateMissingVehicles = parsed;
+            }
+        }
+
+        await using var stream = uploadedFile.OpenReadStream();
+        var preview = await _importService.PreviewImportAsync(
+            versionId,
+            stream,
+            uploadedFile.FileName,
+            autoCreateMissingVehicles,
+            cancellationToken);
+
+        return Ok(preview);
+    }
+
+    [HttpPost("import")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CommitImport(
+        [FromRoute] Guid versionId,
+        [FromForm] IFormFile? file,
+        [FromQuery] bool autoCreateMissingVehicles = true,
+        CancellationToken cancellationToken = default)
+    {
+        var (_, error) = await EnsureDraftVersionAsync(versionId, cancellationToken);
+        if (error is not null) return error;
+
+        var uploadedFile = file ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+        if (uploadedFile is null || uploadedFile.Length == 0)
+        {
+            return BadRequest("A non-empty file must be uploaded.");
+        }
+
+        if (Request.HasFormContentType && Request.Form.TryGetValue("autoCreateMissingVehicles", out var formVal))
+        {
+            if (bool.TryParse(formVal, out var parsed))
+            {
+                autoCreateMissingVehicles = parsed;
+            }
+        }
+
+        await using var stream = uploadedFile.OpenReadStream();
+        var result = await _importService.CommitImportAsync(
+            versionId,
+            stream,
+            uploadedFile.FileName,
+            autoCreateMissingVehicles,
+            cancellationToken);
+
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
     }
 
     #endregion

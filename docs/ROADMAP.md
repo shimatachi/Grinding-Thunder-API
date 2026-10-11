@@ -92,19 +92,19 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batch 12.
   Result: configured JWT Bearer authentication scheme and granular role-based authorization policies (`RequireEditorRole`, `RequirePublisherRole`, `RequireAdminRole`) in ASP.NET Core; defined administrative roles (`Editor`, `Publisher`, `Admin`); introduced `IPasswordHasher` using PBKDF2 (HMAC-SHA256, 128-bit salt, 100k iterations, constant-time verification) and `IJwtTokenService` for signed token issuance; configured credentials avoiding plaintext secrets in source control (supporting configuration, environment variables, user secrets, and secure development fallbacks); exposed administrative authentication endpoints on `AuthController` (`POST /api/auth/login`, `GET /api/auth/me`, and policy probe endpoints); preserved full backward compatibility for public endpoints (`GET /api/nations`, `GET /api/vehicles`, `POST /api/research/calculate`, `GET /api/research-tree-versions/diff`); and verified with unit and integration tests.
 
-## Planned
-
-- **Batch 15 — Admin CRUD/workflow APIs** (status: Planned)
+- **Batch 15 — Admin CRUD/workflow APIs** (status: Completed)
   Goal: manage nations, vehicle types, vehicles, updates, drafts, ranks, entries,
   prerequisites, layout, validation and publication through secured APIs.
   Dependency: Batches 12–14.
+  Result: exposed secured administrative REST endpoints for catalog entities (`AdminNationsController`, `AdminVehicleTypesController`, `AdminVehiclesController`, `AdminGameUpdatesController`, `AdminResearchTreesController`), version lifecycle management (`AdminResearchTreeVersionsController`), and granular draft editing (`AdminDraftsController`). Enforced role-based authorization policies (`RequireEditorRole`, `RequirePublisherRole`, `RequireAdminRole`) and guarded draft mutations against published version immutability.
 
-- **Batch 16 — Admin CSV/XLSX import workflow** (status: Planned)
+- **Batch 16 — Admin CSV/XLSX import workflow** (status: Completed)
   Goal: define a strict application-owned import schema, validate and preview uploaded
   data, and import only into Draft ResearchTreeVersions.
   Dependency: Batches 13–15.
   Note: scraped/source files such as the Israel Aviation CSV are input/reference data,
   not the application's canonical import format.
+  Result: defined a strict canonical schema (`VehicleName`, `RankNumber`, `RpCost`, `SlCost`, `TreeColumn`, `TreeRow`, `AcquisitionType`, `FolderParentVehicleName`, `PrerequisiteVehicleNames`, `RequiredVehiclesUnlocked`); implemented a lightweight BCL-based tabular parser (`TabularDataParser`) supporting RFC 4180 CSV, TSV, and OpenXML XLSX without third-party dependencies; implemented `ITechTreeImportService` / `TechTreeImportService` delivering a two-phase workflow (Preview and Commit); preview inspects format, data types, vehicle catalog matching, rank definitions, coordinate collisions, folder hierarchy limits, prerequisite consistency, DAG acyclicity, and rank gate quotas without mutating database state; commit validates Draft status (rejecting published versions with 409 Conflict) and applies vehicles, ranks, entries, layout, folder links, and prerequisite edges inside an atomic database transaction; exposed secured admin endpoints under `/api/admin/drafts/{versionId}/import/preview` and `/api/admin/drafts/{versionId}/import` (Editor role, multipart/form-data); verified with unit and integration tests.
 
 ## Later
 

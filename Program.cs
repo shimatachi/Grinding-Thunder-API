@@ -17,6 +17,7 @@ if (!builder.Environment.IsEnvironment("Testing"))
 
 builder.Services.AddScoped<IResearchCalculatorService, ResearchCalculatorService>();
 builder.Services.AddScoped<IVersionLifecycleService, VersionLifecycleService>();
+builder.Services.AddScoped<ITechTreeImportService, TechTreeImportService>();
 
 builder.Services.AddAdminSecurity(builder.Configuration, builder.Environment);
 

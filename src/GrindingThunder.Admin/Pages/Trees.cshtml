@@ -1,8 +1,101 @@
 @page "/Trees"
 @model GrindingThunder.Admin.Pages.TreesModel
-@{ ViewData["Title"] = "Tech Tree Editor"; }
-<div class="container-tight py-4"><div class="card"><div class="card-body text-center py-5">
-    <span class="badge mb-3">Batch 19</span><h1 class="mb-3">Tech Tree Version Editor</h1>
-    <p class="text-secondary mb-4">Visual draft management, ranks, vehicle entries, coordinate placement, and progression prerequisite editing are planned for Batch 19.</p>
-    <a asp-page="/Index" class="btn btn-primary">Return to Dashboard</a>
-</div></div></div>
+@{ ViewData["Title"] = "Research Tree Versions"; }
+<div class="page-header"><div class="row align-items-center"><div class="col"><h1 class="page-title">Research Tree Versions</h1><div class="text-secondary">Select a research tree to inspect its draft and published version snapshots.</div></div></div></div>
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success mt-3">@success</div> }
+@if (TempData["TreeErrorMessage"] is string treeError) { <div class="alert alert-danger mt-3">@treeError</div> }
+@if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
+
+<div class="card mt-3"><div class="card-body">
+<form method="get" class="row g-2 align-items-end">
+    <div class="col-auto"><label class="form-label" for="researchTreeId">Research tree</label>
+        <select name="researchTreeId" id="researchTreeId" class="form-select">
+            @if (Model.Trees.Count == 0)
+            {
+                <option value="">No research trees exist</option>
+            }
+            @foreach (var tree in Model.Trees)
+            {
+                <option value="@tree.Id" selected="@(tree.Id == Model.SelectedTreeId)">@tree.NationName — @tree.VehicleTypeName</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto"><button type="submit" class="btn btn-primary">Select</button></div>
+</form>
+</div></div>
+
+@if (Model.SelectedTree is not null)
+{
+    if (Model.CanEdit)
+    {
+        <div class="card mt-3">
+            <div class="card-header"><h3 class="card-title">Create draft version</h3><div class="card-subtitle">Blank draft for @Model.SelectedTree.NationName @Model.SelectedTree.VehicleTypeName</div></div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="CreateDraft" class="row g-2 align-items-end">
+                    <input type="hidden" name="researchTreeId" value="@Model.SelectedTreeId" />
+                    <div class="col-auto"><label class="form-label" for="gameUpdateId">Game update</label>
+                        <select name="gameUpdateId" id="gameUpdateId" class="form-select">
+                            @if (Model.GameUpdates.Count == 0)
+                            {
+                                <option value="">No game updates exist</option>
+                            }
+                            @foreach (var update in Model.GameUpdates)
+                            {
+                                <option value="@update.Id">@update.Version@(string.IsNullOrWhiteSpace(update.Name) ? string.Empty : $" — {update.Name}")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-auto"><button type="submit" class="btn btn-primary">Create draft</button></div>
+                </form>
+            </div>
+        </div>
+    }
+
+    <div class="card mt-3">
+        <div class="card-header"><h3 class="card-title">Versions</h3></div>
+        <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+                <thead><tr><th>Game update</th><th>Status</th><th>Ranks</th><th class="catalog-actions">Actions</th></tr></thead>
+                <tbody>
+                @if (Model.Versions.Count == 0)
+                {
+                    <tr><td colspan="4" class="empty-message">No versions exist for this research tree yet.</td></tr>
+                }
+                @foreach (var version in Model.Versions)
+                {
+                    <tr>
+                        <td><strong>@version.UpdateVersion</strong></td>
+                        <td><span class="badge @(version.IsPublished ? "bg-green-lt" : "bg-blue-lt")">@(version.IsPublished ? "Published" : "Draft")</span></td>
+                        <td>@version.RankCount</td>
+                        <td class="catalog-actions">
+                            <a class="btn btn-sm btn-outline-primary" asp-page="/Trees/Version" asp-route-versionId="@version.Id">Open</a>
+                            @if (Model.CanEdit && Model.GameUpdates.Count > 0)
+                            {
+                                <form method="post" asp-page-handler="Clone" class="d-inline-flex gap-1 align-items-center">
+                                    <input type="hidden" name="versionId" value="@version.Id" />
+                                    <input type="hidden" name="researchTreeId" value="@Model.SelectedTreeId" />
+                                    <select name="targetGameUpdateId" class="form-select form-select-sm">
+                                        @foreach (var update in Model.GameUpdates)
+                                        {
+                                            <option value="@update.Id">@update.Version</option>
+                                        }
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary">Clone</button>
+                                </form>
+                            }
+                            @if (!version.IsPublished && Model.IsAdmin)
+                            {
+                                <form method="post" asp-page-handler="Delete" class="d-inline" onsubmit="return confirm('Delete this draft version and all its ranks, entries, and prerequisites?');">
+                                    <input type="hidden" name="versionId" value="@version.Id" />
+                                    <input type="hidden" name="researchTreeId" value="@Model.SelectedTreeId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete draft</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

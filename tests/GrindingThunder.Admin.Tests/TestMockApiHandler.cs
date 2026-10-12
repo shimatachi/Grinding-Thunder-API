@@ -9,8 +9,16 @@ public class TestMockApiHandler : HttpMessageHandler
     public static readonly Guid NationId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     public static readonly Guid VehicleTypeId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     public static readonly Guid VehicleId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    public static readonly Guid VehicleId2 = Guid.Parse("33333334-3333-3334-3334-333333333334");
     public static readonly Guid GameUpdateId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+    public static readonly Guid GameUpdate2Id = Guid.Parse("44444445-4444-4445-4445-444444444445");
     public static readonly Guid ResearchTreeId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+    public static readonly Guid DraftVersionId = Guid.Parse("66666666-6666-6666-6666-666666666666");
+    public static readonly Guid PublishedVersionId = Guid.Parse("77777777-7777-7777-7777-777777777777");
+    public static readonly Guid RankId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+    public static readonly Guid Rank2Id = Guid.Parse("88888889-8888-8889-8889-888888888889");
+    public static readonly Guid EntryId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+    public static readonly Guid EntryId2 = Guid.Parse("9999999a-9999-999a-999a-99999999999a");
 
     public List<HttpRequestMessage> RecordedRequests { get; } = [];
     public bool ConflictNextCatalogMutation { get; set; }
@@ -29,15 +37,22 @@ public class TestMockApiHandler : HttpMessageHandler
             var username = doc.RootElement.GetProperty("username").GetString();
             var password = doc.RootElement.GetProperty("password").GetString();
 
-            if (username == "admin" && password == "admin123")
+            var role = username switch
+            {
+                "admin" => "Admin",
+                "editor" => "Editor",
+                "publisher" => "Publisher",
+                _ => null
+            };
+            if (role is not null && password == $"{username}123")
             {
                 var responseBody = JsonSerializer.Serialize(new
                 {
-                    token = "test-jwt-token-xyz",
+                    token = username == "admin" ? "test-jwt-token-xyz" : $"test-{username}-token",
                     tokenType = "Bearer",
                     expiresAt = DateTime.UtcNow.AddHours(2),
-                    username = "admin",
-                    roles = new[] { "Admin", "Publisher", "Editor" }
+                    username,
+                    roles = new[] { role }
                 });
 
                 return new HttpResponseMessage(HttpStatusCode.OK)
@@ -60,12 +75,13 @@ public class TestMockApiHandler : HttpMessageHandler
         if (request.Method == HttpMethod.Get && path.EndsWith("/api/auth/me", StringComparison.OrdinalIgnoreCase))
         {
             var authHeader = request.Headers.Authorization;
-            if (authHeader?.Scheme == "Bearer" && authHeader.Parameter == "test-jwt-token-xyz")
+            var username = UsernameForToken(authHeader?.Parameter);
+            if (authHeader?.Scheme == "Bearer" && username is not null)
             {
                 var responseBody = JsonSerializer.Serialize(new
                 {
-                    username = "admin",
-                    roles = new[] { "Admin", "Publisher", "Editor" }
+                    username,
+                    roles = new[] { username == "admin" ? "Admin" : username == "editor" ? "Editor" : "Publisher" }
                 });
 
                 return new HttpResponseMessage(HttpStatusCode.OK)
@@ -85,11 +101,58 @@ public class TestMockApiHandler : HttpMessageHandler
             };
         }
 
+        if (request.Method == HttpMethod.Get && path.EndsWith("/api/nations", StringComparison.OrdinalIgnoreCase))
+        {
+            return JsonResponse(HttpStatusCode.OK, new object[]
+            {
+                new
+                {
+                    id = NationId,
+                    name = "USA",
+                    researchTrees = new object[]
+                    {
+                        new
+                        {
+                            id = ResearchTreeId,
+                            vehicleTypeId = VehicleTypeId,
+                            vehicleTypeName = "Aviation",
+                            versions = new object[]
+                            {
+                                new { id = DraftVersionId, status = 0, updateVersion = "2.50", treeRanks = new object[] { new { id = RankId, rankNumber = 1, requiredVehiclesUnlocked = 5 } } },
+                                new { id = PublishedVersionId, status = 1, updateVersion = "2.49", treeRanks = new object[] { new { id = Rank2Id, rankNumber = 1, requiredVehiclesUnlocked = 4 } } }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        if (request.Method == HttpMethod.Get && path.EndsWith("/api/vehicles/tree", StringComparison.OrdinalIgnoreCase))
+        {
+            return JsonResponse(HttpStatusCode.OK, new object[]
+            {
+                new { id = VehicleId, treeRankId = Rank2Id, researchTreeVersionId = PublishedVersionId, name = "F-16A", imageUrl = (string?)null, rpCost = 210000, slCost = 330000, acquisitionType = 0, isFolderParent = false, folderParentId = (Guid?)null, treeColumn = 0, treeRow = 0, prerequisiteIds = Array.Empty<Guid>() },
+                new { id = VehicleId2, treeRankId = Rank2Id, researchTreeVersionId = PublishedVersionId, name = "F-4E", imageUrl = (string?)null, rpCost = 180000, slCost = 290000, acquisitionType = 1, isFolderParent = false, folderParentId = (Guid?)VehicleId, treeColumn = 1, treeRow = 0, prerequisiteIds = new[] { VehicleId } },
+                // Same tree and stable vehicle, different snapshot: must never leak into the selected published view.
+                new { id = VehicleId, treeRankId = RankId, researchTreeVersionId = DraftVersionId, name = "Other snapshot entry", imageUrl = (string?)null, rpCost = 987654, slCost = 987655, acquisitionType = 0, isFolderParent = false, folderParentId = (Guid?)null, treeColumn = 0, treeRow = 0, prerequisiteIds = Array.Empty<Guid>() }
+            });
+        }
+
         if (path.Contains("/api/admin/", StringComparison.OrdinalIgnoreCase))
         {
-            if (request.Headers.Authorization?.Scheme != "Bearer" || request.Headers.Authorization.Parameter != "test-jwt-token-xyz")
+            var authHeader = request.Headers.Authorization;
+            if (authHeader?.Scheme != "Bearer" || UsernameForToken(authHeader.Parameter) is null)
             {
                 return JsonResponse(HttpStatusCode.Unauthorized, new { message = "Unauthorized" });
+            }
+
+            var username = UsernameForToken(authHeader.Parameter);
+            var role = RoleForUsername(username);
+            var requiredPolicy = GetRequiredPolicy(request, path);
+
+            if (!IsAuthorized(role, requiredPolicy))
+            {
+                return new HttpResponseMessage(HttpStatusCode.Forbidden);
             }
 
             if (ConflictNextCatalogMutation && request.Method is { } method && (method == HttpMethod.Post || method == HttpMethod.Put))
@@ -102,6 +165,12 @@ public class TestMockApiHandler : HttpMessageHandler
             {
                 ConflictNextDelete = false;
                 return TextResponse(HttpStatusCode.Conflict, "Cannot delete this catalog item because it is in use.");
+            }
+
+            if (path.Contains("/api/admin/research-tree-versions", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("/api/admin/drafts", StringComparison.OrdinalIgnoreCase))
+            {
+                return await HandleTreeVersionRequestAsync(request, path);
             }
 
             return HandleCatalogRequest(request, path);
@@ -130,7 +199,10 @@ public class TestMockApiHandler : HttpMessageHandler
 
         if (path.Equals("/api/admin/vehicles", StringComparison.OrdinalIgnoreCase))
         {
-            if (request.Method == HttpMethod.Get) return JsonResponse(HttpStatusCode.OK, new[] { new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png" } });
+            if (request.Method == HttpMethod.Get) return JsonResponse(HttpStatusCode.OK, new object[] {
+                new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png" },
+                new { id = VehicleId2, name = "F-4E", imageUrl = (string?)null }
+            });
             if (request.Method == HttpMethod.Post) return JsonResponse(HttpStatusCode.Created, new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png" });
         }
         if (path.Equals($"/api/admin/vehicles/{VehicleId}", StringComparison.OrdinalIgnoreCase))
@@ -163,6 +235,279 @@ public class TestMockApiHandler : HttpMessageHandler
         return new HttpResponseMessage(HttpStatusCode.MethodNotAllowed);
     }
 
+    private async Task<HttpResponseMessage> HandleTreeVersionRequestAsync(HttpRequestMessage request, string path)
+    {
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        if (segments.Length >= 3 && segments[2].Equals("research-tree-versions", StringComparison.OrdinalIgnoreCase))
+        {
+            return await HandleResearchTreeVersionRequestAsync(request, segments);
+        }
+
+        if (segments.Length >= 3 && segments[2].Equals("drafts", StringComparison.OrdinalIgnoreCase))
+        {
+            return await HandleDraftRequestAsync(request, segments);
+        }
+
+        return new HttpResponseMessage(HttpStatusCode.NotFound);
+    }
+
+    private async Task<HttpResponseMessage> HandleResearchTreeVersionRequestAsync(HttpRequestMessage request, string[] segments)
+    {
+        // POST /api/admin/research-tree-versions — create a blank draft.
+        if (segments.Length == 3 && request.Method == HttpMethod.Post)
+        {
+            var body = await ReadJsonAsync(request);
+            return JsonResponse(HttpStatusCode.Created, new
+            {
+                id = DraftVersionId,
+                researchTreeId = Guid.Parse(body.GetPropertyIgnoreCase("ResearchTreeId").GetString()!),
+                gameUpdateId = Guid.Parse(body.GetPropertyIgnoreCase("GameUpdateId").GetString()!),
+                status = "Draft"
+            });
+        }
+
+        if (segments.Length == 4)
+        {
+            var versionId = Guid.Parse(segments[3]);
+
+            if (request.Method == HttpMethod.Get)
+            {
+                if (versionId == DraftVersionId)
+                {
+                    return JsonResponse(HttpStatusCode.OK, new { id = DraftVersionId, researchTreeId = ResearchTreeId, gameUpdateId = GameUpdateId, gameUpdateVersion = "2.50", status = "Draft", rankCount = 1, entryCount = 2 });
+                }
+
+                if (versionId == PublishedVersionId)
+                {
+                    return JsonResponse(HttpStatusCode.OK, new { id = PublishedVersionId, researchTreeId = ResearchTreeId, gameUpdateId = GameUpdate2Id, gameUpdateVersion = "2.49", status = "Published", rankCount = 1, entryCount = 2 });
+                }
+
+                return TextResponse(HttpStatusCode.NotFound, $"Research tree version '{versionId}' was not found.");
+            }
+
+            if (request.Method == HttpMethod.Delete)
+            {
+                if (versionId == PublishedVersionId)
+                {
+                    return TextResponse(HttpStatusCode.Conflict, "Published versions cannot be deleted.");
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+        }
+
+        if (segments.Length == 5 && request.Method == HttpMethod.Post && segments[4].Equals("clone", StringComparison.OrdinalIgnoreCase))
+        {
+            var body = await ReadJsonAsync(request);
+            return JsonResponse(HttpStatusCode.Created, new
+            {
+                id = DraftVersionId,
+                researchTreeId = ResearchTreeId,
+                gameUpdateId = Guid.Parse(body.GetPropertyIgnoreCase("TargetGameUpdateId").GetString()!),
+                status = "Draft"
+            });
+        }
+
+        return new HttpResponseMessage(HttpStatusCode.NotFound);
+    }
+
+    private async Task<HttpResponseMessage> HandleDraftRequestAsync(HttpRequestMessage request, string[] segments)
+    {
+        if (segments.Length < 4)
+        {
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }
+
+        var versionId = Guid.Parse(segments[3]);
+
+        // GET /api/admin/drafts/{versionId} — draft overview; 409 for published versions.
+        if (segments.Length == 4 && request.Method == HttpMethod.Get)
+        {
+            if (versionId != DraftVersionId)
+            {
+                return TextResponse(HttpStatusCode.Conflict, $"Research tree version '{versionId}' is not in Draft status (status: Published). Published versions are immutable.");
+            }
+
+            return JsonResponse(HttpStatusCode.OK, BuildDraftOverview());
+        }
+
+        // POST /api/admin/drafts/{versionId}/ranks
+        if (segments.Length == 5 && segments[4].Equals("ranks", StringComparison.OrdinalIgnoreCase) && request.Method == HttpMethod.Post)
+        {
+            var body = await ReadJsonAsync(request);
+            var rankNumber = body.GetPropertyIgnoreCase("RankNumber").GetInt32();
+            var requiredVehiclesUnlocked = body.GetPropertyIgnoreCase("RequiredVehiclesUnlocked").GetInt32();
+            if (rankNumber <= 0) return TextResponse(HttpStatusCode.BadRequest, "Rank number must be positive.");
+            if (requiredVehiclesUnlocked < 0) return TextResponse(HttpStatusCode.BadRequest, "Required vehicles unlocked cannot be negative.");
+            if (rankNumber == 1) return TextResponse(HttpStatusCode.Conflict, $"Rank {rankNumber} already exists in draft version '{versionId}'.");
+            return JsonResponse(HttpStatusCode.Created, new { id = Guid.NewGuid(), researchTreeVersionId = versionId, rankNumber, requiredVehiclesUnlocked });
+        }
+
+        // PUT/DELETE /api/admin/drafts/{versionId}/ranks/{rankId}
+        if (segments.Length == 6 && segments[4].Equals("ranks", StringComparison.OrdinalIgnoreCase))
+        {
+            if (request.Method == HttpMethod.Put)
+            {
+                var body = await ReadJsonAsync(request);
+                if (body.GetPropertyIgnoreCase("RequiredVehiclesUnlocked").GetInt32() < 0)
+                {
+                    return TextResponse(HttpStatusCode.BadRequest, "Required vehicles unlocked cannot be negative.");
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+
+            if (request.Method == HttpMethod.Delete)
+            {
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+        }
+
+        // ENTRY_AND_PREREQ_SECTIONS
+
+        // POST /api/admin/drafts/{versionId}/entries
+        if (segments.Length == 5 && segments[4].Equals("entries", StringComparison.OrdinalIgnoreCase) && request.Method == HttpMethod.Post)
+        {
+            var body = await ReadJsonAsync(request);
+            var vehicleId = Guid.Parse(body.GetPropertyIgnoreCase("VehicleId").GetString()!);
+            var rpCost = body.GetPropertyIgnoreCase("RpCost").GetInt32();
+            var slCost = body.GetPropertyIgnoreCase("SlCost").GetInt32();
+            var treeColumn = body.GetPropertyIgnoreCase("TreeColumn").GetInt32();
+            var treeRow = body.GetPropertyIgnoreCase("TreeRow").GetInt32();
+            if (rpCost < 0 || slCost < 0) return TextResponse(HttpStatusCode.BadRequest, "RP and SL costs cannot be negative.");
+            if (treeColumn < 0 || treeRow < 0) return TextResponse(HttpStatusCode.BadRequest, "TreeColumn and TreeRow must be non-negative.");
+            if (vehicleId == VehicleId) return TextResponse(HttpStatusCode.Conflict, $"Vehicle '{vehicleId}' already has an entry in draft version '{versionId}'.");
+            return JsonResponse(HttpStatusCode.Created, new
+            {
+                id = Guid.NewGuid(),
+                researchTreeVersionId = versionId,
+                vehicleId,
+                treeRankId = RankId,
+                rpCost,
+                slCost,
+                treeColumn,
+                treeRow,
+                acquisitionType = 0,
+                folderParentEntryId = (Guid?)null,
+                vehicleName = "New Vehicle"
+            });
+        }
+
+        // PUT/DELETE /api/admin/drafts/{versionId}/entries/{entryId}
+        if (segments.Length == 6 && segments[4].Equals("entries", StringComparison.OrdinalIgnoreCase))
+        {
+            if (request.Method == HttpMethod.Put || request.Method == HttpMethod.Delete)
+            {
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+        }
+
+        // POST /api/admin/drafts/{versionId}/prerequisites
+        if (segments.Length == 5 && segments[4].Equals("prerequisites", StringComparison.OrdinalIgnoreCase) && request.Method == HttpMethod.Post)
+        {
+            var body = await ReadJsonAsync(request);
+            var vehicleTreeEntryId = Guid.Parse(body.GetPropertyIgnoreCase("VehicleTreeEntryId").GetString()!);
+            var prerequisiteVehicleTreeEntryId = Guid.Parse(body.GetPropertyIgnoreCase("PrerequisiteVehicleTreeEntryId").GetString()!);
+            if (vehicleTreeEntryId == prerequisiteVehicleTreeEntryId)
+            {
+                return TextResponse(HttpStatusCode.BadRequest, "An entry cannot be a prerequisite of itself.");
+            }
+
+            if (vehicleTreeEntryId == EntryId2 && prerequisiteVehicleTreeEntryId == EntryId)
+            {
+                return TextResponse(HttpStatusCode.Conflict, "Prerequisite edge already exists in this draft version.");
+            }
+
+            return JsonResponse(HttpStatusCode.Created, new
+            {
+                vehicleTreeEntryId,
+                prerequisiteVehicleTreeEntryId,
+                researchTreeVersionId = versionId
+            });
+        }
+
+        // DELETE /api/admin/drafts/{versionId}/prerequisites/{entryId}/{prerequisiteEntryId}
+        if (segments.Length == 7 && segments[4].Equals("prerequisites", StringComparison.OrdinalIgnoreCase) && request.Method == HttpMethod.Delete)
+        {
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        }
+
+        return new HttpResponseMessage(HttpStatusCode.NotFound);
+    }
+
+    private static object BuildDraftOverview() => new
+    {
+        id = DraftVersionId,
+        researchTreeId = ResearchTreeId,
+        gameUpdateId = GameUpdateId,
+        status = "Draft",
+        treeRanks = new object[]
+        {
+            new { id = RankId, researchTreeVersionId = DraftVersionId, rankNumber = 1, requiredVehiclesUnlocked = 5 }
+        },
+        entries = new object[]
+        {
+            new { id = EntryId, researchTreeVersionId = DraftVersionId, vehicleId = VehicleId, treeRankId = RankId, rpCost = 220000, slCost = 350000, treeColumn = 0, treeRow = 0, acquisitionType = 0, folderParentEntryId = (Guid?)null, vehicleName = "F-16A" },
+            new { id = EntryId2, researchTreeVersionId = DraftVersionId, vehicleId = VehicleId2, treeRankId = RankId, rpCost = 180000, slCost = 290000, treeColumn = 1, treeRow = 0, acquisitionType = 1, folderParentEntryId = (Guid?)EntryId, vehicleName = "F-4E" }
+        },
+        prerequisites = new object[]
+        {
+            new { vehicleTreeEntryId = EntryId2, prerequisiteVehicleTreeEntryId = EntryId, researchTreeVersionId = DraftVersionId }
+        }
+    };
+
+    private static async Task<JsonElement> ReadJsonAsync(HttpRequestMessage request)
+    {
+        var content = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync();
+        return JsonDocument.Parse(content).RootElement;
+    }
+
+    private static string? UsernameForToken(string? token) => token switch
+    {
+        "test-jwt-token-xyz" => "admin",
+        "test-editor-token" => "editor",
+        "test-publisher-token" => "publisher",
+        _ => null
+    };
+
+    private static string? RoleForUsername(string? username) => username switch
+    {
+        "admin" => "Admin",
+        "editor" => "Editor",
+        "publisher" => "Publisher",
+        _ => null
+    };
+
+    private static string GetRequiredPolicy(HttpRequestMessage request, string path)
+    {
+        if (request.Method == HttpMethod.Delete &&
+            (path.StartsWith("/api/admin/research-tree-versions/", StringComparison.OrdinalIgnoreCase) ||
+             path.StartsWith("/api/admin/nations/", StringComparison.OrdinalIgnoreCase) ||
+             path.StartsWith("/api/admin/vehicle-types/", StringComparison.OrdinalIgnoreCase) ||
+             path.StartsWith("/api/admin/vehicles/", StringComparison.OrdinalIgnoreCase) ||
+             path.StartsWith("/api/admin/game-updates/", StringComparison.OrdinalIgnoreCase) ||
+             path.StartsWith("/api/admin/research-trees/", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "RequireAdminRole";
+        }
+
+        if (request.Method == HttpMethod.Post && path.EndsWith("/publish", StringComparison.OrdinalIgnoreCase))
+        {
+            return "RequirePublisherRole";
+        }
+
+        return "RequireEditorRole";
+    }
+
+    private static bool IsAuthorized(string? role, string requiredPolicy) => requiredPolicy switch
+    {
+        "RequireAdminRole" => role == "Admin",
+        "RequirePublisherRole" => role == "Publisher" || role == "Admin",
+        "RequireEditorRole" => role == "Editor" || role == "Admin",
+        _ => false
+    };
+
     private static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, object body) => new(statusCode)
     {
         Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
@@ -172,5 +517,21 @@ public class TestMockApiHandler : HttpMessageHandler
     {
         Content = new StringContent(body, Encoding.UTF8, "text/plain")
     };
+}
+
+internal static class JsonElementExtensions
+{
+    public static JsonElement GetPropertyIgnoreCase(this JsonElement element, string name)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                return property.Value;
+            }
+        }
+
+        throw new KeyNotFoundException($"Property '{name}' was not found.");
+    }
 }
 

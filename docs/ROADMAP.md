@@ -144,9 +144,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batch 17.
   Result: adopted Tabler through pinned CDN assets and replaced the catalog placeholder with authenticated Razor Pages screens backed by the existing secured REST API; delivered list/create/edit/delete workflows where supported for nations, vehicle types, vehicles, game updates, and research trees, including Admin-only delete confirmation, API error feedback, and hermetic integration coverage. No API, persistence, or migration changes were required.
 
-## Next
-
-- **Batch 19 — Research-tree version editor** (status: Planned)
+- **Batch 19 — Research-tree version editor** (status: Completed)
   Goal: provide admin workflows for:
   - research-tree versions;
   - drafts;
@@ -162,6 +160,9 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - do not convert the whole admin application to Blazor unless the editor requirements clearly justify it.
 
   Dependency: Batches 17–18.
+  Result: delivered HTTP-backed Razor Pages version browsing, draft creation/cloning, Admin-only draft deletion, and draft rank/entry/cost/acquisition/layout/folder/prerequisite editing. Admin inherits Editor workflows; Publisher-only accounts browse trees and view both draft and published version details read-only through public projections (`GET /api/nations`, `GET /api/vehicles/tree`) without invoking Editor-only admin endpoints. Destructive forms require confirmation, published snapshots remain read-only, and displayed entries are scoped by exact version ID with no fallback. `TestMockApiHandler` enforces real backend role policies on admin routes. Single-role integration regressions pass; no API, domain, schema, migration, or dependency changes were required. Import, validation, diff, and publishing UI remain Batch 20.
+
+## Next
 
 - **Batch 20 — Import, validation, diff, and publishing UI** (status: Planned)
   Goal: expose the existing backend workflows through the back office:

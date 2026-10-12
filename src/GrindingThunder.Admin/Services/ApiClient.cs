@@ -184,6 +184,59 @@ public class ApiClient(HttpClient httpClient) : IApiClient
     public Task<ApiResponse> DeleteResearchTreeAsync(Guid id, CancellationToken cancellationToken = default) =>
         DeleteAsync($"api/admin/research-trees/{id}", cancellationToken);
 
+    public Task<ApiResponse<IReadOnlyList<NationVersionsDto>>> GetNationsWithVersionsAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<NationVersionsDto>("api/nations", cancellationToken);
+
+    public Task<ApiResponse<ResearchTreeVersionSummaryDto>> GetResearchTreeVersionAsync(Guid versionId, CancellationToken cancellationToken = default) =>
+        GetAsync<ResearchTreeVersionSummaryDto>($"api/admin/research-tree-versions/{versionId}", cancellationToken);
+
+    public Task<ApiResponse<CreatedVersionDto>> CreateDraftVersionAsync(CreateDraftVersionRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<CreateDraftVersionRequest, CreatedVersionDto>("api/admin/research-tree-versions", request, cancellationToken);
+
+    public Task<ApiResponse<CreatedVersionDto>> CloneResearchTreeVersionAsync(Guid versionId, CloneVersionRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<CloneVersionRequest, CreatedVersionDto>($"api/admin/research-tree-versions/{versionId}/clone", request, cancellationToken);
+
+    public Task<ApiResponse> DeleteResearchTreeVersionAsync(Guid versionId, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"api/admin/research-tree-versions/{versionId}", cancellationToken);
+
+    public Task<ApiResponse<DraftVersionDetailDto>> GetDraftOverviewAsync(Guid versionId, CancellationToken cancellationToken = default) =>
+        GetAsync<DraftVersionDetailDto>($"api/admin/drafts/{versionId}", cancellationToken);
+
+    public Task<ApiResponse<TreeRankDto>> AddTreeRankAsync(Guid versionId, AddTreeRankRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<AddTreeRankRequest, TreeRankDto>($"api/admin/drafts/{versionId}/ranks", request, cancellationToken);
+
+    public Task<ApiResponse> UpdateTreeRankAsync(Guid versionId, Guid rankId, UpdateTreeRankQuotaRequest request, CancellationToken cancellationToken = default) =>
+        PutAsync($"api/admin/drafts/{versionId}/ranks/{rankId}", request, cancellationToken);
+
+    public Task<ApiResponse> DeleteTreeRankAsync(Guid versionId, Guid rankId, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"api/admin/drafts/{versionId}/ranks/{rankId}", cancellationToken);
+
+    public Task<ApiResponse<VehicleTreeEntryDto>> AddVehicleTreeEntryAsync(Guid versionId, AddVehicleTreeEntryRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<AddVehicleTreeEntryRequest, VehicleTreeEntryDto>($"api/admin/drafts/{versionId}/entries", request, cancellationToken);
+
+    public Task<ApiResponse> UpdateVehicleTreeEntryAsync(Guid versionId, Guid entryId, UpdateVehicleTreeEntryRequest request, CancellationToken cancellationToken = default) =>
+        PutAsync($"api/admin/drafts/{versionId}/entries/{entryId}", request, cancellationToken);
+
+    public Task<ApiResponse> DeleteVehicleTreeEntryAsync(Guid versionId, Guid entryId, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"api/admin/drafts/{versionId}/entries/{entryId}", cancellationToken);
+
+    public Task<ApiResponse<VehiclePrerequisiteDto>> AddVehiclePrerequisiteAsync(Guid versionId, AddPrerequisiteRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<AddPrerequisiteRequest, VehiclePrerequisiteDto>($"api/admin/drafts/{versionId}/prerequisites", request, cancellationToken);
+
+    public Task<ApiResponse> DeleteVehiclePrerequisiteAsync(Guid versionId, Guid entryId, Guid prerequisiteEntryId, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"api/admin/drafts/{versionId}/prerequisites/{entryId}/{prerequisiteEntryId}", cancellationToken);
+
+    public Task<ApiResponse<IReadOnlyList<PublicVehicleTreeEntryDto>>> GetVehicleTreeAsync(Guid nationId, string? vehicleTypeName = null, CancellationToken cancellationToken = default)
+    {
+        var uri = $"api/vehicles/tree?nationId={nationId}";
+        if (!string.IsNullOrWhiteSpace(vehicleTypeName))
+        {
+            uri += $"&type={Uri.EscapeDataString(vehicleTypeName)}";
+        }
+
+        return GetListAsync<PublicVehicleTreeEntryDto>(uri, cancellationToken);
+    }
+
     private async Task<ApiResponse<IReadOnlyList<T>>> GetListAsync<T>(string uri, CancellationToken cancellationToken)
     {
         try

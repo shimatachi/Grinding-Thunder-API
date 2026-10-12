@@ -1,0 +1,258 @@
+@page "/Trees/Version/{versionId:guid}"
+@model GrindingThunder.Admin.Pages.Trees.VersionModel
+@{ ViewData["Title"] = "Research Tree Version"; }
+<div class="page-header"><div class="row align-items-center">
+    <div class="col">
+        <h1 class="page-title">@Model.TreeLabel</h1>
+        <div class="text-secondary">
+            Game update @Model.Summary?.GameUpdateVersion
+            · @(Model.Draft is not null ? Model.Draft.TreeRanks.Count : Model.PublishedRanks.Count) rank(s)
+            · @(Model.Draft is not null ? Model.Draft.Entries.Count : Model.PublishedEntries.Count) entries
+            · @(Model.Draft is not null ? Model.Draft.Prerequisites.Count : Model.PublishedEntries.Sum(entry => entry.PrerequisiteIds.Count)) prerequisite edge(s)
+        </div>
+    </div>
+    <div class="col-auto d-flex align-items-center gap-2">
+        <span class="badge @(Model.IsDraft ? "bg-blue-lt" : "bg-green-lt")">@(Model.IsDraft ? "Draft" : "Published")</span>
+        <a class="btn btn-outline-secondary" asp-page="/Trees">Back to versions</a>
+    </div>
+</div></div>
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success mt-3">@success</div> }
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+@if (Model.NotFoundMessage is not null) { <div class="alert alert-danger mt-3">@Model.NotFoundMessage</div> }
+@if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
+@if (Model.Summary is not null && !Model.IsDraft) { <div class="alert alert-warning mt-3">This version is published and immutable. Modification controls are disabled.</div> }
+
+<div class="card mt-3">
+    <div class="card-header"><h3 class="card-title">Tree ranks</h3></div>
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+            <thead><tr><th>Rank</th><th>Required vehicles unlocked</th>@if (Model.IsDraft && Model.CanEdit) { <th class="catalog-actions">Actions</th> }</tr></thead>
+            <tbody>
+            @if (Model.IsDraft && Model.Draft is not null)
+            {
+                @foreach (var rank in Model.Draft.TreeRanks.OrderBy(rank => rank.RankNumber))
+                {
+                    <tr>
+                        <td><strong>Rank @rank.RankNumber</strong></td>
+                        @if (Model.CanEdit)
+                        {
+                            <td colspan="2">
+                                <div class="d-flex gap-2 align-items-center">
+                                <form method="post" asp-page-handler="UpdateRank" class="d-flex gap-2 align-items-center">
+                                    <input type="hidden" name="rankId" value="@rank.Id" />
+                                    <input type="number" name="requiredVehiclesUnlocked" value="@rank.RequiredVehiclesUnlocked" min="0" class="form-control form-control-sm rank-quota-input" />
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                                </form>
+                                <form method="post" asp-page-handler="DeleteRank" onsubmit="return confirm('Delete this rank?');">
+                                    <input type="hidden" name="rankId" value="@rank.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
+                                </div>
+                            </td>
+                        }
+                        else
+                        {
+                            <td>@rank.RequiredVehiclesUnlocked</td>
+                        }
+                    </tr>
+                }
+            }
+            else
+            {
+                @foreach (var rank in Model.PublishedRanks.OrderBy(rank => rank.RankNumber))
+                {
+                    <tr><td><strong>Rank @rank.RankNumber</strong></td><td>@rank.RequiredVehiclesUnlocked</td></tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.IsDraft && Model.CanEdit)
+    {
+        <div class="card-footer">
+            <form method="post" asp-page-handler="AddRank" class="row g-2 align-items-end">
+                <div class="col-auto"><label class="form-label" for="AddRank_RankNumber">Rank number</label>
+                    <input asp-for="AddRank.RankNumber" type="number" min="1" class="form-control" id="AddRank_RankNumber" /></div>
+                <div class="col-auto"><label class="form-label" for="AddRank_RequiredVehiclesUnlocked">Required vehicles unlocked</label>
+                    <input asp-for="AddRank.RequiredVehiclesUnlocked" type="number" min="0" class="form-control" id="AddRank_RequiredVehiclesUnlocked" /></div>
+                <div class="col-auto"><button type="submit" class="btn btn-primary">Add rank</button></div>
+            </form>
+        </div>
+    }
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><h3 class="card-title">Vehicle entries</h3></div>
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+            <thead><tr><th>Vehicle</th><th>Rank</th><th>RP cost</th><th>SL cost</th><th>Column</th><th>Row</th><th>Acquisition</th><th>Folder parent</th>@if (Model.IsDraft && Model.CanEdit) { <th class="catalog-actions">Actions</th> }</tr></thead>
+            <tbody>
+            @if (Model.IsDraft && Model.Draft is not null)
+            {
+                @foreach (var entry in Model.Draft.Entries.OrderBy(entry => entry.TreeColumn).ThenBy(entry => entry.TreeRow))
+                {
+                    <tr>
+                        <td><strong>@entry.VehicleName</strong></td>
+                        <td>Rank @Model.RankNumberFor(entry.TreeRankId)</td>
+                        <td>@entry.RpCost</td>
+                        <td>@entry.SlCost</td>
+                        <td>@entry.TreeColumn</td>
+                        <td>@entry.TreeRow</td>
+                        <td>@entry.AcquisitionType</td>
+                        <td>@(entry.FolderParentEntryId is null ? "—" : Model.EntryName(entry.FolderParentEntryId.Value))</td>
+                        @if (Model.CanEdit)
+                        {
+                            <td class="catalog-actions">
+                                <a class="btn btn-sm btn-outline-primary" asp-page="/Trees/Entry" asp-route-versionId="@Model.VersionId" asp-route-entryId="@entry.Id">Edit</a>
+                                <form method="post" asp-page-handler="DeleteEntry" class="d-inline" onsubmit="return confirm('Delete this vehicle entry?');">
+                                    <input type="hidden" name="entryId" value="@entry.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
+                            </td>
+                        }
+                    </tr>
+                }
+            }
+            else
+            {
+                @foreach (var entry in Model.PublishedEntries)
+                {
+                    <tr>
+                        <td><strong>@entry.Name</strong></td>
+                        <td>Rank @Model.RankNumberFor(entry.TreeRankId)</td>
+                        <td>@entry.RpCost</td>
+                        <td>@entry.SlCost</td>
+                        <td>@entry.TreeColumn</td>
+                        <td>@entry.TreeRow</td>
+                        <td>@entry.AcquisitionType</td>
+                        <td>@(entry.FolderParentId is null ? "—" : Model.EntryName(entry.FolderParentId.Value))</td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.IsDraft && Model.CanEdit && Model.Draft is not null)
+    {
+        <div class="card-footer">
+            <h4 class="mb-3">Add vehicle entry</h4>
+            <form method="post" asp-page-handler="AddEntry" class="row g-2 align-items-end">
+                <div class="col-auto"><label class="form-label" for="AddEntry_VehicleId">Vehicle</label>
+                    <select asp-for="AddEntry.VehicleId" class="form-select" id="AddEntry_VehicleId">
+                        <option value="">— select vehicle —</option>
+                        @foreach (var vehicle in Model.Vehicles)
+                        {
+                            <option value="@vehicle.Id">@vehicle.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto"><label class="form-label" for="AddEntry_TreeRankId">Rank</label>
+                    <select asp-for="AddEntry.TreeRankId" class="form-select" id="AddEntry_TreeRankId">
+                        <option value="">— select rank —</option>
+                        @foreach (var rank in Model.Draft.TreeRanks.OrderBy(rank => rank.RankNumber))
+                        {
+                            <option value="@rank.Id">Rank @rank.RankNumber</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto"><label class="form-label" for="AddEntry_RpCost">RP cost</label><input asp-for="AddEntry.RpCost" type="number" min="0" class="form-control" id="AddEntry_RpCost" /></div>
+                <div class="col-auto"><label class="form-label" for="AddEntry_SlCost">SL cost</label><input asp-for="AddEntry.SlCost" type="number" min="0" class="form-control" id="AddEntry_SlCost" /></div>
+                <div class="col-auto"><label class="form-label" for="AddEntry_TreeColumn">Tree column</label><input asp-for="AddEntry.TreeColumn" type="number" min="0" class="form-control" id="AddEntry_TreeColumn" /></div>
+                <div class="col-auto"><label class="form-label" for="AddEntry_TreeRow">Tree row</label><input asp-for="AddEntry.TreeRow" type="number" min="0" class="form-control" id="AddEntry_TreeRow" /></div>
+                <div class="col-auto"><label class="form-label" for="AddEntry_AcquisitionType">Acquisition</label>
+                    <select asp-for="AddEntry.AcquisitionType" class="form-select" id="AddEntry_AcquisitionType">
+                        @foreach (var acquisitionType in Enum.GetValues<VehicleAcquisitionType>())
+                        {
+                            <option value="@((int)acquisitionType)">@acquisitionType</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto"><label class="form-label" for="AddEntry_FolderParentEntryId">Folder parent (optional)</label>
+                    <select asp-for="AddEntry.FolderParentEntryId" class="form-select" id="AddEntry_FolderParentEntryId">
+                        <option value="">— none —</option>
+                        @foreach (var other in Model.Draft.Entries.OrderBy(other => other.VehicleName))
+                        {
+                            <option value="@other.Id">@other.VehicleName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto"><button type="submit" class="btn btn-primary">Add entry</button></div>
+            </form>
+            <div class="text-danger mt-2"><span asp-validation-for="AddEntry.VehicleId"></span> <span asp-validation-for="AddEntry.TreeRankId"></span></div>
+        </div>
+    }
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><h3 class="card-title">Progression prerequisites</h3></div>
+    <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+            <thead><tr><th>Vehicle</th><th>Requires</th>@if (Model.IsDraft && Model.CanEdit) { <th class="catalog-actions">Actions</th> }</tr></thead>
+            <tbody>
+            @if (Model.IsDraft && Model.Draft is not null)
+            {
+                @if (Model.Draft.Prerequisites.Count == 0)
+                {
+                    <tr><td colspan="3" class="empty-message">No prerequisite edges exist in this draft yet.</td></tr>
+                }
+                @foreach (var prerequisite in Model.Draft.Prerequisites)
+                {
+                    <tr>
+                        <td>@Model.EntryName(prerequisite.VehicleTreeEntryId)</td>
+                        <td>@Model.EntryName(prerequisite.PrerequisiteVehicleTreeEntryId)</td>
+                        @if (Model.CanEdit)
+                        {
+                            <td class="catalog-actions">
+                                <form method="post" asp-page-handler="RemovePrerequisite" class="d-inline" onsubmit="return confirm('Remove this prerequisite?');">
+                                    <input type="hidden" name="entryId" value="@prerequisite.VehicleTreeEntryId" />
+                                    <input type="hidden" name="prerequisiteEntryId" value="@prerequisite.PrerequisiteVehicleTreeEntryId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                </form>
+                            </td>
+                        }
+                    </tr>
+                }
+            }
+            else
+            {
+                @foreach (var entry in Model.PublishedEntries.Where(entry => entry.PrerequisiteIds.Count > 0))
+                {
+                    @foreach (var prerequisiteId in entry.PrerequisiteIds)
+                    {
+                        <tr><td>@entry.Name</td><td>@Model.EntryName(prerequisiteId)</td></tr>
+                    }
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+    @if (Model.IsDraft && Model.CanEdit && Model.Draft is not null)
+    {
+        <div class="card-footer">
+            <h4 class="mb-3">Add prerequisite</h4>
+            <form method="post" asp-page-handler="AddPrerequisite" class="row g-2 align-items-end">
+                <div class="col-auto"><label class="form-label" for="AddPrerequisite_VehicleTreeEntryId">Vehicle</label>
+                    <select asp-for="AddPrerequisite.VehicleTreeEntryId" class="form-select" id="AddPrerequisite_VehicleTreeEntryId">
+                        <option value="">— select entry —</option>
+                        @foreach (var entry in Model.Draft.Entries.OrderBy(entry => entry.VehicleName))
+                        {
+                            <option value="@entry.Id">@entry.VehicleName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto"><label class="form-label" for="AddPrerequisite_PrerequisiteVehicleTreeEntryId">Requires</label>
+                    <select asp-for="AddPrerequisite.PrerequisiteVehicleTreeEntryId" class="form-select" id="AddPrerequisite_PrerequisiteVehicleTreeEntryId">
+                        <option value="">— select entry —</option>
+                        @foreach (var entry in Model.Draft.Entries.OrderBy(entry => entry.VehicleName))
+                        {
+                            <option value="@entry.Id">@entry.VehicleName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto"><button type="submit" class="btn btn-primary">Add prerequisite</button></div>
+            </form>
+        </div>
+    }
+</div>
+
+

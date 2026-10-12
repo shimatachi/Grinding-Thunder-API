@@ -6,3 +6,4 @@ body { min-height: 100vh; }
 .vehicle-thumbnail { width: 64px; height: 40px; object-fit: contain; border-radius: var(--tblr-border-radius); background: var(--tblr-bg-surface-secondary); }
 .validation-summary-valid, .field-validation-valid { display: none; }
 .field-validation-error { display: block; margin-top: .25rem; color: var(--tblr-danger); font-size: .875rem; }
+.rank-quota-input { max-width: 9rem; }

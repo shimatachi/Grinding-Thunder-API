@@ -179,5 +179,12 @@ A chronological log of significant design decisions, one short entry per batch. 
 
 Append new entries at the end. Keep each entry to the decisions and tradeoffs that are not obvious from the code; do not duplicate content that belongs in DOMAIN.md, DATABASE.md, or ARCHITECTURE.md.
 
+## 2026 — Batch 19: research-tree version editor closure
+
+- Retained server-rendered Razor forms and tables with numeric row/column editing. Existing HTTP endpoints support these bounded editing tasks without adding Blazor state management or a JavaScript graph component. The tradeoff is page reloads and less visual interaction; reconsider a graph editor when actual editing needs justify the complexity. Layout coordinates and explicit prerequisite relationships stay separate.
+- Matched Batch 14 supervisory role semantics through small local predicates and entry-page role authorization, verified with single-role accounts. Native browser confirmation protects destructive submissions without a dependency. The API remains the authority for permissions and immutable published snapshots.
+- Supported Publisher read-only browsing via public projections without weakening backend security: the real backend endpoints (`/api/admin/research-trees`, `/api/admin/game-updates`, `/api/admin/research-tree-versions/{id}`, `/api/admin/drafts/{id}`) require Editor or Admin. Rather than weakening `RequireEditorRole` or broadening API permissions to fit UI shortcuts, Publisher-only sessions on `/Trees` and `/Trees/Version/{id}` query public exact-version projections (`GET /api/nations` and `GET /api/vehicles/tree`) filtered strictly by `ResearchTreeVersionId`. Publisher views hide all mutation controls and reject direct POST requests before sending outbound HTTP calls. Aligned `TestMockApiHandler` to enforce authentic backend role checks on `/api/admin/` routes (returning 403 Forbidden for insufficient roles), eliminating test harness permissiveness that previously masked authorization mismatches.
+- Kept publishing out of the Batch 19 admin client: Batch 20 owns import, validation, diff, and publish confirmation/workflow UI. Existing backend endpoints and the HTTP-only cookie-to-JWT client boundary remain unchanged; this batch required no domain or persistence changes.
+
 
 

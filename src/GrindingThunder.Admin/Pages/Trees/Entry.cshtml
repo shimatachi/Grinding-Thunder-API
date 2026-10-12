@@ -1,0 +1,46 @@
+@page "/Trees/Version/{versionId:guid}/Entry/{entryId:guid}"
+@model GrindingThunder.Admin.Pages.Trees.EntryModel
+@{ ViewData["Title"] = "Edit Vehicle Entry"; }
+<div class="page-header"><div class="row align-items-center"><div class="col"><h1 class="page-title">Edit entry — @(Model.VehicleName ?? "Unknown vehicle")</h1><div class="text-secondary">Rank, costs, visual layout coordinates, acquisition type, and folder grouping.</div></div><div class="col-auto"><a class="btn btn-outline-secondary" asp-page="/Trees/Version" asp-route-versionId="@Model.VersionId">Back to version</a></div></div></div>
+@if (Model.ImmutableMessage is not null) { <div class="alert alert-warning mt-3">@Model.ImmutableMessage</div> }
+@if (Model.NotFoundMessage is not null) { <div class="alert alert-danger mt-3">@Model.NotFoundMessage</div> }
+@if (Model.VehicleName is not null)
+{
+    <div class="card catalog-form mt-3"><div class="card-body">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+            <div class="mb-3"><label asp-for="Input.TreeRankId" class="form-label"></label>
+                <select asp-for="Input.TreeRankId" class="form-select">
+                    @foreach (var rank in Model.Ranks)
+                    {
+                        <option value="@rank.Id" selected="@(rank.Id == Model.Input.TreeRankId)">Rank @rank.RankNumber</option>
+                    }
+                </select>
+                <span asp-validation-for="Input.TreeRankId" class="text-danger"></span>
+            </div>
+            <div class="mb-3"><label asp-for="Input.RpCost" class="form-label"></label><input asp-for="Input.RpCost" type="number" min="0" class="form-control" /><span asp-validation-for="Input.RpCost" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Input.SlCost" class="form-label"></label><input asp-for="Input.SlCost" type="number" min="0" class="form-control" /><span asp-validation-for="Input.SlCost" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Input.TreeColumn" class="form-label"></label><input asp-for="Input.TreeColumn" type="number" min="0" class="form-control" /><span asp-validation-for="Input.TreeColumn" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Input.TreeRow" class="form-label"></label><input asp-for="Input.TreeRow" type="number" min="0" class="form-control" /><span asp-validation-for="Input.TreeRow" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Input.AcquisitionType" class="form-label"></label>
+                <select asp-for="Input.AcquisitionType" class="form-select">
+                    @foreach (var acquisitionType in Enum.GetValues<VehicleAcquisitionType>())
+                    {
+                        <option value="@((int)acquisitionType)" selected="@(acquisitionType == Model.Input.AcquisitionType)">@acquisitionType</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3"><label asp-for="Input.FolderParentEntryId" class="form-label"></label>
+                <select asp-for="Input.FolderParentEntryId" class="form-select">
+                    <option value="">— none —</option>
+                    @foreach (var other in Model.OtherEntries)
+                    {
+                        <option value="@other.Id" selected="@(other.Id == Model.Input.FolderParentEntryId)">@other.VehicleName</option>
+                    }
+                </select>
+                <div class="form-hint">Folder parents allow one level of nesting; entries must stay in the same rank.</div>
+            </div>
+            <div class="btn-list"><button class="btn btn-primary" type="submit">Save</button><a class="btn" asp-page="/Trees/Version" asp-route-versionId="@Model.VersionId">Cancel</a></div>
+        </form>
+    </div></div>
+}

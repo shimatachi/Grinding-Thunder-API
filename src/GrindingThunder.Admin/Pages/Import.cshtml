@@ -1,8 +1,35 @@
 @page "/Import"
 @model GrindingThunder.Admin.Pages.ImportModel
-@{ ViewData["Title"] = "Data Import & Diff"; }
-<div class="container-tight py-4"><div class="card"><div class="card-body text-center py-5">
-    <span class="badge mb-3">Batch 20</span><h1 class="mb-3">Tabular Data Import & Diff</h1>
-    <p class="text-secondary mb-4">CSV/XLSX preview, validation, historical diff, and draft import workflows are planned for Batch 20.</p>
-    <a asp-page="/Index" class="btn btn-primary">Return to Dashboard</a>
-</div></div></div>
+@{ ViewData["Title"] = "Import draft data"; }
+<div class="page-header"><h1 class="page-title">Import draft data</h1></div>
+@if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
+<div class="card mt-3"><div class="card-header"><h3 class="card-title">1. Preview file</h3></div><div class="card-body">
+    <form method="post" asp-page-handler="Preview" enctype="multipart/form-data">
+        <div class="row g-3">
+            <div class="col-md-5"><label for="versionId" class="form-label">Draft version</label><select id="versionId" name="versionId" class="form-select" required>
+                @foreach (var draft in Model.Drafts) { <option value="@draft.Id" selected="@(draft.Id == Model.VersionId)">@draft.Label</option> }
+            </select></div>
+            <div class="col-md-5"><label for="file" class="form-label">CSV, TSV, or XLSX file</label><input id="file" name="file" type="file" accept=".csv,.tsv,.xlsx" class="form-control" required /></div>
+            <div class="col-md-12"><label class="form-check"><input class="form-check-input" type="checkbox" name="autoCreateMissingVehicles" value="true" checked="@Model.AutoCreateMissingVehicles" /><span class="form-check-label">Automatically create missing vehicles</span></label></div>
+            <div><button type="submit" class="btn btn-primary">Preview import</button></div>
+        </div>
+    </form>
+</div></div>
+@if (Model.Preview is not null)
+{
+    <div class="card mt-3"><div class="card-header"><h3 class="card-title">2. Review preview</h3><span class="badge ms-auto @(Model.Preview.IsValid ? "bg-green-lt" : "bg-red-lt")">@(Model.Preview.IsValid ? "Valid" : "Invalid")</span></div><div class="card-body">
+        <div class="row g-2 mb-3"><div class="col-auto">Rows: <strong>@Model.Preview.TotalRowsDetected</strong></div><div class="col-auto">New entries: <strong>@Model.Preview.NewEntriesCount</strong></div><div class="col-auto">Updated entries: <strong>@Model.Preview.UpdatedEntriesCount</strong></div><div class="col-auto">Vehicles to create: <strong>@Model.Preview.AutoCreatedVehiclesCount</strong></div><div class="col-auto">Ranks to create: <strong>@Model.Preview.CreatedRanksCount</strong></div></div>
+        @foreach (var error in Model.Preview.Errors) { <div class="alert alert-danger">@error</div> }
+        @foreach (var warning in Model.Preview.Warnings) { <div class="alert alert-warning">@warning</div> }
+        @if (Model.Preview.Entries.Count > 0) { <div class="table-responsive"><table class="table table-vcenter"><thead><tr><th>Row</th><th>Vehicle</th><th>Rank</th><th>RP</th><th>SL</th><th>Action</th></tr></thead><tbody>
+            @foreach (var entry in Model.Preview.Entries) { <tr><td>@entry.RowNumber</td><td>@entry.VehicleName</td><td>@entry.RankNumber</td><td>@entry.RpCost</td><td>@entry.SlCost</td><td>@entry.Action</td></tr> }
+        </tbody></table></div> }
+        @if (Model.Preview.IsValid && Model.PreviewToken is not null) { <form method="post" asp-page-handler="Commit" onsubmit="return confirm('Commit this import to the selected draft?');"><input type="hidden" name="versionId" value="@Model.VersionId" /><input type="hidden" name="previewToken" value="@Model.PreviewToken" /><button type="submit" class="btn btn-success">Commit import</button></form> }
+    </div></div>
+}
+@if (Model.Commit is not null)
+{
+    <div class="alert alert-success mt-3">Imported @Model.Commit.ImportedEntriesCount entries (@Model.Commit.NewEntriesCount new, @Model.Commit.UpdatedEntriesCount updated). Created @Model.Commit.AutoCreatedVehiclesCount vehicles and @Model.Commit.CreatedRanksCount ranks.</div>
+    @foreach (var message in Model.Commit.Messages) { <div class="alert alert-info">@message</div> }
+    <a asp-page="/Trees/Version" asp-route-versionId="@Model.VersionId" class="btn btn-primary">Back to draft editor</a>
+}

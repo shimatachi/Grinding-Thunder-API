@@ -25,6 +25,8 @@ public class VersionModel(IApiClient apiClient) : PageModel
 
     public bool IsDraft => Summary?.Status.Equals("Draft", StringComparison.OrdinalIgnoreCase) == true;
     public bool CanEdit => User.IsInRole("Editor") || User.IsInRole("Admin");
+    public bool CanPublish => User.IsInRole("Publisher") || User.IsInRole("Admin");
+    public VersionValidationDto? Validation { get; private set; }
     public string TreeLabel => Tree is null ? "Research Tree Version" : $"{Tree.NationName} — {Tree.VehicleTypeName}";
 
     public string? ErrorMessage { get; private set; }
@@ -38,6 +40,43 @@ public class VersionModel(IApiClient apiClient) : PageModel
     {
         var result = await LoadAsync(versionId, cancellationToken);
         return result ?? Page();
+    }
+
+    public async Task<IActionResult> OnGetValidateAsync(Guid versionId, CancellationToken cancellationToken)
+    {
+        var load = await LoadAsync(versionId, cancellationToken);
+        if (load is not null) return load;
+        if (Summary is null) return Page();
+        var response = await apiClient.ValidateResearchTreeVersionAsync(versionId, cancellationToken);
+        if (!response.IsSuccess || response.Value is null)
+            ErrorMessage = response.ErrorMessage ?? "Unable to validate version.";
+        else
+            Validation = response.Value;
+        return Page();
+    }
+
+    public async Task<IActionResult> OnPostPublishAsync(Guid versionId, bool confirmImmutable, CancellationToken cancellationToken)
+    {
+        if (!CanPublish) return RedirectToPage("/AccessDenied");
+        var load = await LoadAsync(versionId, cancellationToken);
+        if (load is not null) return load;
+        if (Summary is null) return Page();
+        if (!IsDraft || !confirmImmutable)
+        {
+            ErrorMessage = IsDraft ? "Confirm that the published snapshot will be immutable." : "Only draft versions can be published.";
+            return Page();
+        }
+
+        var response = await apiClient.PublishResearchTreeVersionAsync(versionId, cancellationToken);
+        if (response.IsForbidden) return RedirectToPage("/AccessDenied");
+        if (!response.IsSuccess)
+        {
+            ErrorMessage = response.ErrorMessage ?? "Unable to publish version.";
+            return Page();
+        }
+
+        TempData["SuccessMessage"] = "Version published as an immutable historical snapshot.";
+        return RedirectToPage("/Trees/Version", new { versionId });
     }
 
     /// <summary>Resolves a versioned entry ID (draft) or vehicle ID (published) to a display name.</summary>

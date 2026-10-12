@@ -186,5 +186,10 @@ Append new entries at the end. Keep each entry to the decisions and tradeoffs th
 - Supported Publisher read-only browsing via public projections without weakening backend security: the real backend endpoints (`/api/admin/research-trees`, `/api/admin/game-updates`, `/api/admin/research-tree-versions/{id}`, `/api/admin/drafts/{id}`) require Editor or Admin. Rather than weakening `RequireEditorRole` or broadening API permissions to fit UI shortcuts, Publisher-only sessions on `/Trees` and `/Trees/Version/{id}` query public exact-version projections (`GET /api/nations` and `GET /api/vehicles/tree`) filtered strictly by `ResearchTreeVersionId`. Publisher views hide all mutation controls and reject direct POST requests before sending outbound HTTP calls. Aligned `TestMockApiHandler` to enforce authentic backend role checks on `/api/admin/` routes (returning 403 Forbidden for insufficient roles), eliminating test harness permissiveness that previously masked authorization mismatches.
 - Kept publishing out of the Batch 19 admin client: Batch 20 owns import, validation, diff, and publish confirmation/workflow UI. Existing backend endpoints and the HTTP-only cookie-to-JWT client boundary remain unchanged; this batch required no domain or persistence changes.
 
+## 2026 — Batch 20: import and publication controls
+
+- Kept import as a two-step server-rendered form. A valid preview stores the uploaded bytes for 15 minutes in the Admin process, bound to the signed-in username and draft version, so commit sends exactly the reviewed file and vehicle-creation option. This avoids a client-side build step and makes the flow simple, with the tradeoff that a restart or expired cache entry requires a new preview. The API revalidates the file at commit and remains authoritative.
+- Used the public validation and diff endpoints for every authenticated role. Version comparison checks both selected IDs against the same tree before calling the API. Publication is limited locally to Publisher/Admin and requires explicit acknowledgement, while the secured API retains final role, draft-state, and validation enforcement.
+
 
 

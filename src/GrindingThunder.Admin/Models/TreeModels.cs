@@ -21,6 +21,29 @@ public record CreateDraftVersionRequest(Guid ResearchTreeId, Guid GameUpdateId);
 public record CloneVersionRequest(Guid TargetGameUpdateId);
 public record CreatedVersionDto(Guid Id, Guid ResearchTreeId, Guid GameUpdateId, string Status);
 
+public record VersionValidationDto(bool IsValid, List<string> Errors, List<string> Warnings);
+public record ImportPreviewDto(bool IsValid, int TotalRowsDetected, int NewEntriesCount, int UpdatedEntriesCount,
+    int AutoCreatedVehiclesCount, int CreatedRanksCount, List<ImportEntryPreviewDto> Entries,
+    List<string> Errors, List<string> Warnings);
+public record ImportEntryPreviewDto(int RowNumber, string VehicleName, int RankNumber, int RpCost, int SlCost,
+    int TreeColumn, int TreeRow, VehicleAcquisitionType AcquisitionType, string? FolderParentVehicleName,
+    List<string> PrerequisiteVehicleNames, string Action, bool VehicleExistsInCatalog);
+public record ImportCommitDto(bool Success, int ImportedEntriesCount, int NewEntriesCount, int UpdatedEntriesCount,
+    int AutoCreatedVehiclesCount, int CreatedRanksCount, List<string> Messages, List<string>? Errors);
+public record VersionDiffSummaryDto(int AddedVehiclesCount, int RemovedVehiclesCount, int ModifiedVehiclesCount,
+    int AddedPrerequisitesCount, int RemovedPrerequisitesCount, long NetRpDelta, long NetSlDelta);
+public record VehicleDiffDto(Guid VehicleId, string Name, int Rank, int RpCost, int SlCost);
+public record VehicleModifiedDiffDto(Guid VehicleId, string Name, int OldRpCost, int NewRpCost, int RpDelta,
+    int OldSlCost, int NewSlCost, int SlDelta, int OldRankNumber, int NewRankNumber,
+    VehicleAcquisitionType OldAcquisitionType, VehicleAcquisitionType NewAcquisitionType,
+    int OldColumn, int NewColumn, int OldRow, int NewRow, Guid? OldParentVehicleId, Guid? NewParentVehicleId);
+public record PrerequisiteDiffDto(Guid VehicleId, string VehicleName, Guid PrerequisiteVehicleId, string PrerequisiteVehicleName);
+public record RankDiffDto(int RankNumber, int? OldRequiredVehiclesUnlocked, int? NewRequiredVehiclesUnlocked, string ChangeType);
+public record VersionDiffDto(Guid SourceVersionId, Guid TargetVersionId, string SourceGameUpdateVersion,
+    string TargetGameUpdateVersion, List<VehicleDiffDto> AddedVehicles, List<VehicleDiffDto> RemovedVehicles,
+    List<VehicleModifiedDiffDto> ModifiedVehicles, List<PrerequisiteDiffDto> AddedPrerequisites,
+    List<PrerequisiteDiffDto> RemovedPrerequisites, List<RankDiffDto> RankChanges, VersionDiffSummaryDto Summary);
+
 public record ResearchTreeVersionSummaryDto(
     Guid Id,
     Guid ResearchTreeId,

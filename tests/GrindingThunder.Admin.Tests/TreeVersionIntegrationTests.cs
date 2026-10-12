@@ -234,41 +234,18 @@ public class TreeVersionIntegrationTests
     [InlineData("admin")]
     [InlineData("editor")]
     [InlineData("publisher")]
-    public async Task Batch19Pages_DoNotExposeOrCallPublishing(string username)
+    public async Task PublishingControl_OnlyAppearsOnDraftForPublisherOrAdmin(string username)
     {
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
         await LoginAsync(client, username);
-        var index = await client.GetAsync("/Trees");
-        var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(index);
-        var paths = new[]
-        {
-            "/Trees",
-            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}",
-            $"/Trees/Version/{TestMockApiHandler.PublishedVersionId}",
-            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}/Entry/{TestMockApiHandler.EntryId}",
-            $"/Trees/Version/{TestMockApiHandler.PublishedVersionId}/Entry/{TestMockApiHandler.EntryId}"
-        };
-        foreach (var path in paths)
-        {
-            var page = await client.GetAsync(path);
-            var html = await page.Content.ReadAsStringAsync();
-            Assert.DoesNotContain("handler=Publish", html);
-            Assert.DoesNotContain(">Publish<", html);
-
-            await client.PostAsync($"{path}?handler=Publish", new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["versionId"] = TestMockApiHandler.DraftVersionId.ToString(),
-                ["researchTreeId"] = TestMockApiHandler.ResearchTreeId.ToString(),
-                ["__RequestVerificationToken"] = token
-            }));
-        }
-
+        var draft = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var draftHtml = await draft.Content.ReadAsStringAsync();
+        Assert.Equal(username != "editor", draftHtml.Contains("handler=Publish"));
+        var published = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.PublishedVersionId}");
+        Assert.DoesNotContain("handler=Publish", await published.Content.ReadAsStringAsync());
         Assert.DoesNotContain(factory.MockApiHandler.RecordedRequests, request =>
             request.RequestUri?.AbsolutePath.EndsWith("/publish", StringComparison.OrdinalIgnoreCase) == true);
-        Assert.DoesNotContain(typeof(Services.IApiClient).GetMethods(), method => method.Name.Contains("Publish"));
-        Assert.DoesNotContain(typeof(Services.ApiClient).GetMethods(), method => method.Name.Contains("Publish"));
-        Assert.DoesNotContain(typeof(Pages.TreesModel).GetMethods(), method => method.Name.Contains("Publish"));
     }
 
     [Fact]

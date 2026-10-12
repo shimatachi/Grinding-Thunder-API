@@ -23,6 +23,10 @@ public class TestMockApiHandler : HttpMessageHandler
     public List<HttpRequestMessage> RecordedRequests { get; } = [];
     public bool ConflictNextCatalogMutation { get; set; }
     public bool ConflictNextDelete { get; set; }
+    public bool InvalidNextValidation { get; set; }
+    public bool InvalidNextImportPreview { get; set; }
+    public bool FailNextPublish { get; set; }
+    public bool DraftPublished { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -118,7 +122,7 @@ public class TestMockApiHandler : HttpMessageHandler
                             vehicleTypeName = "Aviation",
                             versions = new object[]
                             {
-                                new { id = DraftVersionId, status = 0, updateVersion = "2.50", treeRanks = new object[] { new { id = RankId, rankNumber = 1, requiredVehiclesUnlocked = 5 } } },
+                                new { id = DraftVersionId, status = DraftPublished ? 1 : 0, updateVersion = "2.50", treeRanks = new object[] { new { id = RankId, rankNumber = 1, requiredVehiclesUnlocked = 5 } } },
                                 new { id = PublishedVersionId, status = 1, updateVersion = "2.49", treeRanks = new object[] { new { id = Rank2Id, rankNumber = 1, requiredVehiclesUnlocked = 4 } } }
                             }
                         }
@@ -136,6 +140,43 @@ public class TestMockApiHandler : HttpMessageHandler
                 // Same tree and stable vehicle, different snapshot: must never leak into the selected published view.
                 new { id = VehicleId, treeRankId = RankId, researchTreeVersionId = DraftVersionId, name = "Other snapshot entry", imageUrl = (string?)null, rpCost = 987654, slCost = 987655, acquisitionType = 0, isFolderParent = false, folderParentId = (Guid?)null, treeColumn = 0, treeRow = 0, prerequisiteIds = Array.Empty<Guid>() }
             });
+        }
+
+        if (request.Method == HttpMethod.Get && path.StartsWith("/api/research-tree-versions/", StringComparison.OrdinalIgnoreCase))
+        {
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 4 && segments[3].Equals("validate", StringComparison.OrdinalIgnoreCase) &&
+                Guid.TryParse(segments[2], out var validateId) && (validateId == DraftVersionId || validateId == PublishedVersionId))
+            {
+                var invalid = InvalidNextValidation;
+                InvalidNextValidation = false;
+                return JsonResponse(HttpStatusCode.OK, new
+                {
+                    isValid = !invalid,
+                    errors = invalid ? new[] { "Prerequisite cycle detected between F-16A and F-4E.", "Rank gate quota is infeasible." } : Array.Empty<string>(),
+                    warnings = new[] { "Check folder placement before publishing." }
+                });
+            }
+
+            if (path.Equals("/api/research-tree-versions/diff", StringComparison.OrdinalIgnoreCase))
+            {
+                var query = System.Web.HttpUtility.ParseQueryString(request.RequestUri!.Query);
+                if (!Guid.TryParse(query["sourceVersionId"], out var sourceId) || !Guid.TryParse(query["targetVersionId"], out var targetId) ||
+                    sourceId == targetId || !new[] { DraftVersionId, PublishedVersionId }.Contains(sourceId) ||
+                    !new[] { DraftVersionId, PublishedVersionId }.Contains(targetId))
+                    return TextResponse(HttpStatusCode.BadRequest, "Choose two different versions from the same tree.");
+                return JsonResponse(HttpStatusCode.OK, new
+                {
+                    sourceVersionId = sourceId, targetVersionId = targetId, sourceGameUpdateVersion = "2.49", targetGameUpdateVersion = "2.50",
+                    addedVehicles = new[] { new { vehicleId = VehicleId2, name = "F-4E", rank = 1, rpCost = 180000, slCost = 290000 } },
+                    removedVehicles = new[] { new { vehicleId = VehicleId, name = "F-16A", rank = 1, rpCost = 210000, slCost = 330000 } },
+                    modifiedVehicles = new[] { new { vehicleId = VehicleId, name = "F-16A", oldRpCost = 210000, newRpCost = 220000, rpDelta = 10000, oldSlCost = 330000, newSlCost = 350000, slDelta = 20000, oldRankNumber = 1, newRankNumber = 1, oldAcquisitionType = 0, newAcquisitionType = 0, oldColumn = 0, newColumn = 1, oldRow = 0, newRow = 0, oldParentVehicleId = (Guid?)null, newParentVehicleId = (Guid?)null } },
+                    addedPrerequisites = new[] { new { vehicleId = VehicleId2, vehicleName = "F-4E", prerequisiteVehicleId = VehicleId, prerequisiteVehicleName = "F-16A" } },
+                    removedPrerequisites = Array.Empty<object>(),
+                    rankChanges = new[] { new { rankNumber = 1, oldRequiredVehiclesUnlocked = 4, newRequiredVehiclesUnlocked = 5, changeType = "Modified" } },
+                    summary = new { addedVehiclesCount = 1, removedVehiclesCount = 1, modifiedVehiclesCount = 1, addedPrerequisitesCount = 1, removedPrerequisitesCount = 0, netRpDelta = 10000L, netSlDelta = 20000L }
+                });
+            }
         }
 
         if (path.Contains("/api/admin/", StringComparison.OrdinalIgnoreCase))
@@ -275,7 +316,7 @@ public class TestMockApiHandler : HttpMessageHandler
             {
                 if (versionId == DraftVersionId)
                 {
-                    return JsonResponse(HttpStatusCode.OK, new { id = DraftVersionId, researchTreeId = ResearchTreeId, gameUpdateId = GameUpdateId, gameUpdateVersion = "2.50", status = "Draft", rankCount = 1, entryCount = 2 });
+                    return JsonResponse(HttpStatusCode.OK, new { id = DraftVersionId, researchTreeId = ResearchTreeId, gameUpdateId = GameUpdateId, gameUpdateVersion = "2.50", status = DraftPublished ? "Published" : "Draft", rankCount = 1, entryCount = 2 });
                 }
 
                 if (versionId == PublishedVersionId)
@@ -309,6 +350,19 @@ public class TestMockApiHandler : HttpMessageHandler
             });
         }
 
+        if (segments.Length == 5 && request.Method == HttpMethod.Post && segments[4].Equals("publish", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Guid.Parse(segments[3]) != DraftVersionId) return TextResponse(HttpStatusCode.Conflict, "Version is already published.");
+            if (FailNextPublish)
+            {
+                FailNextPublish = false;
+                return TextResponse(HttpStatusCode.BadRequest, "Version validation failed: prerequisite cycle.");
+            }
+            if (DraftPublished) return TextResponse(HttpStatusCode.Conflict, "Version is already published.");
+            DraftPublished = true;
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        }
+
         return new HttpResponseMessage(HttpStatusCode.NotFound);
     }
 
@@ -324,12 +378,37 @@ public class TestMockApiHandler : HttpMessageHandler
         // GET /api/admin/drafts/{versionId} — draft overview; 409 for published versions.
         if (segments.Length == 4 && request.Method == HttpMethod.Get)
         {
-            if (versionId != DraftVersionId)
+            if (versionId != DraftVersionId || DraftPublished)
             {
                 return TextResponse(HttpStatusCode.Conflict, $"Research tree version '{versionId}' is not in Draft status (status: Published). Published versions are immutable.");
             }
 
             return JsonResponse(HttpStatusCode.OK, BuildDraftOverview());
+        }
+
+        if (segments.Length is 5 or 6 && segments[4].Equals("import", StringComparison.OrdinalIgnoreCase) && request.Method == HttpMethod.Post)
+        {
+            if (versionId != DraftVersionId || DraftPublished)
+                return TextResponse(HttpStatusCode.Conflict, "Published versions are immutable.");
+            if (request.Content is not MultipartFormDataContent multipart ||
+                request.Content.Headers.ContentType?.MediaType != "multipart/form-data" ||
+                !multipart.Any(part => part.Headers.ContentDisposition?.Name?.Trim('"') == "file"))
+                return TextResponse(HttpStatusCode.UnsupportedMediaType, "Multipart form required.");
+            var isPreview = segments.Length == 6 && segments[5].Equals("preview", StringComparison.OrdinalIgnoreCase);
+            if (isPreview)
+            {
+                var invalid = InvalidNextImportPreview;
+                InvalidNextImportPreview = false;
+                return JsonResponse(HttpStatusCode.OK, new
+                {
+                    isValid = !invalid, totalRowsDetected = 2, newEntriesCount = 1, updatedEntriesCount = 1,
+                    autoCreatedVehiclesCount = 1, createdRanksCount = 1,
+                    entries = new[] { new { rowNumber = 2, vehicleName = "F-16A", rankNumber = 1, rpCost = 220000, slCost = 350000, treeColumn = 0, treeRow = 0, acquisitionType = 0, folderParentVehicleName = (string?)null, prerequisiteVehicleNames = Array.Empty<string>(), action = "Update", vehicleExistsInCatalog = true } },
+                    errors = invalid ? new[] { "Coordinate collision at column 0, row 0." } : Array.Empty<string>(),
+                    warnings = new[] { "One vehicle will be created." }
+                });
+            }
+            return JsonResponse(HttpStatusCode.OK, new { success = true, importedEntriesCount = 2, newEntriesCount = 1, updatedEntriesCount = 1, autoCreatedVehiclesCount = 1, createdRanksCount = 1, messages = new[] { "Import committed." }, errors = Array.Empty<string>() });
         }
 
         // POST /api/admin/drafts/{versionId}/ranks

@@ -22,7 +22,7 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
 - A separate authenticated Razor Pages back office communicates with the API over HTTP and provides catalog management for nations, vehicle types, stable vehicles, game updates, and research trees.
 - The Batch 19 Tech Trees editor lists a selected tree's draft and published versions, creates blank drafts, clones versions, and edits draft ranks/quotas, vehicle entries, RP/SL costs, acquisition types, numeric row/column layout, folder parents, and explicit prerequisites. Displayed snapshot entries are scoped by exact version ID; published versions remain read-only.
 - Editor and Admin accounts can perform draft editing; only Admin can delete a whole draft version. Publisher-only accounts have read-only access to `/Trees` and draft or published version detail pages (`/Trees/Version/{id}`) powered by public exact-version projections (`GET /api/nations` and `GET /api/vehicles/tree`) without calling Editor-only admin endpoints. Publisher sessions see no mutation forms and direct POST mutation attempts are rejected upfront before any API call is made. Deleting a draft, rank, or entry and removing a prerequisite require explicit browser confirmation.
-- Import preview/commit, version validation, historical diff, and publish confirmation/workflow are deferred to the Batch 20 UI. The existing backend endpoints remain available, but Batch 19 exposes no publishing control or client call.
+- The back office provides an Editor/Admin import page for CSV, TSV, and XLSX files with preview diagnostics and an explicit commit step. A valid preview is kept in short-lived server memory so commit uses the same uploaded file and options. Every version detail page can display backend validation results. A comparison page shows economic, vehicle, prerequisite, and rank-gate changes between versions of one tree. Publisher/Admin accounts can publish a Draft after acknowledging that the resulting historical snapshot is immutable; the page then becomes read-only.
 
 ## TARGET — intended user behavior
 
@@ -33,7 +33,6 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
 
 ## FUTURE — direction without detailed rules yet
 
-- Batch 20 back-office UI for tabular import preview/commit, version validation, historical diff, and publishing.
 - Player accounts and synchronized owned-vehicle progress across sessions and devices.
 - Vehicle modification progression (a separate progression system out of scope for the initial vehicle research planner).
 - Advanced War Thunder economy and RP mechanics (premium account modifiers, talisman bonuses, vehicle research efficiency penalties).

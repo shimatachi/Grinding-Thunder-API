@@ -17,6 +17,9 @@ else
     <div class="col-md-6"><div class="card h-100"><div class="card-header"><h2 class="card-title">Back-Office Modules</h2></div><div class="list-group list-group-flush">
         <a class="list-group-item list-group-item-action" asp-page="/Catalog"><strong>Vehicle Catalog</strong><div class="text-secondary small">Nations, vehicle types, vehicles, updates, and research trees</div></a>
         <a class="list-group-item list-group-item-action" asp-page="/Trees"><strong>Tech Tree Versions</strong><div class="text-secondary small">Drafts, ranks, entries, layout, and prerequisites</div></a>
-        <a class="list-group-item list-group-item-action" asp-page="/Import"><strong>Data Import & Diff</strong><div class="text-secondary small">Batch 20 — CSV/XLSX validation, import, diff, and publish</div></a>
+        @if (User.IsInRole("Editor") || User.IsInRole("Admin"))
+        {
+            <a class="list-group-item list-group-item-action" asp-page="/Import"><strong>Draft data import</strong><div class="text-secondary small">Preview and commit CSV, TSV, or XLSX data</div></a>
+        }
     </div></div></div>
 </div>

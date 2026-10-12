@@ -164,7 +164,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
 
 ## Next
 
-- **Batch 20 — Import, validation, diff, and publishing UI** (status: Planned)
+- **Batch 20 — Import, validation, diff, and publishing UI** (status: Completed)
   Goal: expose the existing backend workflows through the back office:
   - CSV/XLSX upload;
   - import preview;
@@ -179,6 +179,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - use minimal JavaScript/interactivity only where useful.
 
   Dependency: Batch 19.
+  Result: delivered Editor/Admin CSV, TSV, and XLSX upload preview and commit with diagnostics, counts, and a short-lived server-side copy of valid preview bytes; public validation and same-tree version comparison screens; and Publisher/Admin draft publication with explicit immutable-snapshot confirmation. Published versions transition to read-only presentation. The admin mock now simulates the endpoints with backend-matching role checks, and integration tests cover import, validation, diff, and publication permissions. No API, schema, domain, migration, or third-party UI changes were made.
 
 - **Batch 21 — Persistent admin accounts** (status: Planned)
   Goal: replace configuration-backed admin credentials with database-backed administrator accounts and lifecycle management.

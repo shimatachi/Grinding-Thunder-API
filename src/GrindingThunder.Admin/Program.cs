@@ -26,6 +26,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 // Configure HttpContextAccessor and Bearer Token Handler
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddMemoryCache();
 builder.Services.AddTransient<BearerTokenHandler>();
 
 // Configure typed ApiClient

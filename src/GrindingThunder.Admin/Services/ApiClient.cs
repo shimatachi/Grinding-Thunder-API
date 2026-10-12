@@ -199,6 +199,54 @@ public class ApiClient(HttpClient httpClient) : IApiClient
     public Task<ApiResponse> DeleteResearchTreeVersionAsync(Guid versionId, CancellationToken cancellationToken = default) =>
         DeleteAsync($"api/admin/research-tree-versions/{versionId}", cancellationToken);
 
+    public async Task<ApiResponse> PublishResearchTreeVersionAsync(Guid versionId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync($"api/admin/research-tree-versions/{versionId}/publish", null, cancellationToken);
+            return response.IsSuccessStatusCode ? new ApiResponse(response.StatusCode) :
+                new ApiResponse(response.StatusCode, await ReadErrorAsync(response, cancellationToken));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ApiResponse(HttpStatusCode.ServiceUnavailable, ConnectionError(ex));
+        }
+    }
+
+    public Task<ApiResponse<VersionValidationDto>> ValidateResearchTreeVersionAsync(Guid versionId, CancellationToken cancellationToken = default) =>
+        GetAsync<VersionValidationDto>($"api/research-tree-versions/{versionId}/validate", cancellationToken);
+
+    public Task<ApiResponse<VersionDiffDto>> CompareResearchTreeVersionsAsync(Guid sourceVersionId, Guid targetVersionId, CancellationToken cancellationToken = default) =>
+        GetAsync<VersionDiffDto>($"api/research-tree-versions/diff?sourceVersionId={sourceVersionId}&targetVersionId={targetVersionId}", cancellationToken);
+
+    public Task<ApiResponse<ImportPreviewDto>> PreviewImportAsync(Guid versionId, Stream file, string fileName, bool autoCreateMissingVehicles, CancellationToken cancellationToken = default) =>
+        UploadAsync<ImportPreviewDto>($"api/admin/drafts/{versionId}/import/preview", file, fileName, autoCreateMissingVehicles, cancellationToken);
+
+    public Task<ApiResponse<ImportCommitDto>> CommitImportAsync(Guid versionId, Stream file, string fileName, bool autoCreateMissingVehicles, CancellationToken cancellationToken = default) =>
+        UploadAsync<ImportCommitDto>($"api/admin/drafts/{versionId}/import", file, fileName, autoCreateMissingVehicles, cancellationToken);
+
+    private async Task<ApiResponse<T>> UploadAsync<T>(string uri, Stream file, string fileName, bool autoCreateMissingVehicles, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var form = new MultipartFormDataContent();
+            form.Add(new StreamContent(file), "file", fileName);
+            form.Add(new StringContent(autoCreateMissingVehicles.ToString().ToLowerInvariant()), "autoCreateMissingVehicles");
+            var response = await _httpClient.PostAsync(uri, form, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return new ApiResponse<T>(response.StatusCode,
+                    await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken));
+            }
+
+            return new ApiResponse<T>(response.StatusCode, ErrorMessage: await ReadErrorAsync(response, cancellationToken));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ApiResponse<T>(HttpStatusCode.ServiceUnavailable, ErrorMessage: ConnectionError(ex));
+        }
+    }
+
     public Task<ApiResponse<DraftVersionDetailDto>> GetDraftOverviewAsync(Guid versionId, CancellationToken cancellationToken = default) =>
         GetAsync<DraftVersionDetailDto>($"api/admin/drafts/{versionId}", cancellationToken);
 
@@ -350,6 +398,16 @@ public class ApiClient(HttpClient httpClient) : IApiClient
                 {
                     return property.GetString()!;
                 }
+            }
+
+            if (document.RootElement.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array)
+            {
+                var messages = errors.EnumerateArray()
+                    .Where(item => item.ValueKind == JsonValueKind.String)
+                    .Select(item => item.GetString())
+                    .Where(item => !string.IsNullOrWhiteSpace(item));
+                var joined = string.Join("; ", messages);
+                if (joined.Length > 0) return joined;
             }
         }
         catch (JsonException)

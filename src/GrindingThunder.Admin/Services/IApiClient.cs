@@ -71,6 +71,11 @@ public interface IApiClient
     Task<ApiResponse<CreatedVersionDto>> CreateDraftVersionAsync(CreateDraftVersionRequest request, CancellationToken cancellationToken = default);
     Task<ApiResponse<CreatedVersionDto>> CloneResearchTreeVersionAsync(Guid versionId, CloneVersionRequest request, CancellationToken cancellationToken = default);
     Task<ApiResponse> DeleteResearchTreeVersionAsync(Guid versionId, CancellationToken cancellationToken = default);
+    Task<ApiResponse> PublishResearchTreeVersionAsync(Guid versionId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<VersionValidationDto>> ValidateResearchTreeVersionAsync(Guid versionId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<VersionDiffDto>> CompareResearchTreeVersionsAsync(Guid sourceVersionId, Guid targetVersionId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ImportPreviewDto>> PreviewImportAsync(Guid versionId, Stream file, string fileName, bool autoCreateMissingVehicles, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ImportCommitDto>> CommitImportAsync(Guid versionId, Stream file, string fileName, bool autoCreateMissingVehicles, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves the full draft overview (ranks, entries, prerequisites) from

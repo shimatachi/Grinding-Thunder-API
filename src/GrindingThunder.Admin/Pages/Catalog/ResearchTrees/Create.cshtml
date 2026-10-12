@@ -1,0 +1,9 @@
+@page "/Catalog/Research-Trees/Create"
+@model GrindingThunder.Admin.Pages.Catalog.ResearchTrees.CreateModel
+@{ ViewData["Title"] = "Create Research Tree"; }
+<partial name="/Pages/Catalog/_CatalogNav.cshtml" />
+<div class="page-header"><h1 class="page-title">Create Research Tree</h1></div>
+<div class="card catalog-form mt-3"><div class="card-body"><form method="post"><div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+<div class="mb-3"><label asp-for="Input.NationId" class="form-label"></label><select asp-for="Input.NationId" class="form-select"><option value="">Select a nation</option>@foreach (var nation in Model.Nations) { <option value="@nation.Id">@nation.Name</option> }</select><span asp-validation-for="Input.NationId"></span></div>
+<div class="mb-3"><label asp-for="Input.VehicleTypeId" class="form-label"></label><select asp-for="Input.VehicleTypeId" class="form-select"><option value="">Select a vehicle type</option>@foreach (var type in Model.VehicleTypes) { <option value="@type.Id">@type.Name</option> }</select><span asp-validation-for="Input.VehicleTypeId"></span></div>
+<div class="btn-list"><button class="btn btn-primary" type="submit">Create</button><a class="btn" asp-page="Index">Cancel</a></div></form></div></div>

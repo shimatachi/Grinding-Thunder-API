@@ -1,0 +1,10 @@
+@page "/Catalog/Vehicle-Types"
+@model GrindingThunder.Admin.Pages.Catalog.VehicleTypes.IndexModel
+@{ ViewData["Title"] = "Vehicle Types"; }
+<partial name="/Pages/Catalog/_CatalogNav.cshtml" />
+<div class="page-header"><div class="row align-items-center"><div class="col"><h1 class="page-title">Vehicle Types</h1></div><div class="col-auto ms-auto"><a class="btn btn-primary" asp-page="Create">Create vehicle type</a></div></div></div>
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success mt-3">@success</div> }
+@if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
+<div class="card mt-3"><div class="table-responsive"><table class="table table-vcenter card-table"><thead><tr><th>Name</th><th class="catalog-actions">Actions</th></tr></thead><tbody>
+@foreach (var item in Model.Items) { <tr><td>@item.Name</td><td class="catalog-actions"><a class="btn btn-sm btn-outline-primary" asp-page="Edit" asp-route-id="@item.Id">Edit</a> @if (Model.IsAdmin) { <a class="btn btn-sm btn-outline-danger" asp-page="Delete" asp-route-id="@item.Id">Delete</a> }</td></tr> }
+</tbody></table>@if (Model.Items.Count == 0 && Model.ErrorMessage is null) { <div class="empty-message">No vehicle types have been created.</div> }</div></div>

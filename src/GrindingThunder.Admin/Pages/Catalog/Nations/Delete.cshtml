@@ -1,0 +1,8 @@
+@page "/Catalog/Nations/{id:guid}/Delete"
+@model GrindingThunder.Admin.Pages.Catalog.Nations.DeleteModel
+@{ ViewData["Title"] = "Delete Nation"; }
+<partial name="/Pages/Catalog/_CatalogNav.cshtml" />
+<div class="page-header"><h1 class="page-title">Delete Nation</h1></div>
+@if (Model.Message is not null) { <div class="alert @(Model.IsMissing ? "alert-warning" : "alert-danger") mt-3">@Model.Message</div> }
+@if (Model.Item is not null) { <div class="card catalog-form mt-3"><div class="card-body"><p>Delete nation <strong>@Model.Item.Name</strong>?</p><p class="text-secondary">This succeeds only when it has no associated research tree versions.</p><form method="post"><button class="btn btn-danger" type="submit">Delete nation</button> <a class="btn" asp-page="Index">Cancel</a></form></div></div> }
+else { <a class="btn mt-3" asp-page="Index">Back to nations</a> }

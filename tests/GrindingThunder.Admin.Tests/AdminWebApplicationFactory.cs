@@ -1,10 +1,12 @@
 using System.Text.RegularExpressions;
 using GrindingThunder.Admin.Services;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Logging;
 
 namespace GrindingThunder.Admin.Tests;
 
@@ -14,8 +16,10 @@ public class AdminWebApplicationFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.ConfigureLogging(logging => logging.ClearProviders());
         builder.ConfigureTestServices(services =>
         {
+            services.AddDataProtection().UseEphemeralDataProtectionProvider();
             services.ConfigureAll<HttpClientFactoryOptions>(options =>
             {
                 options.HttpMessageHandlerBuilderActions.Add(b =>

@@ -26,5 +26,34 @@ public interface IApiClient
     /// Verifies live connectivity and authentication against GET /api/auth/me.
     /// </summary>
     Task<(bool IsConnected, CurrentUserDto? User, string? ErrorMessage)> VerifySessionAsync(CancellationToken cancellationToken = default);
+
+    Task<ApiResponse<IReadOnlyList<NationDto>>> GetNationsAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<NationDto>> GetNationAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<NationDto>> CreateNationAsync(CreateNationRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> UpdateNationAsync(Guid id, UpdateNationRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> DeleteNationAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<ApiResponse<IReadOnlyList<VehicleTypeDto>>> GetVehicleTypesAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<VehicleTypeDto>> GetVehicleTypeAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<VehicleTypeDto>> CreateVehicleTypeAsync(CreateVehicleTypeRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> UpdateVehicleTypeAsync(Guid id, UpdateVehicleTypeRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> DeleteVehicleTypeAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<ApiResponse<IReadOnlyList<VehicleDto>>> GetVehiclesAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<VehicleDto>> GetVehicleAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<VehicleDto>> CreateVehicleAsync(CreateVehicleRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> UpdateVehicleAsync(Guid id, UpdateVehicleRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> DeleteVehicleAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<ApiResponse<IReadOnlyList<GameUpdateDto>>> GetGameUpdatesAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<GameUpdateDto>> GetGameUpdateAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GameUpdateDto>> CreateGameUpdateAsync(CreateGameUpdateRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> UpdateGameUpdateAsync(Guid id, UpdateGameUpdateRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> DeleteGameUpdateAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<ApiResponse<IReadOnlyList<ResearchTreeDto>>> GetResearchTreesAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<ResearchTreeDto>> GetResearchTreeAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ResearchTreeDto>> CreateResearchTreeAsync(CreateResearchTreeRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> DeleteResearchTreeAsync(Guid id, CancellationToken cancellationToken = default);
 }
 

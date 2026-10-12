@@ -1,0 +1,7 @@
+@page "/Catalog/Vehicle-Types/{id:guid}/Edit"
+@model GrindingThunder.Admin.Pages.Catalog.VehicleTypes.EditModel
+@{ ViewData["Title"] = "Edit Vehicle Type"; }
+<partial name="/Pages/Catalog/_CatalogNav.cshtml" />
+<div class="page-header"><h1 class="page-title">Edit Vehicle Type</h1></div>
+@if (Model.NotFoundMessage is not null) { <div class="alert alert-warning mt-3">@Model.NotFoundMessage</div><a class="btn" asp-page="Index">Back to vehicle types</a> }
+else { <div class="card catalog-form mt-3"><div class="card-body"><form method="post"><div asp-validation-summary="ModelOnly" class="alert alert-danger"></div><div class="mb-3"><label asp-for="Input.Name" class="form-label"></label><input asp-for="Input.Name" class="form-control" /><span asp-validation-for="Input.Name"></span></div><div class="btn-list"><button class="btn btn-primary" type="submit">Save changes</button><a class="btn" asp-page="Index">Cancel</a></div></form></div></div> }

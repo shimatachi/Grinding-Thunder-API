@@ -22,6 +22,8 @@ public class AdminAuthIntegrationTests : IClassFixture<AdminWebApplicationFactor
     [Theory]
     [InlineData("/")]
     [InlineData("/Catalog")]
+    [InlineData("/Catalog/Nations")]
+    [InlineData("/Catalog/Nations/Create")]
     [InlineData("/Trees")]
     [InlineData("/Import")]
     public async Task Unauthenticated_Access_To_Protected_Pages_Redirects_To_Login(string path)
@@ -52,7 +54,7 @@ public class AdminAuthIntegrationTests : IClassFixture<AdminWebApplicationFactor
         });
 
         var getLoginResponse = await client.GetAsync("/Login");
-        Assert.Equal(HttpStatusCode.OK, getLoginResponse.StatusCode);
+        Assert.True(getLoginResponse.IsSuccessStatusCode, await getLoginResponse.Content.ReadAsStringAsync());
         var antiforgeryToken = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(getLoginResponse);
 
         var formContent = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -84,7 +86,7 @@ public class AdminAuthIntegrationTests : IClassFixture<AdminWebApplicationFactor
         });
 
         var getLoginResponse = await client.GetAsync("/Login");
-        Assert.Equal(HttpStatusCode.OK, getLoginResponse.StatusCode);
+        Assert.True(getLoginResponse.IsSuccessStatusCode, await getLoginResponse.Content.ReadAsStringAsync());
         var antiforgeryToken = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(getLoginResponse);
 
         var formContent = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -106,8 +108,8 @@ public class AdminAuthIntegrationTests : IClassFixture<AdminWebApplicationFactor
         var dashboardResponse = await client.GetAsync("/");
 
         // Assert - Dashboard renders successfully with live API status and user details
-        Assert.Equal(HttpStatusCode.OK, dashboardResponse.StatusCode);
         var html = await dashboardResponse.Content.ReadAsStringAsync();
+        Assert.True(dashboardResponse.IsSuccessStatusCode, html);
         Assert.Contains("Admin Dashboard", html);
         Assert.Contains("ONLINE", html);
         Assert.Contains("admin", html);

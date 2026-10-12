@@ -171,6 +171,12 @@ A chronological log of significant design decisions, one short entry per batch. 
 
 ## Log format
 
+## 2026 — Batch 18: Tabler-based admin catalog management
+
+- Adopted Tabler through pinned CDN-hosted CSS and JavaScript rather than vendored assets. This keeps the Razor Pages client free of Node/npm and new package dependencies and makes the UI kit easy to update, with the tradeoff that full styling and Tabler JavaScript enhancements require CDN availability in the browser.
+- Kept catalog behavior behind the existing typed HTTP client and cookie-to-JWT bridge. The admin project mirrors existing API DTOs and status semantics but contains no EF Core or database access; Batch 18 made zero API, domain, persistence, or migration changes.
+- Reflected the existing API boundary instead of simulating unsupported behavior: research trees can be listed, created, inspected for deletion, and deleted, but cannot be edited because `AdminResearchTreesController` exposes no update endpoint.
+
 Append new entries at the end. Keep each entry to the decisions and tradeoffs that are not obvious from the code; do not duplicate content that belongs in DOMAIN.md, DATABASE.md, or ARCHITECTURE.md.
 
 

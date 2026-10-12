@@ -1,121 +1,22 @@
 @page "/"
 @model GrindingThunder.Admin.Pages.IndexModel
-@{
-    ViewData["Title"] = "Dashboard";
-}
-
-<div style="margin-bottom: 2rem;">
-    <h1 style="font-size: 1.75rem; font-weight: 700; color: #fff; margin-bottom: 0.25rem;">Admin Dashboard</h1>
-    <p style="color: var(--text-muted); font-size: 0.95rem;">War Thunder Grinding Calculator back-office management console.</p>
-</div>
-
-<!-- API Connectivity Banner -->
+@{ ViewData["Title"] = "Dashboard"; }
+<div class="page-header"><div><h1 class="page-title">Admin Dashboard</h1><div class="text-secondary mt-1">War Thunder progression back-office management.</div></div></div>
 @if (Model.IsApiConnected)
 {
-    <div class="alert alert-success" style="display: flex; align-items: center; justify-content: space-between;">
-        <div>
-            <strong>API Live & Connected:</strong> Live session verified against <code>@Model.ApiBaseUrl/api/auth/me</code>.
-        </div>
-        <span class="badge badge-success">ONLINE</span>
-    </div>
+    <div class="alert alert-success mt-3 d-flex justify-content-between"><div><strong>API connected.</strong> Session verified against <code>@Model.ApiBaseUrl/api/auth/me</code>.</div><span class="badge bg-green-lt">ONLINE</span></div>
 }
 else
 {
-    <div class="alert alert-danger" style="display: flex; align-items: center; justify-content: space-between;">
-        <div>
-            <strong>API Communication Error:</strong> @(Model.ApiErrorMessage ?? "Could not reach backend REST API.")
-            <div style="font-size: 0.8rem; margin-top: 0.25rem; color: #fecaca;">
-                Ensure <code>GrindingThunder.Api</code> is running at <code>@Model.ApiBaseUrl</code>.
-            </div>
-        </div>
-        <span class="badge badge-danger">OFFLINE</span>
-    </div>
+    <div class="alert alert-danger mt-3 d-flex justify-content-between"><div><strong>API communication error.</strong> @(Model.ApiErrorMessage ?? "Could not reach backend REST API.")</div><span class="badge bg-red-lt">OFFLINE</span></div>
 }
-
-<div class="dashboard-grid">
-    <!-- User Session Card -->
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title" style="margin: 0;">Session Profile</h2>
-            <span class="badge badge-pill-outline">Active</span>
-        </div>
-
-        <div class="stat-item">
-            <span class="stat-label">Username</span>
-            <span class="stat-value" id="session-username">@Model.Username</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Granted Roles</span>
-            <span class="stat-value" id="session-roles">
-                @if (Model.LocalRoles.Count > 0)
-                {
-                    @foreach (var role in Model.LocalRoles)
-                    {
-                        var badgeClass = role.ToLowerInvariant() switch
-                        {
-                            "admin" => "badge-admin",
-                            "publisher" => "badge-publisher",
-                            "editor" => "badge-editor",
-                            _ => "badge-pill-outline"
-                        };
-                        <span class="badge @badgeClass" style="margin-left: 0.25rem;">@role</span>
-                    }
-                }
-                else
-                {
-                    <span style="color: var(--text-muted);">None</span>
-                }
-            </span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">API Identity Match</span>
-            <span class="stat-value">
-                @if (Model.ApiUser != null)
-                {
-                    <span style="color: #4ade80;">Verified (@Model.ApiUser.Username)</span>
-                }
-                else
-                {
-                    <span style="color: #f87171;">Unverified</span>
-                }
-            </span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Backend URL</span>
-            <span class="stat-value"><code>@Model.ApiBaseUrl</code></span>
-        </div>
-    </div>
-
-    <!-- Overview Shortcuts Card -->
-    <div class="card">
-        <div class="card-header">
-            <h2 class="card-title" style="margin: 0;">Back-Office Modules</h2>
-            <span class="badge badge-pill-outline">Roadmap</span>
-        </div>
-
-        <div class="stat-item">
-            <div>
-                <a asp-page="/Catalog" style="font-weight: 600;">Vehicle Catalog</a>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">Nations, Vehicle Types, Vehicles, Updates</div>
-            </div>
-            <span class="badge badge-pill-outline">Batch 18</span>
-        </div>
-
-        <div class="stat-item">
-            <div>
-                <a asp-page="/Trees" style="font-weight: 600;">Tech Tree Versions</a>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">Drafts, ranks, entries, layout & prerequisites</div>
-            </div>
-            <span class="badge badge-pill-outline">Batch 19</span>
-        </div>
-
-        <div class="stat-item">
-            <div>
-                <a asp-page="/Import" style="font-weight: 600;">Data Import & Diff</a>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">CSV/XLSX two-phase validation & commit</div>
-            </div>
-            <span class="badge badge-pill-outline">Batch 20</span>
-        </div>
-    </div>
+<div class="row row-cards mt-1">
+    <div class="col-md-6"><div class="card h-100"><div class="card-header"><h2 class="card-title">Session Profile</h2></div><div class="card-body">
+        <dl class="row"><dt class="col-5">Username</dt><dd class="col-7" id="session-username">@Model.Username</dd><dt class="col-5">Granted roles</dt><dd class="col-7" id="session-roles">@string.Join(", ", Model.LocalRoles)</dd><dt class="col-5">API identity</dt><dd class="col-7">@(Model.ApiUser?.Username ?? "Unverified")</dd><dt class="col-5">Backend URL</dt><dd class="col-7"><code>@Model.ApiBaseUrl</code></dd></dl>
+    </div></div></div>
+    <div class="col-md-6"><div class="card h-100"><div class="card-header"><h2 class="card-title">Back-Office Modules</h2></div><div class="list-group list-group-flush">
+        <a class="list-group-item list-group-item-action" asp-page="/Catalog"><strong>Vehicle Catalog</strong><div class="text-secondary small">Nations, vehicle types, vehicles, updates, and research trees</div></a>
+        <a class="list-group-item list-group-item-action" asp-page="/Trees"><strong>Tech Tree Versions</strong><div class="text-secondary small">Batch 19 — drafts, ranks, entries, layout, and prerequisites</div></a>
+        <a class="list-group-item list-group-item-action" asp-page="/Import"><strong>Data Import & Diff</strong><div class="text-secondary small">Batch 20 — CSV/XLSX validation, import, diff, and publish</div></a>
+    </div></div></div>
 </div>
-

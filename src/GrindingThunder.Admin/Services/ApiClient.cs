@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Net;
 using System.Text.Json;
 using GrindingThunder.Admin.Models;
 
@@ -109,6 +110,201 @@ public class ApiClient(HttpClient httpClient) : IApiClient
         {
             return (false, null, $"API communication failure: {ex.Message}");
         }
+    }
+
+    public Task<ApiResponse<IReadOnlyList<NationDto>>> GetNationsAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<NationDto>("api/admin/nations", cancellationToken);
+
+    public Task<ApiResponse<NationDto>> GetNationAsync(Guid id, CancellationToken cancellationToken = default) =>
+        GetAsync<NationDto>($"api/admin/nations/{id}", cancellationToken);
+
+    public Task<ApiResponse<NationDto>> CreateNationAsync(CreateNationRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<CreateNationRequest, NationDto>("api/admin/nations", request, cancellationToken);
+
+    public Task<ApiResponse> UpdateNationAsync(Guid id, UpdateNationRequest request, CancellationToken cancellationToken = default) =>
+        PutAsync($"api/admin/nations/{id}", request, cancellationToken);
+
+    public Task<ApiResponse> DeleteNationAsync(Guid id, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"api/admin/nations/{id}", cancellationToken);
+
+    public Task<ApiResponse<IReadOnlyList<VehicleTypeDto>>> GetVehicleTypesAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<VehicleTypeDto>("api/admin/vehicle-types", cancellationToken);
+
+    public Task<ApiResponse<VehicleTypeDto>> GetVehicleTypeAsync(Guid id, CancellationToken cancellationToken = default) =>
+        GetAsync<VehicleTypeDto>($"api/admin/vehicle-types/{id}", cancellationToken);
+
+    public Task<ApiResponse<VehicleTypeDto>> CreateVehicleTypeAsync(CreateVehicleTypeRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<CreateVehicleTypeRequest, VehicleTypeDto>("api/admin/vehicle-types", request, cancellationToken);
+
+    public Task<ApiResponse> UpdateVehicleTypeAsync(Guid id, UpdateVehicleTypeRequest request, CancellationToken cancellationToken = default) =>
+        PutAsync($"api/admin/vehicle-types/{id}", request, cancellationToken);
+
+    public Task<ApiResponse> DeleteVehicleTypeAsync(Guid id, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"api/admin/vehicle-types/{id}", cancellationToken);
+
+    public Task<ApiResponse<IReadOnlyList<VehicleDto>>> GetVehiclesAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<VehicleDto>("api/admin/vehicles", cancellationToken);
+
+    public Task<ApiResponse<VehicleDto>> GetVehicleAsync(Guid id, CancellationToken cancellationToken = default) =>
+        GetAsync<VehicleDto>($"api/admin/vehicles/{id}", cancellationToken);
+
+    public Task<ApiResponse<VehicleDto>> CreateVehicleAsync(CreateVehicleRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<CreateVehicleRequest, VehicleDto>("api/admin/vehicles", request, cancellationToken);
+
+    public Task<ApiResponse> UpdateVehicleAsync(Guid id, UpdateVehicleRequest request, CancellationToken cancellationToken = default) =>
+        PutAsync($"api/admin/vehicles/{id}", request, cancellationToken);
+
+    public Task<ApiResponse> DeleteVehicleAsync(Guid id, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"api/admin/vehicles/{id}", cancellationToken);
+
+    public Task<ApiResponse<IReadOnlyList<GameUpdateDto>>> GetGameUpdatesAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<GameUpdateDto>("api/admin/game-updates", cancellationToken);
+
+    public Task<ApiResponse<GameUpdateDto>> GetGameUpdateAsync(Guid id, CancellationToken cancellationToken = default) =>
+        GetAsync<GameUpdateDto>($"api/admin/game-updates/{id}", cancellationToken);
+
+    public Task<ApiResponse<GameUpdateDto>> CreateGameUpdateAsync(CreateGameUpdateRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<CreateGameUpdateRequest, GameUpdateDto>("api/admin/game-updates", request, cancellationToken);
+
+    public Task<ApiResponse> UpdateGameUpdateAsync(Guid id, UpdateGameUpdateRequest request, CancellationToken cancellationToken = default) =>
+        PutAsync($"api/admin/game-updates/{id}", request, cancellationToken);
+
+    public Task<ApiResponse> DeleteGameUpdateAsync(Guid id, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"api/admin/game-updates/{id}", cancellationToken);
+
+    public Task<ApiResponse<IReadOnlyList<ResearchTreeDto>>> GetResearchTreesAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<ResearchTreeDto>("api/admin/research-trees", cancellationToken);
+
+    public Task<ApiResponse<ResearchTreeDto>> GetResearchTreeAsync(Guid id, CancellationToken cancellationToken = default) =>
+        GetAsync<ResearchTreeDto>($"api/admin/research-trees/{id}", cancellationToken);
+
+    public Task<ApiResponse<ResearchTreeDto>> CreateResearchTreeAsync(CreateResearchTreeRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<CreateResearchTreeRequest, ResearchTreeDto>("api/admin/research-trees", request, cancellationToken);
+
+    public Task<ApiResponse> DeleteResearchTreeAsync(Guid id, CancellationToken cancellationToken = default) =>
+        DeleteAsync($"api/admin/research-trees/{id}", cancellationToken);
+
+    private async Task<ApiResponse<IReadOnlyList<T>>> GetListAsync<T>(string uri, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync(uri, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var values = await response.Content.ReadFromJsonAsync<List<T>>(JsonOptions, cancellationToken) ?? [];
+                return new ApiResponse<IReadOnlyList<T>>(response.StatusCode, values);
+            }
+
+            return new ApiResponse<IReadOnlyList<T>>(response.StatusCode, ErrorMessage: await ReadErrorAsync(response, cancellationToken));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ApiResponse<IReadOnlyList<T>>(HttpStatusCode.ServiceUnavailable, ErrorMessage: ConnectionError(ex));
+        }
+    }
+
+    private async Task<ApiResponse<T>> GetAsync<T>(string uri, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync(uri, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var value = await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
+                return new ApiResponse<T>(response.StatusCode, value);
+            }
+
+            return new ApiResponse<T>(response.StatusCode, ErrorMessage: await ReadErrorAsync(response, cancellationToken));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ApiResponse<T>(HttpStatusCode.ServiceUnavailable, ErrorMessage: ConnectionError(ex));
+        }
+    }
+
+    private async Task<ApiResponse<TResponse>> PostAsync<TRequest, TResponse>(string uri, TRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync(uri, request, JsonOptions, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var value = await response.Content.ReadFromJsonAsync<TResponse>(JsonOptions, cancellationToken);
+                return new ApiResponse<TResponse>(response.StatusCode, value);
+            }
+
+            return new ApiResponse<TResponse>(response.StatusCode, ErrorMessage: await ReadErrorAsync(response, cancellationToken));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ApiResponse<TResponse>(HttpStatusCode.ServiceUnavailable, ErrorMessage: ConnectionError(ex));
+        }
+    }
+
+    private async Task<ApiResponse> PutAsync<TRequest>(string uri, TRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _httpClient.PutAsJsonAsync(uri, request, JsonOptions, cancellationToken);
+            return response.IsSuccessStatusCode
+                ? new ApiResponse(response.StatusCode)
+                : new ApiResponse(response.StatusCode, await ReadErrorAsync(response, cancellationToken));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ApiResponse(HttpStatusCode.ServiceUnavailable, ConnectionError(ex));
+        }
+    }
+
+    private async Task<ApiResponse> DeleteAsync(string uri, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _httpClient.DeleteAsync(uri, cancellationToken);
+            return response.IsSuccessStatusCode
+                ? new ApiResponse(response.StatusCode)
+                : new ApiResponse(response.StatusCode, await ReadErrorAsync(response, cancellationToken));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ApiResponse(HttpStatusCode.ServiceUnavailable, ConnectionError(ex));
+        }
+    }
+
+    private string ConnectionError(HttpRequestException ex) => $"Unable to connect to API ({BaseUrl}): {ex.Message}";
+
+    private static async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var raw = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return $"API request failed (status {(int)response.StatusCode}).";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(raw);
+            if (document.RootElement.ValueKind == JsonValueKind.String)
+            {
+                return document.RootElement.GetString() ?? raw;
+            }
+
+            foreach (var propertyName in new[] { "message", "detail", "title" })
+            {
+                if (document.RootElement.TryGetProperty(propertyName, out var property) &&
+                    property.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(property.GetString()))
+                {
+                    return property.GetString()!;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // The API also returns plain-text error bodies for catalog endpoints.
+        }
+
+        return raw.Trim('"', ' ', '\r', '\n');
     }
 }
 

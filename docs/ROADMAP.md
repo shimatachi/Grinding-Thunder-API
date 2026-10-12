@@ -125,37 +125,99 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   via `GET /api/auth/me`, and placeholder modules for Batches 18–20; added test suite in `tests/GrindingThunder.Admin.Tests`
   covering unauthenticated redirects, login sessions, error feedback, and token propagation.
 
+- **Batch 18 — Admin catalog management** (status: Completed)
+  Goal: build Razor Pages CRUD screens for:
+  - Nations
+  - Vehicle Types
+  - Vehicles
+  - Game Updates
+  - Research Trees
+
+  UI direction:
+  - keep Razor Pages;
+  - adopt Tabler as the admin UI kit;
+  - use Tabler's Bootstrap 5 foundation;
+  - keep custom CSS minimal;
+  - do not introduce Tailwind;
+  - do not migrate the admin app to Blazor in this batch.
+
+  Dependency: Batch 17.
+  Result: adopted Tabler through pinned CDN assets and replaced the catalog placeholder with authenticated Razor Pages screens backed by the existing secured REST API; delivered list/create/edit/delete workflows where supported for nations, vehicle types, vehicles, game updates, and research trees, including Admin-only delete confirmation, API error feedback, and hermetic integration coverage. No API, persistence, or migration changes were required.
+
 ## Next
 
-- **Batch 18 — Admin catalog management** (status: Planned)
-  Goal: provide back-office CRUD screens for nations, vehicle types, vehicles,
-  game updates, and research trees.
-  Dependency: Batch 17.
-
 - **Batch 19 — Research-tree version editor** (status: Planned)
-  Goal: provide admin workflows for drafts, ranks, entries, prerequisites,
-  folder membership, and visual layout.
+  Goal: provide admin workflows for:
+  - research-tree versions;
+  - drafts;
+  - ranks;
+  - vehicle entries;
+  - prerequisites;
+  - folder/group relationships;
+  - visual row/column layout.
+
+  UI direction:
+  - keep Razor Pages as the default;
+  - evaluate whether selective Blazor components or a dedicated JavaScript graph/tree component are justified for highly interactive editing;
+  - do not convert the whole admin application to Blazor unless the editor requirements clearly justify it.
+
   Dependency: Batches 17–18.
 
 - **Batch 20 — Import, validation, diff, and publishing UI** (status: Planned)
-  Goal: expose the existing CSV/XLSX preview/import, version validation,
-  historical diff, and publishing workflows through the back office.
+  Goal: expose the existing backend workflows through the back office:
+  - CSV/XLSX upload;
+  - import preview;
+  - validation errors;
+  - commit to Draft;
+  - version validation;
+  - historical diff;
+  - publish confirmation/workflow.
+
+  UI direction:
+  - reuse Tabler forms, tables, alerts, tabs, badges, modals, and file-upload presentation;
+  - use minimal JavaScript/interactivity only where useful.
+
   Dependency: Batch 19.
 
 - **Batch 21 — Persistent admin accounts** (status: Planned)
-  Goal: replace configuration-backed administrator credentials with persistent
-  database-backed admin accounts, roles, and account lifecycle management.
+  Goal: replace configuration-backed admin credentials with database-backed administrator accounts and lifecycle management.
+
+  Scope should include planning for:
+  - persistent admin identity;
+  - password hashes;
+  - Admin / Publisher / Editor roles;
+  - active/disabled state;
+  - account creation/editing;
+  - safe bootstrap of the first administrator.
+
+  At planning time, compare:
+  - minimal custom admin identity model;
+  - ASP.NET Core Identity.
+
+  Choose based on actual requirements rather than automatically introducing Identity.
+
   Dependency: Batch 20.
 
 - **Batch 22 — Player accounts and synchronized progress** (status: Planned)
-  Goal: persist player-owned vehicles and calculator preferences across sessions.
-  Dependency: stable production-quality tree data and completed identity planning.
+  Goal: add player-facing identity and persist:
+  - owned/unlocked vehicles;
+  - calculator preferences;
+  - progression state across sessions.
+
+  Admin and player identity should remain conceptually separate even if they later share authentication infrastructure.
+
+  Dependency:
+  - stable production-quality tech-tree data;
+  - Batch 21 identity decisions.
+
+---
 
 ## Later
 
-- Back-office web UI for the admin APIs
-- Player accounts and synchronized owned-vehicle progress
+- Public/player web frontend
 - Vehicle modification progression
 - Advanced War Thunder economy/RP mechanics
-- Assisted scraping/data-conversion tools
+- Assisted scraping/data-conversion tooling
+- Better visual research-tree editor if the simple editor proves insufficient
+- Audit/history improvements for admin operations
 - Performance/caching only when measurements justify it

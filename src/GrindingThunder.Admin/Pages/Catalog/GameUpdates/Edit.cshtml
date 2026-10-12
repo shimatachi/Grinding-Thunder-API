@@ -1,0 +1,11 @@
+@page "/Catalog/Game-Updates/{id:guid}/Edit"
+@model GrindingThunder.Admin.Pages.Catalog.GameUpdates.EditModel
+@{ ViewData["Title"] = "Edit Game Update"; }
+<partial name="/Pages/Catalog/_CatalogNav.cshtml" />
+<div class="page-header"><h1 class="page-title">Edit Game Update</h1></div>
+@if (Model.NotFoundMessage is not null) { <div class="alert alert-warning mt-3">@Model.NotFoundMessage</div><a class="btn" asp-page="Index">Back to game updates</a> }
+else { <div class="card catalog-form mt-3"><div class="card-body"><form method="post"><div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+<div class="mb-3"><label asp-for="Input.Version" class="form-label"></label><input asp-for="Input.Version" class="form-control" /><span asp-validation-for="Input.Version"></span></div>
+<div class="mb-3"><label asp-for="Input.Name" class="form-label"></label><input asp-for="Input.Name" class="form-control" /><span asp-validation-for="Input.Name"></span></div>
+<div class="mb-3"><label asp-for="Input.ReleaseDate" class="form-label"></label><input asp-for="Input.ReleaseDate" class="form-control" /><span asp-validation-for="Input.ReleaseDate"></span></div>
+<div class="btn-list"><button class="btn btn-primary" type="submit">Save changes</button><a class="btn" asp-page="Index">Cancel</a></div></form></div></div> }

@@ -1,52 +1,17 @@
 @page "/Login"
 @model GrindingThunder.Admin.Pages.LoginModel
-@{
-    ViewData["Title"] = "Sign In";
-}
-
-<div class="login-wrapper">
-    <div class="login-card">
-        <div class="login-header">
-            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚡</div>
-            <h1>Grinding Thunder</h1>
-            <p>Admin Back-Office Access</p>
-        </div>
-
-        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-        {
-            <div class="alert alert-danger" role="alert" id="login-error-alert">
-                @Model.ErrorMessage
-            </div>
-        }
-
+@{ ViewData["Title"] = "Sign In"; }
+<div class="container-tight py-5">
+    <div class="text-center mb-4"><h1>Grinding Thunder</h1><div class="text-secondary">Admin Back-Office Access</div></div>
+    <div class="card card-md"><div class="card-body">
+        <h2 class="h2 text-center mb-4">Sign in</h2>
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage)) { <div class="alert alert-danger" role="alert" id="login-error-alert">@Model.ErrorMessage</div> }
         <form method="post">
             <input type="hidden" asp-for="ReturnUrl" />
-
-            <div class="form-group">
-                <label class="form-label" asp-for="Input.Username">Username</label>
-                <input class="form-control" asp-for="Input.Username" placeholder="e.g. admin" autocomplete="username" autofocus />
-                <span asp-validation-for="Input.Username" class="text-danger"></span>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label" asp-for="Input.Password">Password</label>
-                <input class="form-control" asp-for="Input.Password" type="password" placeholder="••••••••" autocomplete="current-password" />
-                <span asp-validation-for="Input.Password" class="text-danger"></span>
-            </div>
-
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" asp-for="Input.RememberMe" id="rememberMeCheck" />
-                <label class="form-check-label" for="rememberMeCheck" style="font-size: 0.85rem; color: var(--text-muted);">
-                    Remember this session
-                </label>
-            </div>
-
-            <div style="margin-top: 1.5rem;">
-                <button type="submit" class="btn btn-primary btn-block" id="signin-button">
-                    Sign In
-                </button>
-            </div>
+            <div class="mb-3"><label class="form-label" asp-for="Input.Username">Username</label><input class="form-control" asp-for="Input.Username" placeholder="e.g. admin" autocomplete="username" autofocus /><span asp-validation-for="Input.Username"></span></div>
+            <div class="mb-3"><label class="form-label" asp-for="Input.Password">Password</label><input class="form-control" asp-for="Input.Password" type="password" autocomplete="current-password" /><span asp-validation-for="Input.Password"></span></div>
+            <label class="form-check mb-3"><input class="form-check-input" type="checkbox" asp-for="Input.RememberMe" /><span class="form-check-label">Remember this session</span></label>
+            <button type="submit" class="btn btn-primary w-100" id="signin-button">Sign In</button>
         </form>
-    </div>
+    </div></div>
 </div>
-

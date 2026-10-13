@@ -6,9 +6,14 @@ namespace GrindingThunder.Api.Infrastructure.Security;
 public interface IJwtTokenService
 {
     /// <summary>
-    /// Generates a signed JWT token containing standard claims and assigned roles.
+    /// Generates a signed JWT token containing standard username claims, the stable
+    /// account identity, the current security stamp, and assigned roles.
     /// Returns the raw token string and its UTC expiration timestamp.
     /// </summary>
-    (string Token, DateTime ExpiresAt) GenerateToken(string username, IEnumerable<string> roles);
+    (string Token, DateTime ExpiresAt) GenerateToken(
+        string username,
+        Guid accountId,
+        int securityStamp,
+        IEnumerable<string> roles);
 }
 

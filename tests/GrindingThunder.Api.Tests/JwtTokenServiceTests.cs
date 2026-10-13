@@ -19,13 +19,15 @@ public class JwtTokenServiceTests
         TokenLifetimeMinutes = 30
     };
 
+    private static readonly Guid AccountId = Guid.NewGuid();
+
     [Fact]
     public void GenerateToken_ValidInputs_ReturnsValidJwtWithStandardAndRoleClaims()
     {
         var service = new JwtTokenService(Options.Create(_options));
         var roles = new[] { AuthRoles.Editor, AuthRoles.Publisher };
 
-        var (token, expiresAt) = service.GenerateToken("testadmin", roles);
+        var (token, expiresAt) = service.GenerateToken("testadmin", AccountId, securityStamp: 3, roles);
 
         Assert.NotNull(token);
         Assert.True(expiresAt > DateTime.UtcNow);
@@ -52,6 +54,8 @@ public class JwtTokenServiceTests
         Assert.True(principal.IsInRole(AuthRoles.Editor));
         Assert.True(principal.IsInRole(AuthRoles.Publisher));
         Assert.False(principal.IsInRole(AuthRoles.Admin));
+        Assert.Equal(AccountId.ToString(), principal.FindFirst(AdminTokenClaims.AccountId)?.Value);
+        Assert.Equal("3", principal.FindFirst(AdminTokenClaims.SecurityStamp)?.Value);
     }
 
     [Theory]
@@ -60,7 +64,14 @@ public class JwtTokenServiceTests
     public void GenerateToken_EmptyUsername_ThrowsArgumentException(string invalidUsername)
     {
         var service = new JwtTokenService(Options.Create(_options));
-        Assert.ThrowsAny<ArgumentException>(() => service.GenerateToken(invalidUsername, [AuthRoles.Admin]));
+        Assert.ThrowsAny<ArgumentException>(() => service.GenerateToken(invalidUsername, AccountId, 0, [AuthRoles.Admin]));
+    }
+
+    [Fact]
+    public void GenerateToken_EmptyAccountId_ThrowsArgumentException()
+    {
+        var service = new JwtTokenService(Options.Create(_options));
+        Assert.ThrowsAny<ArgumentException>(() => service.GenerateToken("admin", Guid.Empty, 0, [AuthRoles.Admin]));
     }
 
     [Fact]
@@ -72,7 +83,7 @@ public class JwtTokenServiceTests
         };
         var service = new JwtTokenService(Options.Create(invalidOptions));
 
-        Assert.Throws<InvalidOperationException>(() => service.GenerateToken("admin", [AuthRoles.Admin]));
+        Assert.Throws<InvalidOperationException>(() => service.GenerateToken("admin", AccountId, 0, [AuthRoles.Admin]));
     }
 }
 

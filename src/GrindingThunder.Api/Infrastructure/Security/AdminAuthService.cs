@@ -1,70 +1,64 @@
 using GrindingThunder.Api.Application.Models;
-using Microsoft.Extensions.Options;
+using GrindingThunder.Api.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace GrindingThunder.Api.Infrastructure.Security;
 
 /// <summary>
-/// Service responsible for authenticating administrative users against configured credentials,
-/// supporting both PBKDF2 hashed passwords and development convenience credentials.
+/// Service responsible for authenticating administrative users against persistent
+/// database-backed accounts with PBKDF2 password hashes. Disabled accounts and
+/// unknown usernames share one generic failure to avoid account enumeration.
 /// </summary>
 public class AdminAuthService(
-    IOptions<AdminAuthOptions> authOptions,
+    ApplicationDbContext dbContext,
     IPasswordHasher passwordHasher,
     IJwtTokenService tokenService) : IAdminAuthService
 {
-    private readonly AdminAuthOptions _authOptions = authOptions.Value;
+    private readonly ApplicationDbContext _dbContext = dbContext;
     private readonly IPasswordHasher _passwordHasher = passwordHasher;
     private readonly IJwtTokenService _tokenService = tokenService;
 
-    public Task<AdminAuthResult> AuthenticateAsync(
+    public async Task<AdminAuthResult> AuthenticateAsync(
         string username,
         string password,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
-            return Task.FromResult(new AdminAuthResult(
+            return new AdminAuthResult(
                 Success: false,
-                ErrorMessage: "Username and password are required."));
+                ErrorMessage: "Username and password are required.");
         }
 
-        var user = _authOptions.Users.FirstOrDefault(u =>
-            string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase));
+        var normalizedUsername = AdminUsernameNormalizer.Normalize(username);
+        var account = await _dbContext.AdminAccounts
+            .Include(a => a.Roles)
+            .FirstOrDefaultAsync(a => a.NormalizedUsername == normalizedUsername, cancellationToken);
 
-        if (user == null)
+        if (account == null || !account.IsActive ||
+            !_passwordHasher.VerifyPassword(password, account.PasswordHash))
         {
-            return Task.FromResult(new AdminAuthResult(
+            return new AdminAuthResult(
                 Success: false,
-                ErrorMessage: "Invalid username or password."));
+                ErrorMessage: "Invalid username or password.");
         }
 
-        bool passwordValid = false;
-
-        if (!string.IsNullOrWhiteSpace(user.PasswordHash))
+        var roles = account.Roles.Select(r => r.Role).Order().ToList();
+        if (roles.Count == 0)
         {
-            passwordValid = _passwordHasher.VerifyPassword(password, user.PasswordHash);
-        }
-        else if (!string.IsNullOrWhiteSpace(user.Password))
-        {
-            // Direct comparison for local development/testing convenience
-            passwordValid = string.Equals(user.Password, password, StringComparison.Ordinal);
-        }
-
-        if (!passwordValid)
-        {
-            return Task.FromResult(new AdminAuthResult(
+            return new AdminAuthResult(
                 Success: false,
-                ErrorMessage: "Invalid username or password."));
+                ErrorMessage: "Invalid username or password.");
         }
 
-        var (token, expiresAt) = _tokenService.GenerateToken(user.Username, user.Roles);
+        var (token, expiresAt) = _tokenService.GenerateToken(
+            account.Username, account.Id, account.SecurityStamp, roles);
 
-        return Task.FromResult(new AdminAuthResult(
+        return new AdminAuthResult(
             Success: true,
             Token: token,
             ExpiresAt: expiresAt,
-            Username: user.Username,
-            Roles: user.Roles));
+            Username: account.Username,
+            Roles: roles);
     }
 }
-

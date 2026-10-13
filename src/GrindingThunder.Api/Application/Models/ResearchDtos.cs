@@ -1,15 +1,7 @@
+using GrindingThunder.Api.Domain.Entities;
 using System.Text.Json.Serialization;
 
 namespace GrindingThunder.Api.Application.Models;
-
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum ResearchOptimizationMode
-{
-    LeastRp = 0,
-    LeastSl = 1,
-    FewestVehicles = 2,
-    FewestMatches = 3
-}
 
 public record ResearchCalculationRequest(
     Guid ResearchTreeVersionId,
@@ -18,6 +10,7 @@ public record ResearchCalculationRequest(
     List<Guid> FillerTargetIds,
     int AverageRpPerMatch,
     int AverageNetSlPerMatch,
+    [property: JsonConverter(typeof(JsonStringEnumConverter<ResearchOptimizationMode>))]
     ResearchOptimizationMode OptimizationMode = ResearchOptimizationMode.LeastRp);
 
 public record VehicleRpSummary(

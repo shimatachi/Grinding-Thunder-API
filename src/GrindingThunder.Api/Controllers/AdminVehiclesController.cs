@@ -140,8 +140,24 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
             return Conflict($"Cannot delete vehicle '{id}' because it is referenced by existing research tree entries.");
         }
 
+        var hasPlayerOwnership = await _context.PlayerUnlockedVehicles
+            .AnyAsync(v => v.VehicleId == id, cancellationToken);
+        if (hasPlayerOwnership)
+        {
+            return Conflict($"Cannot delete vehicle '{id}' because it is referenced by saved player progress.");
+        }
+
         _context.Vehicles.Remove(vehicle);
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23503" } ||
+            (ex.InnerException?.Message.Contains("FOREIGN KEY constraint failed", StringComparison.OrdinalIgnoreCase) ?? false))
+        {
+            // A player may save this vehicle after the reference checks above.
+            return Conflict($"Cannot delete vehicle '{id}' because it became referenced by tree data or saved player progress.");
+        }
 
         return NoContent();
     }

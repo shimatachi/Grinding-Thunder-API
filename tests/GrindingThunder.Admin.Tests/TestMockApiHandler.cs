@@ -19,6 +19,7 @@ public class TestMockApiHandler : HttpMessageHandler
     public static readonly Guid Rank2Id = Guid.Parse("88888889-8888-8889-8889-888888888889");
     public static readonly Guid EntryId = Guid.Parse("99999999-9999-9999-9999-999999999999");
     public static readonly Guid EntryId2 = Guid.Parse("9999999a-9999-999a-999a-99999999999a");
+    public static readonly Guid AdminAccountId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     public List<HttpRequestMessage> RecordedRequests { get; } = [];
     public bool ConflictNextCatalogMutation { get; set; }
@@ -26,6 +27,7 @@ public class TestMockApiHandler : HttpMessageHandler
     public bool InvalidNextValidation { get; set; }
     public bool InvalidNextImportPreview { get; set; }
     public bool FailNextPublish { get; set; }
+    public bool ConflictNextAccountMutation { get; set; }
     public bool DraftPublished { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -206,6 +208,11 @@ public class TestMockApiHandler : HttpMessageHandler
             {
                 ConflictNextDelete = false;
                 return TextResponse(HttpStatusCode.Conflict, "Cannot delete this catalog item because it is in use.");
+            }
+
+            if (path.StartsWith("/api/admin/accounts", StringComparison.OrdinalIgnoreCase))
+            {
+                return await HandleAccountRequestAsync(request, path);
             }
 
             if (path.Contains("/api/admin/research-tree-versions", StringComparison.OrdinalIgnoreCase) ||
@@ -558,8 +565,89 @@ public class TestMockApiHandler : HttpMessageHandler
         _ => null
     };
 
+    private async Task<HttpResponseMessage> HandleAccountRequestAsync(HttpRequestMessage request, string path)
+    {
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        if (path.Equals("/api/admin/accounts", StringComparison.OrdinalIgnoreCase))
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return JsonResponse(HttpStatusCode.OK, new object[]
+                {
+                    new { id = AdminAccountId, username = "admin", roles = new[] { "Admin" }, isActive = true },
+                    new { id = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), username = "editor", roles = new[] { "Editor" }, isActive = true }
+                });
+            }
+
+            if (request.Method == HttpMethod.Post)
+            {
+                if (ConflictNextAccountMutation)
+                {
+                    ConflictNextAccountMutation = false;
+                    return JsonResponse(HttpStatusCode.Conflict, new { message = "Username is already taken." });
+                }
+
+                var body = await ReadJsonAsync(request);
+                var roles = body.GetPropertyIgnoreCase("Roles").EnumerateArray().Select(r => r.GetString()).ToArray();
+                return JsonResponse(HttpStatusCode.Created, new
+                {
+                    id = Guid.NewGuid(),
+                    username = body.GetPropertyIgnoreCase("Username").GetString(),
+                    roles,
+                    isActive = true
+                });
+            }
+        }
+
+        if (segments.Length == 4 && Guid.TryParse(segments[3], out var accountId))
+        {
+            if (accountId != AdminAccountId)
+            {
+                return JsonResponse(HttpStatusCode.NotFound, new { message = "Account was not found." });
+            }
+
+            if (request.Method == HttpMethod.Get)
+            {
+                return JsonResponse(HttpStatusCode.OK, new { id = AdminAccountId, username = "admin", roles = new[] { "Admin" }, isActive = true });
+            }
+
+            if (request.Method == HttpMethod.Put)
+            {
+                if (ConflictNextAccountMutation)
+                {
+                    ConflictNextAccountMutation = false;
+                    return JsonResponse(HttpStatusCode.Conflict, new { message = "This change would leave the system without an active Admin account." });
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+        }
+
+        if (segments.Length == 5 && segments[4].Equals("password", StringComparison.OrdinalIgnoreCase) &&
+            Guid.TryParse(segments[3], out var passwordAccountId))
+        {
+            if (passwordAccountId != AdminAccountId)
+            {
+                return JsonResponse(HttpStatusCode.NotFound, new { message = "Account was not found." });
+            }
+
+            if (request.Method == HttpMethod.Put)
+            {
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+        }
+
+        return new HttpResponseMessage(HttpStatusCode.NotFound);
+    }
+
     private static string GetRequiredPolicy(HttpRequestMessage request, string path)
     {
+        if (path.StartsWith("/api/admin/accounts", StringComparison.OrdinalIgnoreCase))
+        {
+            return "RequireAdminRole";
+        }
+
         if (request.Method == HttpMethod.Delete &&
             (path.StartsWith("/api/admin/research-tree-versions/", StringComparison.OrdinalIgnoreCase) ||
              path.StartsWith("/api/admin/nations/", StringComparison.OrdinalIgnoreCase) ||

@@ -112,6 +112,21 @@ public class ApiClient(HttpClient httpClient) : IApiClient
         }
     }
 
+    public Task<ApiResponse<IReadOnlyList<AdminAccountDto>>> GetAdminAccountsAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<AdminAccountDto>("api/admin/accounts", cancellationToken);
+
+    public Task<ApiResponse<AdminAccountDto>> GetAdminAccountAsync(Guid id, CancellationToken cancellationToken = default) =>
+        GetAsync<AdminAccountDto>($"api/admin/accounts/{id}", cancellationToken);
+
+    public Task<ApiResponse<AdminAccountDto>> CreateAdminAccountAsync(CreateAdminAccountRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<CreateAdminAccountRequest, AdminAccountDto>("api/admin/accounts", request, cancellationToken);
+
+    public Task<ApiResponse> UpdateAdminAccountAsync(Guid id, UpdateAdminAccountRequest request, CancellationToken cancellationToken = default) =>
+        PutAsync($"api/admin/accounts/{id}", request, cancellationToken);
+
+    public Task<ApiResponse> ReplaceAdminPasswordAsync(Guid id, ReplaceAdminPasswordRequest request, CancellationToken cancellationToken = default) =>
+        PutAsync($"api/admin/accounts/{id}/password", request, cancellationToken);
+
     public Task<ApiResponse<IReadOnlyList<NationDto>>> GetNationsAsync(CancellationToken cancellationToken = default) =>
         GetListAsync<NationDto>("api/admin/nations", cancellationToken);
 

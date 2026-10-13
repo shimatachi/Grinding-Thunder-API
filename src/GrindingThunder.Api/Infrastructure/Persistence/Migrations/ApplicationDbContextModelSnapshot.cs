@@ -22,6 +22,58 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.AdminAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NormalizedUsername")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SecurityStamp")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedUsername")
+                        .IsUnique();
+
+                    b.ToTable("AdminAccounts");
+                });
+
+            modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.AdminAccountRole", b =>
+                {
+                    b.Property<Guid>("AdminAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Role")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("AdminAccountId", "Role");
+
+                    b.ToTable("AdminAccountRoles", t =>
+                        {
+                            t.HasCheckConstraint("CK_AdminAccountRoles_SupportedRole", "\"Role\" IN ('Admin', 'Publisher', 'Editor')");
+                        });
+                });
+
             modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.GameUpdate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -62,6 +114,83 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Nations");
+                });
+
+            modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.PlayerAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("AverageNetSlPerMatch")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AverageRpPerMatch")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)");
+
+                    b.Property<string>("NormalizedUsername")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("OptimizationMode")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("ProgressStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedEmail")
+                        .IsUnique();
+
+                    b.HasIndex("NormalizedUsername")
+                        .IsUnique();
+
+                    b.ToTable("PlayerAccounts", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerAccounts_AverageNetSlPerMatch", "\"AverageNetSlPerMatch\" IS NULL OR \"AverageNetSlPerMatch\" > 0");
+
+                            t.HasCheckConstraint("CK_PlayerAccounts_AverageRpPerMatch", "\"AverageRpPerMatch\" IS NULL OR \"AverageRpPerMatch\" > 0");
+
+                            t.HasCheckConstraint("CK_PlayerAccounts_OptimizationMode", "\"OptimizationMode\" IN (0, 1, 2, 3)");
+                        });
+                });
+
+            modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.PlayerUnlockedVehicle", b =>
+                {
+                    b.Property<Guid>("PlayerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("PlayerAccountId", "VehicleId");
+
+                    b.HasIndex("VehicleId");
+
+                    b.ToTable("PlayerUnlockedVehicles");
                 });
 
             modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.ResearchTree", b =>
@@ -243,6 +372,36 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("VehicleTypes");
                 });
 
+            modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.AdminAccountRole", b =>
+                {
+                    b.HasOne("GrindingThunder.Api.Domain.Entities.AdminAccount", "AdminAccount")
+                        .WithMany("Roles")
+                        .HasForeignKey("AdminAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdminAccount");
+                });
+
+            modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.PlayerUnlockedVehicle", b =>
+                {
+                    b.HasOne("GrindingThunder.Api.Domain.Entities.PlayerAccount", "PlayerAccount")
+                        .WithMany("UnlockedVehicles")
+                        .HasForeignKey("PlayerAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GrindingThunder.Api.Domain.Entities.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PlayerAccount");
+
+                    b.Navigation("Vehicle");
+                });
+
             modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.ResearchTree", b =>
                 {
                     b.HasOne("GrindingThunder.Api.Domain.Entities.Nation", "Nation")
@@ -349,6 +508,11 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
                     b.Navigation("Vehicle");
                 });
 
+            modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.AdminAccount", b =>
+                {
+                    b.Navigation("Roles");
+                });
+
             modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.GameUpdate", b =>
                 {
                     b.Navigation("ResearchTreeVersions");
@@ -357,6 +521,11 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.Nation", b =>
                 {
                     b.Navigation("ResearchTrees");
+                });
+
+            modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.PlayerAccount", b =>
+                {
+                    b.Navigation("UnlockedVehicles");
                 });
 
             modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.ResearchTree", b =>

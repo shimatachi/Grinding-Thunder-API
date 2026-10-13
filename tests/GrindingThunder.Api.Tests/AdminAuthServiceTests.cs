@@ -5,8 +5,9 @@ using Xunit;
 
 namespace GrindingThunder.Api.Tests;
 
-public class AdminAuthServiceTests
+public class AdminAuthServiceTests : IDisposable
 {
+    private readonly AdminAccountTestDatabase _database = new();
     private readonly PasswordHasher _hasher = new();
     private readonly JwtTokenService _jwtService = new(Options.Create(new JwtOptions
     {
@@ -16,25 +17,33 @@ public class AdminAuthServiceTests
         TokenLifetimeMinutes = 60
     }));
 
+    public void Dispose() => _database.Dispose();
+
+    private AdminAuthService CreateService() =>
+        new(_database.CreateContext(), _hasher, _jwtService);
+
+    private async Task SeedAccountAsync(
+        string username, string password, string role, bool isActive = true)
+    {
+        await using var context = _database.CreateContext();
+        var service = new AdminAccountService(context, _hasher);
+        var result = await service.CreateAsync(username, password, [role]);
+        Assert.True(result.Success, result.ErrorMessage);
+
+        if (!isActive)
+        {
+            var account = context.AdminAccounts.Single(a => a.Username == username);
+            account.IsActive = false;
+            await context.SaveChangesAsync();
+        }
+    }
+
     [Fact]
     public async Task AuthenticateAsync_ValidCredentials_ReturnsSuccessWithTokenAndRoles()
     {
-        var authOptions = new AdminAuthOptions
-        {
-            Users =
-            [
-                new AdminUserConfig
-                {
-                    Username = "editorUser",
-                    Password = "EditorPassword123!",
-                    Roles = [AuthRoles.Editor]
-                }
-            ]
-        };
+        await SeedAccountAsync("editorUser", "EditorPassword123!", AuthRoles.Editor);
 
-        var service = new AdminAuthService(Options.Create(authOptions), _hasher, _jwtService);
-
-        var result = await service.AuthenticateAsync("editorUser", "EditorPassword123!");
+        var result = await CreateService().AuthenticateAsync("editorUser", "EditorPassword123!");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Token);
@@ -45,30 +54,13 @@ public class AdminAuthServiceTests
     }
 
     [Fact]
-    public async Task AuthenticateAsync_SupportsPreHashedPassword()
+    public async Task AuthenticateAsync_UsernameMatch_IsCaseInsensitive()
     {
-        var password = "PublisherPassword456!";
-        var passwordHash = _hasher.HashPassword(password);
+        await SeedAccountAsync("publisherUser", "PublisherPassword456!", AuthRoles.Publisher);
 
-        var authOptions = new AdminAuthOptions
-        {
-            Users =
-            [
-                new AdminUserConfig
-                {
-                    Username = "publisherUser",
-                    PasswordHash = passwordHash,
-                    Roles = [AuthRoles.Publisher]
-                }
-            ]
-        };
-
-        var service = new AdminAuthService(Options.Create(authOptions), _hasher, _jwtService);
-
-        var result = await service.AuthenticateAsync("publisherUser", password);
+        var result = await CreateService().AuthenticateAsync("PUBLISHERUSER", "PublisherPassword456!");
 
         Assert.True(result.Success);
-        Assert.NotNull(result.Token);
         Assert.Equal("publisherUser", result.Username);
         Assert.NotNull(result.Roles);
         Assert.Contains(AuthRoles.Publisher, result.Roles);
@@ -77,22 +69,9 @@ public class AdminAuthServiceTests
     [Fact]
     public async Task AuthenticateAsync_WrongPassword_ReturnsFailure()
     {
-        var authOptions = new AdminAuthOptions
-        {
-            Users =
-            [
-                new AdminUserConfig
-                {
-                    Username = "adminUser",
-                    Password = "CorrectPassword123!",
-                    Roles = [AuthRoles.Admin]
-                }
-            ]
-        };
+        await SeedAccountAsync("adminUser", "CorrectPassword123!", AuthRoles.Admin);
 
-        var service = new AdminAuthService(Options.Create(authOptions), _hasher, _jwtService);
-
-        var result = await service.AuthenticateAsync("adminUser", "WrongPassword!");
+        var result = await CreateService().AuthenticateAsync("adminUser", "WrongPassword!");
 
         Assert.False(result.Success);
         Assert.Null(result.Token);
@@ -102,22 +81,21 @@ public class AdminAuthServiceTests
     [Fact]
     public async Task AuthenticateAsync_UnknownUser_ReturnsFailure()
     {
-        var authOptions = new AdminAuthOptions
-        {
-            Users =
-            [
-                new AdminUserConfig
-                {
-                    Username = "existingUser",
-                    Password = "Password123!",
-                    Roles = [AuthRoles.Editor]
-                }
-            ]
-        };
+        await SeedAccountAsync("existingUser", "Password123!", AuthRoles.Editor);
 
-        var service = new AdminAuthService(Options.Create(authOptions), _hasher, _jwtService);
+        var result = await CreateService().AuthenticateAsync("nonExistentUser", "Password123!");
 
-        var result = await service.AuthenticateAsync("nonExistentUser", "Password123!");
+        Assert.False(result.Success);
+        Assert.Null(result.Token);
+        Assert.Equal("Invalid username or password.", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task AuthenticateAsync_DisabledAccount_ReturnsFailure()
+    {
+        await SeedAccountAsync("disabledUser", "Password123!", AuthRoles.Editor, isActive: false);
+
+        var result = await CreateService().AuthenticateAsync("disabledUser", "Password123!");
 
         Assert.False(result.Success);
         Assert.Null(result.Token);
@@ -130,13 +108,9 @@ public class AdminAuthServiceTests
     [InlineData("   ", "   ")]
     public async Task AuthenticateAsync_EmptyUsernameOrPassword_ReturnsFailure(string username, string password)
     {
-        var authOptions = new AdminAuthOptions();
-        var service = new AdminAuthService(Options.Create(authOptions), _hasher, _jwtService);
-
-        var result = await service.AuthenticateAsync(username, password);
+        var result = await CreateService().AuthenticateAsync(username, password);
 
         Assert.False(result.Success);
         Assert.Equal("Username and password are required.", result.ErrorMessage);
     }
 }
-

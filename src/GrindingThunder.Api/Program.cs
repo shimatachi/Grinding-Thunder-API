@@ -55,6 +55,25 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("GrindingThunder.AdminAccounts");
+
+    // Explicit first-Admin bootstrap from external configuration/user secrets.
+    // Idempotent: does nothing once any Admin-role account exists.
+    await AdminAccountBootstrap.BootstrapAsync(dbContext, passwordHasher, app.Configuration, logger);
+
+    // Deliberate Development-only sample accounts; never overwrites existing accounts.
+    if (app.Environment.IsDevelopment())
+    {
+        await DevelopmentAdminAccountSeeder.SeedAsync(dbContext, passwordHasher);
+    }
+}
+
 // app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");

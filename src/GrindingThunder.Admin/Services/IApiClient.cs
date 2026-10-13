@@ -27,6 +27,14 @@ public interface IApiClient
     /// </summary>
     Task<(bool IsConnected, CurrentUserDto? User, string? ErrorMessage)> VerifySessionAsync(CancellationToken cancellationToken = default);
 
+    // Admin-only account lifecycle endpoints (/api/admin/accounts).
+
+    Task<ApiResponse<IReadOnlyList<AdminAccountDto>>> GetAdminAccountsAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<AdminAccountDto>> GetAdminAccountAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<AdminAccountDto>> CreateAdminAccountAsync(CreateAdminAccountRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> UpdateAdminAccountAsync(Guid id, UpdateAdminAccountRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> ReplaceAdminPasswordAsync(Guid id, ReplaceAdminPasswordRequest request, CancellationToken cancellationToken = default);
+
     Task<ApiResponse<IReadOnlyList<NationDto>>> GetNationsAsync(CancellationToken cancellationToken = default);
     Task<ApiResponse<NationDto>> GetNationAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ApiResponse<NationDto>> CreateNationAsync(CreateNationRequest request, CancellationToken cancellationToken = default);

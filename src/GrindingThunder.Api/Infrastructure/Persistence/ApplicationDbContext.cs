@@ -21,6 +21,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<Vehicle> Vehicles { get; set; } = null!;
     public DbSet<VehicleTreeEntry> VehicleTreeEntries { get; set; } = null!;
     public DbSet<VehiclePrerequisite> VehiclePrerequisites { get; set; } = null!;
+    public DbSet<AdminAccount> AdminAccounts { get; set; } = null!;
+    public DbSet<AdminAccountRole> AdminAccountRoles { get; set; } = null!;
+    public DbSet<PlayerAccount> PlayerAccounts { get; set; } = null!;
+    public DbSet<PlayerUnlockedVehicle> PlayerUnlockedVehicles { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

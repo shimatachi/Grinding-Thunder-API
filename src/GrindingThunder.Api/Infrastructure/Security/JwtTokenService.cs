@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using GrindingThunder.Api.Application.Security;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -13,9 +14,18 @@ public class JwtTokenService(IOptions<JwtOptions> options) : IJwtTokenService
 {
     private readonly JwtOptions _options = options.Value;
 
-    public (string Token, DateTime ExpiresAt) GenerateToken(string username, IEnumerable<string> roles)
+    public (string Token, DateTime ExpiresAt) GenerateToken(
+        string username,
+        Guid accountId,
+        int securityStamp,
+        IEnumerable<string> roles)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(username);
+
+        if (accountId == Guid.Empty)
+        {
+            throw new ArgumentException("A stable account ID is required to generate tokens.", nameof(accountId));
+        }
 
         if (string.IsNullOrWhiteSpace(_options.SigningKey))
         {
@@ -32,7 +42,9 @@ public class JwtTokenService(IOptions<JwtOptions> options) : IJwtTokenService
             new(ClaimTypes.Name, username),
             new(ClaimTypes.NameIdentifier, username),
             new(JwtRegisteredClaimNames.Sub, username),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(AdminTokenClaims.AccountId, accountId.ToString()),
+            new(AdminTokenClaims.SecurityStamp, securityStamp.ToString())
         };
 
         foreach (var role in roles)

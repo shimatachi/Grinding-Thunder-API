@@ -162,8 +162,6 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batches 17–18.
   Result: delivered HTTP-backed Razor Pages version browsing, draft creation/cloning, Admin-only draft deletion, and draft rank/entry/cost/acquisition/layout/folder/prerequisite editing. Admin inherits Editor workflows; Publisher-only accounts browse trees and view both draft and published version details read-only through public projections (`GET /api/nations`, `GET /api/vehicles/tree`) without invoking Editor-only admin endpoints. Destructive forms require confirmation, published snapshots remain read-only, and displayed entries are scoped by exact version ID with no fallback. `TestMockApiHandler` enforces real backend role policies on admin routes. Single-role integration regressions pass; no API, domain, schema, migration, or dependency changes were required. Import, validation, diff, and publishing UI remain Batch 20.
 
-## Next
-
 - **Batch 20 — Import, validation, diff, and publishing UI** (status: Completed)
   Goal: expose the existing backend workflows through the back office:
   - CSV/XLSX upload;
@@ -181,7 +179,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batch 19.
   Result: delivered Editor/Admin CSV, TSV, and XLSX upload preview and commit with diagnostics, counts, and a short-lived server-side copy of valid preview bytes; public validation and same-tree version comparison screens; and Publisher/Admin draft publication with explicit immutable-snapshot confirmation. Published versions transition to read-only presentation. The admin mock now simulates the endpoints with backend-matching role checks, and integration tests cover import, validation, diff, and publication permissions. No API, schema, domain, migration, or third-party UI changes were made.
 
-- **Batch 21 — Persistent admin accounts** (status: Planned)
+- **Batch 21 — Persistent admin accounts** (status: Completed)
   Goal: replace configuration-backed admin credentials with database-backed administrator accounts and lifecycle management.
 
   Scope should include planning for:
@@ -199,8 +197,9 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Choose based on actual requirements rather than automatically introducing Identity.
 
   Dependency: Batch 20.
+  Result: delivered custom `AdminAccounts` and `AdminAccountRoles` entities with PBKDF2 hashing, case-insensitive normalized username uniqueness, role check constraint (`Admin`, `Publisher`, `Editor`), and cascade deletion via the `AddAdminAccounts` migration. Implemented safe first-admin bootstrap from configuration (`AdminBootstrap:Username` / `AdminBootstrap:Password`) enforcing managed account length/strength validation, fail-fast on invalid/partial config, safe concurrency race recovery, and zero password/hash logging; runtime token revocation via `SecurityStamp`; last-active-Admin preservation in `AdminAccountService` with ambient transaction support; protected REST lifecycle endpoints on `AdminAccountsController`; and Admin-only Razor Pages management UI (`/Accounts`) in `GrindingThunder.Admin` with password replacement and conflict feedback.
 
-- **Batch 22 — Player accounts and synchronized progress** (status: Planned)
+- **Batch 22 — Player accounts and synchronized progress** (status: Completed)
   Goal: add player-facing identity and persist:
   - owned/unlocked vehicles;
   - calculator preferences;
@@ -211,8 +210,13 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency:
   - stable production-quality tech-tree data;
   - Batch 21 identity decisions.
+  Result: delivered `PlayerAccounts` and `PlayerUnlockedVehicles` entities via the `AddPlayerAccounts` migration, featuring PBKDF2 hashing, case-insensitive normalized username and email uniqueness, check constraints on preferences (`OptimizationMode`, `AverageRpPerMatch > 0`, `AverageNetSlPerMatch > 0`), and separate JWT audience (`GrindingThunder.Player`) with dedicated `RequirePlayerPolicy`. Unlocked vehicle progress attaches to stable `VehicleId` (cascading on player deletion, restricting catalog vehicle deletion). Implemented atomic full-set progress synchronization (`PUT /api/player/progress`) with optimistic concurrency (`ProgressStamp`). Traversal and calculator endpoints remain anonymous and decoupled, evaluating explicit caller-selected version intersections. Both migrations verified with transactional Up/Down/Up and constraint validation on PostgreSQL.
 
 ---
+
+## Next
+
+*(No batches currently scheduled. Future candidates are tracked under Later below.)*
 
 ## Later
 

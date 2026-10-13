@@ -6,7 +6,7 @@ ASP.NET Core backend for planning War Thunder vehicle progression. It models ver
 
 Grinding Thunder API follows a selected tech-tree snapshot to calculate the remaining Research Points (RP), vehicle-purchase Silver Lions (SL), mandatory prerequisite vehicles, and estimated matches needed to reach a target vehicle from the player's current progress.
 
-The current API exposes nations, research trees, versions, version-owned ranks, and vehicle entries. The calculator requires a `ResearchTreeVersionId`, traverses only that version's explicit prerequisite graph, includes player-selected vehicles needed toward rank gates, totals remaining RP and SL, and estimates matches from both average RP and average net SL earned per match. It does not persist player inventories, select rank-gate fillers automatically, or provide an admin publishing workflow.
+The current API exposes nations, research trees, versions, version-owned ranks, vehicle entries, persistent administrator accounts, and player accounts with synchronized progression. The calculator requires a `ResearchTreeVersionId`, traverses only that version's explicit prerequisite graph, includes player-selected vehicles needed toward rank gates, totals remaining RP and SL, and estimates matches from both average RP and average net SL earned per match. The calculation contract remains anonymous and decoupled from persistence, allowing players to intersect their saved ownership with any selected tree version.
 
 Development seed data currently contains USA, USSR, Germany, and Great Britain ground research trees (plus any trees already in the database), a sample `dev-sample` game update with one published tree version each, and a small sample of USA vehicles. This sample does not represent complete game coverage.
 
@@ -20,6 +20,8 @@ Development seed data currently contains USA, USSR, Germany, and Great Britain g
 - Report the first unmet rank quota below the target rank.
 - Total RP and vehicle-purchase SL from the same deduplicated set of remaining entries.
 - Estimate RP and SL matches independently with ceiling division, then report the greater value as the combined estimate.
+- Manage persistent administrator accounts with PBKDF2 hashing, role assignments (`Admin`, `Publisher`, `Editor`), security-stamp invalidation, and Razor Pages admin UI.
+- Manage player accounts with PBKDF2 credentials, separate JWT token audience, saved vehicle ownership by stable `VehicleId`, and full-set progress synchronization with optimistic concurrency.
 
 See [Product](docs/PRODUCT.md) for the implemented scope, intended behavior, and future direction.
 
@@ -32,28 +34,33 @@ The core domain separates progression dependencies from how the tech tree is dis
 - Rank unlock requirements come from data rather than hard-coded calculator rules.
 - RP cost, SL cost, rank, placement, folder membership, and prerequisites belong to versioned tech-tree snapshots because they can change between game updates.
 - Published snapshots are intended to be immutable historical records.
+- Player vehicle ownership attaches to stable `Vehicle` identity, and calculates progression against an explicit caller-selected version through version intersection.
 
-The implemented model keeps `Vehicle` as stable identity. `VehicleTreeEntry` owns version-specific costs, rank association, layout, and folder membership; `TreeRank` owns version-specific rank-gate configuration; and `VehiclePrerequisite` links entries within one `ResearchTreeVersion`. Database constraints prevent prerequisite and folder relationships from crossing version boundaries. Research availability and acquisition type remain future versioned concerns. The canonical concepts and remaining gaps are documented in [Domain](docs/DOMAIN.md).
+The implemented model keeps `Vehicle` as stable identity. `VehicleTreeEntry` owns version-specific costs, rank association, layout, and folder membership; `TreeRank` owns version-specific rank-gate configuration; and `VehiclePrerequisite` links entries within one `ResearchTreeVersion`. Database constraints prevent prerequisite and folder relationships from crossing version boundaries. Research availability and acquisition type remain versioned concerns. The canonical concepts are documented in [Domain](docs/DOMAIN.md).
 
 ## Architecture
 
-The repository is a modular monolith with one ASP.NET Core production project. Its folders provide organization, but they are not separate .NET projects and do not enforce compile-time boundaries.
+The repository is a modular monolith with one ASP.NET Core production API project and a separate HTTP-only Razor Pages admin client. Its folders provide organization, but they are not separate .NET projects and do not enforce compile-time boundaries.
 
 ```mermaid
 flowchart LR
     Client --> Controllers
     Controllers -->|nation and vehicle reads| DbContext[EF Core DbContext]
     Controllers -->|research calculation| Calculator[ResearchCalculatorService]
+    Controllers -->|admin accounts| AdminAccountService
+    Controllers -->|player auth & progress| PlayerServices[PlayerAuthService & PlayerProgressService]
     Calculator --> DbContext
+    AdminAccountService --> DbContext
+    PlayerServices --> DbContext
     DbContext --> PostgreSQL
 ```
 
-- `Controllers` handles HTTP requests. Read controllers query EF Core directly; the research controller delegates to the calculator service.
-- `Application` contains calculation request and result records.
-- `Domain` contains the current entities and calculator service interface.
-- `Infrastructure` contains EF Core persistence, migrations, development seeding, and the calculator implementation.
+- `Controllers` handles HTTP requests. Read controllers query EF Core directly; the research controller delegates to the calculator service; auth and account controllers delegate to security services.
+- `Application` contains calculation and account request/result records and security claims/policies.
+- `Domain` contains the entities, `ResearchOptimizationMode`, and calculator service interface.
+- `Infrastructure` contains EF Core persistence, migrations, development seeding, security services, and the calculator implementation.
 
-One current dependency does not match the intended boundary: the service interface in `Domain` uses records from `Application`. The project intentionally avoids adding architectural frameworks or splitting into multiple services without a concrete need. See [Architecture](docs/ARCHITECTURE.md) for the current state and target direction.
+See [Architecture](docs/ARCHITECTURE.md) for the current state and target direction.
 
 ## Database
 
@@ -70,6 +77,10 @@ The API uses Entity Framework Core with PostgreSQL. The current schema is define
 | `Vehicles` | Stable vehicle identity: name and optional image URL. |
 | `VehicleTreeEntries` | Version-specific vehicle membership, RP/SL costs, rank association, layout, and optional same-version folder parent. |
 | `VehiclePrerequisites` | Explicit prerequisite edges between entries in the same tree version. |
+| `AdminAccounts` | Persistent administrator accounts (normalized username, PBKDF2 hash, active flag, security stamp). |
+| `AdminAccountRoles` | Administrator role assignments (`Admin`, `Publisher`, `Editor`) with check constraint and cascade delete. |
+| `PlayerAccounts` | Player accounts with PBKDF2 credentials, calculator preferences, and optimistic concurrency stamp. |
+| `PlayerUnlockedVehicles` | Persistent unlocked vehicle ownership by stable Vehicle ID, cascading on player deletion and restricted on vehicle deletion. |
 
 In the Development environment, application startup applies pending migrations and inserts sample data when the corresponding tables are empty. [Database](docs/DATABASE.md) describes the implemented versioned schema, its integrity constraints, and the remaining conceptual target.
 
@@ -128,12 +139,36 @@ The CORS policy currently permits `http://localhost:3000` only.
 
 ## API Surface
 
+### Public & Calculation Endpoints
+
 | Method | Route | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/nations` | List nations with research trees, vehicle types, versions, ranks, and unlock thresholds. |
 | `GET` | `/api/vehicles` | List stable vehicles, their versioned entries, and prerequisite data. |
 | `GET` | `/api/vehicles/tree?nationId={id}&type={type}` | List versioned entries for a nation, optionally filtered by vehicle-type name. |
 | `POST` | `/api/research/calculate` | Calculate remaining vehicles, RP, SL, resource-specific match estimates, the combined estimate, and the first rank deficit. |
+
+### Player Identity & Progression Endpoints
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/player/auth/register` | Register a new player account (username, email, password) and receive JWT. |
+| `POST` | `/api/player/auth/login` | Authenticate player via username/email and password. |
+| `GET` | `/api/player/auth/me` | Inspect authenticated player identity (`Player` policy). |
+| `GET` | `/api/player/progress` | Fetch saved unlocked vehicles and calculator preferences. |
+| `PUT` | `/api/player/progress` | Atomically replace saved unlocked vehicles and calculator preferences with optimistic concurrency (`progressStamp`). |
+
+### Administrator Endpoints
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/auth/login` | Authenticate administrator credentials (`Admin`, `Publisher`, `Editor`). |
+| `GET` | `/api/auth/me` | Inspect authenticated admin identity and active roles. |
+| `GET` | `/api/admin/accounts` | List administrator accounts (`Admin` role). |
+| `POST` | `/api/admin/accounts` | Create an administrator account (`Admin` role). |
+| `GET` | `/api/admin/accounts/{id}` | Inspect administrator account details (`Admin` role). |
+| `PUT` | `/api/admin/accounts/{id}` | Update administrator username, roles, and active state (`Admin` role). |
+| `PUT` | `/api/admin/accounts/{id}/password` | Replace administrator password and invalidate active tokens (`Admin` role). |
 
 `POST /api/research/calculate` expects this JSON shape:
 

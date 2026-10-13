@@ -1,7 +1,11 @@
 using System.Security.Claims;
 using System.Text;
 using GrindingThunder.Api.Application.Security;
+using GrindingThunder.Api.Infrastructure.Persistence;
+using GrindingThunder.Api.Infrastructure.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace GrindingThunder.Api.Infrastructure.Security;
@@ -42,49 +46,24 @@ public static class SecurityServiceExtensions
         {
             options.Issuer = jwtOptions.Issuer;
             options.Audience = jwtOptions.Audience;
+            options.PlayerAudience = jwtOptions.PlayerAudience;
             options.SigningKey = jwtOptions.SigningKey;
             options.TokenLifetimeMinutes = jwtOptions.TokenLifetimeMinutes;
         });
 
-        // 2. Configure AdminAuthOptions
-        var adminAuthOptions = configuration.GetSection(AdminAuthOptions.SectionName).Get<AdminAuthOptions>() ?? new AdminAuthOptions();
-
-        // If no users configured in development/testing, register default accounts
-        if (adminAuthOptions.Users.Count == 0 && (environment.IsDevelopment() || environment.IsEnvironment("Testing")))
-        {
-            var devHasher = new PasswordHasher();
-            adminAuthOptions.Users =
-            [
-                new AdminUserConfig
-                {
-                    Username = "admin",
-                    PasswordHash = devHasher.HashPassword("AdminPass123!"),
-                    Roles = [AuthRoles.Admin]
-                },
-                new AdminUserConfig
-                {
-                    Username = "publisher",
-                    PasswordHash = devHasher.HashPassword("PublisherPass123!"),
-                    Roles = [AuthRoles.Publisher]
-                },
-                new AdminUserConfig
-                {
-                    Username = "editor",
-                    PasswordHash = devHasher.HashPassword("EditorPass123!"),
-                    Roles = [AuthRoles.Editor]
-                }
-            ];
-        }
-
-        services.Configure<AdminAuthOptions>(options =>
-        {
-            options.Users = adminAuthOptions.Users;
-        });
-
-        // 3. Register Security Services
+        // 2. Register Security Services. Administrator credentials are no longer
+        // read from configuration; authentication and account lifecycle management
+        // operate exclusively on database-backed accounts.
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IAdminAuthService, AdminAuthService>();
+        services.AddScoped<IAdminAccountService, AdminAccountService>();
+        services.AddSingleton<PlayerJwtTokenService>();
+        services.AddScoped<PlayerAuthService>();
+        services.AddScoped<PlayerProgressService>();
+
+        if (string.IsNullOrWhiteSpace(jwtOptions.PlayerAudience) || jwtOptions.PlayerAudience == jwtOptions.Audience)
+            throw new InvalidOperationException("Player JWT audience must be nonempty and distinct from the administrator audience.");
 
         // 4. Configure Authentication (JWT Bearer)
         services.AddAuthentication(options =>
@@ -101,25 +80,86 @@ public static class SecurityServiceExtensions
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = jwtOptions.Issuer,
-                ValidAudience = jwtOptions.Audience,
+                ValidAudiences = [jwtOptions.Audience, jwtOptions.PlayerAudience],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
                 RoleClaimType = ClaimTypes.Role,
                 NameClaimType = ClaimTypes.Name,
                 ClockSkew = TimeSpan.Zero
+            };
+
+            // Bind every token to a persistent account row: disabled accounts,
+            // renamed accounts, and tokens issued before a credential/role change
+            // (superseded security stamp) lose secured API access immediately.
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = async context =>
+                {
+                    var principal = context.Principal;
+                    var playerIdClaim = principal?.FindFirst(PlayerTokenClaims.AccountId)?.Value;
+                    var isPlayerAudience = principal?.HasClaim("aud", jwtOptions.PlayerAudience) == true;
+                    if (playerIdClaim is not null)
+                    {
+                        if (!isPlayerAudience || !Guid.TryParse(playerIdClaim, out var playerId) ||
+                            principal!.HasClaim(c => c.Type == AdminTokenClaims.AccountId || c.Type == ClaimTypes.Role) ||
+                            principal.HasClaim("aud", jwtOptions.Audience))
+                        {
+                            context.Fail("Player token has an invalid identity or audience.");
+                            return;
+                        }
+
+                        var playerDb = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
+                        if (!await playerDb.PlayerAccounts.AsNoTracking().AnyAsync(a => a.Id == playerId, context.HttpContext.RequestAborted))
+                            context.Fail("Player account no longer exists.");
+                        return;
+                    }
+                    if (isPlayerAudience)
+                    {
+                        context.Fail("Player audience requires a persistent player identity.");
+                        return;
+                    }
+                    var accountIdClaim = principal?.FindFirst(AdminTokenClaims.AccountId)?.Value;
+                    var stampClaim = principal?.FindFirst(AdminTokenClaims.SecurityStamp)?.Value;
+
+                    if (!Guid.TryParse(accountIdClaim, out var accountId) ||
+                        !int.TryParse(stampClaim, out var securityStamp))
+                    {
+                        context.Fail("Token is not bound to a persistent administrator account.");
+                        return;
+                    }
+
+                    var dbContext = context.HttpContext.RequestServices
+                        .GetRequiredService<ApplicationDbContext>();
+
+                    var state = await dbContext.AdminAccounts
+                        .AsNoTracking()
+                        .Where(a => a.Id == accountId)
+                        .Select(a => new { a.IsActive, a.SecurityStamp })
+                        .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+
+                    if (state == null || !state.IsActive || state.SecurityStamp != securityStamp)
+                    {
+                        context.Fail("Token was superseded by an account change.");
+                    }
+                }
             };
         });
 
         // 5. Configure Authorization Policies
         services.AddAuthorization(options =>
         {
+            // Existing bare [Authorize] endpoints describe administrator sessions.
+            options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser().RequireClaim(AdminTokenClaims.AccountId).Build();
+            options.AddPolicy(AuthPolicies.RequirePlayer, policy =>
+                policy.RequireAuthenticatedUser().RequireClaim(PlayerTokenClaims.AccountId));
             options.AddPolicy(AuthPolicies.RequireAdminRole, policy =>
-                policy.RequireRole(AuthRoles.Admin));
+                policy.RequireClaim(AdminTokenClaims.AccountId).RequireRole(AuthRoles.Admin));
 
             options.AddPolicy(AuthPolicies.RequirePublisherRole, policy =>
-                policy.RequireRole(AuthRoles.Publisher, AuthRoles.Admin));
+                policy.RequireClaim(AdminTokenClaims.AccountId).RequireRole(AuthRoles.Publisher, AuthRoles.Admin));
 
             options.AddPolicy(AuthPolicies.RequireEditorRole, policy =>
-                policy.RequireRole(AuthRoles.Editor, AuthRoles.Admin));
+                policy.RequireClaim(AdminTokenClaims.AccountId).RequireRole(AuthRoles.Editor, AuthRoles.Admin));
         });
 
         return services;

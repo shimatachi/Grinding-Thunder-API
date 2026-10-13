@@ -17,6 +17,8 @@ public class JwtOptions
     /// </summary>
     public string Audience { get; set; } = "GrindingThunder.Admin";
 
+    public string PlayerAudience { get; set; } = "GrindingThunder.Player";
+
     /// <summary>
     /// The symmetric signing key used to sign and validate tokens (minimum 256 bits / 32 bytes).
     /// Kept out of source-controlled configuration in production.

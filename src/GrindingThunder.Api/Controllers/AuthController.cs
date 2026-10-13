@@ -18,7 +18,7 @@ public class AuthController(IAdminAuthService authService) : ControllerBase
     private readonly IAdminAuthService _authService = authService;
 
     /// <summary>
-    /// Authenticates an administrator using configured credentials and returns a JWT bearer token.
+    /// Authenticates an administrator against database-backed accounts and returns a JWT bearer token.
     /// </summary>
     [HttpPost("login")]
     [AllowAnonymous]

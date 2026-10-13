@@ -48,6 +48,10 @@
                             {
                                 <li class="nav-item @(currentPage == "/Import" ? "active" : "")"><a class="nav-link" asp-page="/Import">Import</a></li>
                             }
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <li class="nav-item @(currentPage.StartsWith("/Accounts", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><a class="nav-link" asp-page="/Accounts/Index">Accounts</a></li>
+                            }
                         </ul>
                     </div>
                 </div>

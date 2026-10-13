@@ -31,7 +31,8 @@ public class AuthorizationPolicyTests
     {
         var claims = new List<Claim>
         {
-            new(ClaimTypes.Name, "testuser")
+            new(ClaimTypes.Name, "testuser"),
+            new(AdminTokenClaims.AccountId, Guid.NewGuid().ToString())
         };
 
         foreach (var role in roles)

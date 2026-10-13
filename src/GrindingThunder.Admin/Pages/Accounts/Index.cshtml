@@ -1,0 +1,14 @@
+@page "/Accounts"
+@model GrindingThunder.Admin.Pages.Accounts.IndexModel
+@{ ViewData["Title"] = "Admin Accounts"; }
+<div class="page-header d-print-none"><div class="row align-items-center"><div class="col"><h1 class="page-title">Admin Accounts</h1></div><div class="col-auto ms-auto"><a class="btn btn-primary" asp-page="Create">Create account</a></div></div></div>
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success mt-3">@success</div> }
+@if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
+<div class="card mt-3"><div class="table-responsive"><table class="table table-vcenter card-table"><thead><tr><th>Username</th><th>Roles</th><th>Status</th><th class="catalog-actions">Actions</th></tr></thead><tbody>
+@foreach (var item in Model.Items) { <tr>
+    <td>@item.Username</td>
+    <td>@foreach (var role in item.Roles) { <span class="badge @(role == "Admin" ? "bg-red-lt" : role == "Publisher" ? "bg-blue-lt" : "bg-green-lt")">@role</span> }</td>
+    <td>@if (item.IsActive) { <span class="badge bg-green-lt">Active</span> } else { <span class="badge bg-secondary-lt">Disabled</span> }</td>
+    <td class="catalog-actions"><a class="btn btn-sm btn-outline-primary" asp-page="Edit" asp-route-id="@item.Id">Edit</a></td>
+</tr> }
+</tbody></table>@if (Model.Items.Count == 0 && Model.ErrorMessage is null) { <div class="empty-message">No administrator accounts exist.</div> }</div></div>

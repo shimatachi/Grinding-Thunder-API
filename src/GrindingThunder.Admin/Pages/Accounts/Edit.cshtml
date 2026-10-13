@@ -1,0 +1,27 @@
+@page "/Accounts/{id:guid}/Edit"
+@model GrindingThunder.Admin.Pages.Accounts.EditModel
+@{ ViewData["Title"] = "Edit Account"; }
+<div class="page-header"><h1 class="page-title">Edit Account</h1></div>
+@if (Model.Message is not null) { <div class="alert @(Model.IsMissing ? "alert-warning" : "alert-danger") mt-3">@Model.Message</div> }
+@if (Model.Account is not null)
+{
+<div class="card catalog-form mt-3"><div class="card-header"><h2 class="card-title">Account</h2></div><div class="card-body"><form method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+    <div class="mb-3"><label asp-for="Input.Username" class="form-label"></label><input asp-for="Input.Username" class="form-control" /><span asp-validation-for="Input.Username"></span></div>
+    <div class="mb-3"><span class="form-label">Roles</span>
+        @foreach (var role in SupportedAdminRoles.All)
+        {
+            <label class="form-check"><input class="form-check-input" type="checkbox" name="Input.Roles" value="@role" @(Model.Input.Roles.Contains(role) ? "checked" : "") /><span class="form-check-label">@role</span></label>
+        }
+    </div>
+    <div class="mb-3"><label class="form-check"><input class="form-check-input" type="checkbox" asp-for="Input.IsActive" /><span class="form-check-label">Active</span></label></div>
+    <p class="text-secondary">Saving changes signs the account out of existing sessions. The system always keeps at least one active Admin account.</p>
+    <div class="btn-list"><button class="btn btn-primary" type="submit">Save</button><a class="btn" asp-page="Index">Cancel</a></div>
+</form></div></div>
+<div class="card catalog-form mt-3"><div class="card-header"><h2 class="card-title">Replace password</h2></div><div class="card-body"><form method="post" asp-page-handler="Password">
+    <div class="mb-3"><label asp-for="PasswordInput.Password" class="form-label">New password</label><input asp-for="PasswordInput.Password" type="password" class="form-control" autocomplete="new-password" /></div>
+    <p class="text-secondary">Replacing the password signs the account out of existing sessions immediately.</p>
+    <div class="btn-list"><button class="btn btn-warning" type="submit">Replace password</button></div>
+</form></div></div>
+}
+else { <a class="btn mt-3" asp-page="Index">Back to accounts</a> }

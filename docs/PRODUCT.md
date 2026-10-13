@@ -15,7 +15,18 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
   - Secured administrative CRUD APIs manage catalog entities (nations, vehicle types, vehicles, game updates, research trees) and draft version components (ranks, entries, layout coordinates, folder parent groupings, and prerequisite edges).
   - Two-phase tabular imports (`POST /api/admin/drafts/{versionId}/import/preview` and `POST /api/admin/drafts/{versionId}/import`) allow administrators to import tech-tree data from CSV or XLSX into Draft versions, featuring non-mutating preview validation and atomic transactional commit.
   - Version lifecycle services (`IVersionLifecycleService`) allow cloning published snapshots into editable Drafts, validating version integrity prior to publication, publishing immutable historical snapshots, and computing structural/economic diffs between versions. Published version immutability is strictly enforced at the persistence layer.
-- No saved player inventory, user-facing client web UI, or automated version selection is implemented in this repository.
+- Persistent administrator accounts and lifecycle management:
+  - Role-based accounts (`Admin`, `Publisher`, `Editor`) with PBKDF2 password hashes stored in `AdminAccounts` and `AdminAccountRoles`.
+  - Case-insensitive normalized username uniqueness enforced at the database level.
+  - Safe, idempotent initial first-administrator bootstrap from configuration (`AdminBootstrap:Username` / `AdminBootstrap:Password`) which fails fast on weak or partial credentials, never overwrites or re-enables an existing admin account, and handles concurrent bootstrap races safely.
+  - Incremental security stamps (`SecurityStamp`) invalidate active JWT tokens on password replacement, deactivation, or role changes.
+  - Protected admin lifecycle API endpoints (`/api/admin/accounts`) and dedicated Razor Pages management UI (`/Accounts`).
+- Persistent player accounts and progression synchronization:
+  - Player accounts stored in `PlayerAccounts` with PBKDF2 password hashes, case-insensitive normalized username and email uniqueness, and dedicated JWT tokens with distinct player audience (`GrindingThunder.Player`).
+  - Progress persistence (`PlayerUnlockedVehicles`) saves owned vehicles by stable `VehicleId` alongside calculator preferences (`OptimizationMode`, `AverageRpPerMatch`, `AverageNetSlPerMatch`).
+  - Full-set ownership replacement (`PUT /api/player/progress`) with optimistic concurrency control via `progressStamp` (UUID).
+  - Explicit calculator contract decoupling: the calculator API (`POST /api/research/calculate`) remains completely anonymous and decoupled from persistence. Saved player inventories are not automatically injected into calculations; clients pass explicit `unlockedVehicleIds` (intersected with the selected version's vehicle entries).
+- No user-facing client web UI for players or automated version selection is implemented in this repository (it is a backend REST API and separate admin client).
 
 ## CURRENT — admin back office
 
@@ -23,6 +34,7 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
 - The Batch 19 Tech Trees editor lists a selected tree's draft and published versions, creates blank drafts, clones versions, and edits draft ranks/quotas, vehicle entries, RP/SL costs, acquisition types, numeric row/column layout, folder parents, and explicit prerequisites. Displayed snapshot entries are scoped by exact version ID; published versions remain read-only.
 - Editor and Admin accounts can perform draft editing; only Admin can delete a whole draft version. Publisher-only accounts have read-only access to `/Trees` and draft or published version detail pages (`/Trees/Version/{id}`) powered by public exact-version projections (`GET /api/nations` and `GET /api/vehicles/tree`) without calling Editor-only admin endpoints. Publisher sessions see no mutation forms and direct POST mutation attempts are rejected upfront before any API call is made. Deleting a draft, rank, or entry and removing a prerequisite require explicit browser confirmation.
 - The back office provides an Editor/Admin import page for CSV, TSV, and XLSX files with preview diagnostics and an explicit commit step. A valid preview is kept in short-lived server memory so commit uses the same uploaded file and options. Every version detail page can display backend validation results. A comparison page shows economic, vehicle, prerequisite, and rank-gate changes between versions of one tree. Publisher/Admin accounts can publish a Draft after acknowledging that the resulting historical snapshot is immutable; the page then becomes read-only.
+- Account management under `/Accounts`: Admin users can list administrator accounts, create new accounts with supported roles, edit existing accounts (username, role assignments, active flag), and replace account passwords.
 
 ## TARGET — intended user behavior
 
@@ -33,7 +45,7 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
 
 ## FUTURE — direction without detailed rules yet
 
-- Player accounts and synchronized owned-vehicle progress across sessions and devices.
+- User-facing public/player web frontend.
 - Vehicle modification progression (a separate progression system out of scope for the initial vehicle research planner).
 - Advanced War Thunder economy and RP mechanics (premium account modifiers, talisman bonuses, vehicle research efficiency penalties).
 - Assisted scraping and data-conversion tools to transform external game data into the application's canonical import schema.

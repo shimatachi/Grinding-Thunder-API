@@ -216,9 +216,111 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
 
 ## Next
 
-*(No batches currently scheduled. Future candidates are tracked under Later below.)*
+- **Batch 23 — Tree-scoped vehicle ownership** (status: Planned)
+  Goal: make stable vehicle identity belong to exactly one ResearchTree so the
+  core catalog hierarchy becomes Nation -> ResearchTree/category -> Vehicle,
+  while preserving version-specific progression state in VehicleTreeEntry.
+
+  Scope:
+  - add required `ResearchTreeId` ownership to `Vehicle`;
+  - expose `ResearchTree.Vehicles`;
+  - keep `VehicleTreeEntry` as the owner of version-specific RP, SL, rank,
+    acquisition type, layout, folder membership, and prerequisites;
+  - enforce that a VehicleTreeEntry may reference only a Vehicle owned by the
+    same ResearchTree as its ResearchTreeVersion;
+  - change vehicle-name uniqueness from global semantics to tree-scoped semantics;
+  - update vehicle CRUD/API contracts to include ResearchTree ownership;
+  - make import matching and auto-created Vehicles scoped to the selected
+    ResearchTreeVersion's ResearchTree;
+  - preserve `PlayerUnlockedVehicle -> VehicleId` as stable player progression;
+  - preserve calculator, versioning, draft cloning, validation, diff, publishing,
+    prerequisite traversal, and rank-gate behavior;
+  - perform a guarded, data-preserving migration for existing Vehicles.
+
+  Migration requirements:
+  - infer ownership only when an existing Vehicle is associated with exactly one
+    ResearchTree through its VehicleTreeEntries;
+  - do not arbitrarily assign Vehicles referenced by multiple ResearchTrees;
+  - do not silently assign Vehicles with no inferable ResearchTree;
+  - surface ambiguous/unowned rows explicitly instead of guessing;
+  - preserve existing player-owned Vehicle references.
+
+  Out of scope:
+  - full back-office navigation/workflow redesign;
+  - Game Update release-workspace redesign;
+  - Dashboard redesign;
+  - Blazor/Tailwind migration;
+  - player/admin authentication redesign.
+
+  Dependency: Batch 22.
+
+- **Batch 24 — Nation -> Category -> Vehicle admin workflow** (status: Planned)
+  Goal: reorganize the back office around the domain hierarchy
+  Nation -> ResearchTree/category -> Vehicle so administrators manage game data
+  contextually instead of through disconnected global CRUD screens.
+
+  Intended admin flow:
+
+  `Tech Trees -> Nation -> Category / ResearchTree -> Vehicles`
+
+  Examples:
+  - USA
+    - Aviation
+      - Vehicles
+    - Ground
+      - Vehicles
+    - Helicopter
+      - Vehicles
+
+  Scope:
+  - keep the existing Dashboard unless small navigation changes are necessary;
+  - make Nation the primary entry point for tech-tree administration;
+  - present each Nation's ResearchTrees using user-facing category names such as
+    Aviation, Ground, Helicopter, Coastal Fleet, and Bluewater Fleet;
+  - manage Vehicles from inside their owning ResearchTree;
+  - support creating a Vehicle directly in its Nation/category context without
+    requiring the administrator to choose ownership again;
+  - allow Nation setup to associate/create applicable ResearchTrees from the
+    existing master VehicleType/category set;
+  - treat `VehicleType` as the existing master category concept rather than
+    introducing a duplicate Category entity;
+  - move low-frequency reference-data management under an Administration area;
+  - preserve existing role and authorization rules;
+  - preserve existing Razor Pages + Tabler + Bootstrap 5 approach;
+  - keep `GrindingThunder.Admin` as an HTTP client of `GrindingThunder.Api`;
+  - reuse existing API endpoints where practical and add only bounded API
+    orchestration/support where required by the new workflow.
+
+  Suggested navigation:
+
+  - Dashboard
+  - Tech Trees
+    - Nation
+      - Category / ResearchTree
+        - Vehicles
+        - Versions
+  - Game Updates
+  - Administration
+    - Nations
+    - Categories
+    - Admin Accounts
+
+  Out of scope:
+  - major Game Update release-workspace redesign;
+  - automatic multi-tree publishing;
+  - public/player frontend redesign;
+  - replacing Razor Pages with Blazor;
+  - introducing Tailwind;
+  - changing versioning or calculator semantics.
+
+  Dependency: Batch 23.
 
 ## Later
+
+- **Batch 25 candidate — Game Update release workspace**
+  Rework Game Updates into a release-oriented workflow for creating/cloning
+  ResearchTreeVersion drafts, reviewing affected trees, validating, diffing, and
+  publishing individual tree snapshots for a War Thunder update.
 
 - Public/player web frontend
 - Vehicle modification progression

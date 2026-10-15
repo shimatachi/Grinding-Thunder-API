@@ -11,8 +11,9 @@ public record VehicleTypeDto(Guid Id, string Name);
 public record CreateVehicleTypeRequest(string Name);
 public record UpdateVehicleTypeRequest(string Name);
 
-public record VehicleDto(Guid Id, string Name, string? ImageUrl);
-public record CreateVehicleRequest(string Name, string? ImageUrl = null);
+public record VehicleDto(Guid Id, string Name, string? ImageUrl,
+    Guid ResearchTreeId, Guid NationId, string NationName, Guid VehicleTypeId, string VehicleTypeName);
+public record CreateVehicleRequest(Guid ResearchTreeId, string Name, string? ImageUrl = null);
 public record UpdateVehicleRequest(string Name, string? ImageUrl = null);
 
 public record GameUpdateDto(Guid Id, string Version, string? Name, DateOnly? ReleaseDate);
@@ -35,6 +36,9 @@ public class NameInputModel
 
 public class VehicleInputModel : NameInputModel
 {
+    [Display(Name = "Research tree")]
+    public Guid ResearchTreeId { get; set; }
+
     [Url(ErrorMessage = "Image URL must be a valid absolute URL.")]
     [Display(Name = "Image URL")]
     public string? ImageUrl { get; set; }

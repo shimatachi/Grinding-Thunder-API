@@ -16,12 +16,14 @@ public class VehicleTreeEntryConfiguration : IEntityTypeConfiguration<VehicleTre
 
         builder.HasOne(e => e.ResearchTreeVersion)
             .WithMany(rtv => rtv.Entries)
-            .HasForeignKey(e => e.ResearchTreeVersionId)
+            .HasForeignKey(e => new { e.ResearchTreeId, e.ResearchTreeVersionId })
+            .HasPrincipalKey(v => new { v.ResearchTreeId, v.Id })
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(e => e.Vehicle)
             .WithMany(v => v.TreeEntries)
-            .HasForeignKey(e => e.VehicleId)
+            .HasForeignKey(e => new { e.ResearchTreeId, e.VehicleId })
+            .HasPrincipalKey(v => new { v.ResearchTreeId, v.Id })
             .OnDelete(DeleteBehavior.Restrict);
 
         // The entry's TreeRank is owned by the same ResearchTreeVersion as the

@@ -204,5 +204,13 @@ Append new entries at the end. Keep each entry to the decisions and tradeoffs th
 - Decoupled calculation contract: preserved the anonymous, stateless nature of the progression calculator (`POST /api/research/calculate`). Saved player progress is never automatically injected into calculations. Clients explicitly intersect the player's saved vehicle ownership with the entries in the selected `ResearchTreeVersionId` and provide `unlockedVehicleIds`.
 - Atomic full-set progress replacement with optimistic concurrency: player progression updates (`PUT /api/player/progress`) replace the full set of unlocked vehicle IDs and calculator preferences in an atomic transaction. `ProgressStamp` is an internal EF Core concurrency token (`IsConcurrencyToken()`) that rejects overlapping in-flight saves with HTTP 409 Conflict; callers do not pass `progressStamp` in the JSON request body.
 
+## 2026 — Batch 23: tree-scoped vehicle ownership
+
+- Vehicle is stable identity within one ResearchTree. Update-specific progression state remains in VehicleTreeEntry. The former global catalog could reuse a same-named vehicle across nations/categories during imports and allowed cross-tree entries. Owning identity at the tree level prevents that conflation while preserving stable player-owned IDs across updates.
+- Enforced equality with a shared `VehicleTreeEntry.ResearchTreeId` and composite FKs to vehicle and version alternate keys. This adds a redundant tree column and indexes, but gives ordinary database constraints enough information to reject cross-tree writes without custom triggers or controller-only guarantees. Existing draft deletion behavior remains; tree/vehicle deletion is restricted where historical or player data exists. Vehicle creation requires ownership, and editing does not reparent identity.
+- Replaced controller-only global duplicate checks with tree-scoped checks plus a unique database index over a generated `lower(trim(Name))` column. Same-named vehicles in different trees are separate stable identities. The generated value avoids drift from direct SQL or concurrent writes without an extension/dependency.
+- Chose transactional fail-fast backfill instead of automatically splitting multi-tree identities or assigning entryless vehicles. Only a single inferred tree is safe; guard errors report bounded examples for explicit resolution. Player ownership is never deleted, duplicated, or reassigned. Down refuses to discard entryless ownership mappings.
+- Kept Admin changes to contract compatibility. Batch 24 remains responsible for Nation -> Category -> Vehicle navigation and workflow.
+
 
 

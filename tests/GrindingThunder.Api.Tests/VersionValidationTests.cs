@@ -21,10 +21,10 @@ public class VersionValidationTests
         var rank1 = database.AddTreeRank(version, 1, 2);
         var rank2 = database.AddTreeRank(version, 2, 2);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "M2 Light" };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = "M3 Stuart" };
-        var v3 = new Vehicle { Id = Guid.NewGuid(), Name = "M2A4" };
-        var v4 = new Vehicle { Id = Guid.NewGuid(), Name = "M4A1 Sherman" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "M2 Light" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "M3 Stuart" };
+        var v3 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "M2A4" };
+        var v4 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "M4A1 Sherman" };
         database.Context.Vehicles.AddRange(v1, v2, v3, v4);
 
         var e1 = database.AddVehicleTreeEntry(version, v1, rank1, 2900, 700, treeColumn: 1, treeRow: 1, acquisitionType: VehicleAcquisitionType.Researchable);
@@ -54,8 +54,8 @@ public class VersionValidationTests
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank A" };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank B" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank A" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank B" };
         database.Context.Vehicles.AddRange(v1, v2);
 
         database.AddVehicleTreeEntry(version, v1, rank, 1000, treeColumn: 1, treeRow: 1);
@@ -84,8 +84,8 @@ public class VersionValidationTests
         var rank1 = database.AddTreeRank(version, 1);
         var rank2 = database.AddTreeRank(version, 2);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Lower Rank Tank" };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = "Higher Rank Tank" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Lower Rank Tank" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Higher Rank Tank" };
         database.Context.Vehicles.AddRange(v1, v2);
 
         database.AddVehicleTreeEntry(version, v1, rank1, 1000, treeColumn: 1, treeRow: 1);
@@ -112,9 +112,9 @@ public class VersionValidationTests
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Grandparent" };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = "Parent" };
-        var v3 = new Vehicle { Id = Guid.NewGuid(), Name = "Child" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Grandparent" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Parent" };
+        var v3 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Child" };
         database.Context.Vehicles.AddRange(v1, v2, v3);
 
         var e1 = database.AddVehicleTreeEntry(version, v1, rank, 1000, treeColumn: 1, treeRow: 1);
@@ -140,8 +140,8 @@ public class VersionValidationTests
         var rank1 = database.AddTreeRank(version, 1);
         var rank2 = database.AddTreeRank(version, 2);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Parent Rank 1" };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = "Child Rank 2" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Parent Rank 1" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Child Rank 2" };
         database.Context.Vehicles.AddRange(v1, v2);
 
         var e1 = database.AddVehicleTreeEntry(version, v1, rank1, 1000, treeColumn: 1, treeRow: 1);
@@ -165,8 +165,8 @@ public class VersionValidationTests
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank Alpha" };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank Beta" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank Alpha" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank Beta" };
         database.Context.Vehicles.AddRange(v1, v2);
 
         // Both root entries share column 1, row 1
@@ -193,8 +193,8 @@ public class VersionValidationTests
         // Rank 2 requires 5 unlocked vehicles, but Rank 1 only contains 2 vehicles
         var rank2 = database.AddTreeRank(version, 2, requiredVehiclesUnlocked: 5);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank 1" };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank 2" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank 1" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank 2" };
         database.Context.Vehicles.AddRange(v1, v2);
 
         database.AddVehicleTreeEntry(version, v1, rank1, 1000, treeColumn: 1, treeRow: 1);
@@ -218,8 +218,8 @@ public class VersionValidationTests
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1);
 
-        var researchable = new Vehicle { Id = Guid.NewGuid(), Name = "Standard Tech Tree Tank" };
-        var premium = new Vehicle { Id = Guid.NewGuid(), Name = "Premium Pack Tank" };
+        var researchable = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Standard Tech Tree Tank" };
+        var premium = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Premium Pack Tank" };
         database.Context.Vehicles.AddRange(researchable, premium);
 
         database.AddVehicleTreeEntry(version, researchable, rank, 5000, treeColumn: 1, treeRow: 2, acquisitionType: VehicleAcquisitionType.Researchable);
@@ -264,8 +264,8 @@ public class VersionValidationTests
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank A" };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank B" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank A" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank B" };
         database.Context.Vehicles.AddRange(v1, v2);
 
         database.AddVehicleTreeEntry(version, v1, rank, 1000, treeColumn: 1, treeRow: 1);
@@ -299,7 +299,7 @@ public class VersionValidationTests
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1, 1);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Valid Tank" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Valid Tank" };
         database.Context.Vehicles.Add(v1);
         database.AddVehicleTreeEntry(version, v1, rank, 1000, treeColumn: 1, treeRow: 1);
         await database.SaveChangesAsync();
@@ -322,8 +322,8 @@ public class VersionValidationTests
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Folder Tank A" };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = "Folder Tank B" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder Tank A" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder Tank B" };
         database.Context.Vehicles.AddRange(v1, v2);
 
         var e1 = database.AddVehicleTreeEntry(version, v1, rank, 1000, treeColumn: 1, treeRow: 1);
@@ -351,7 +351,7 @@ public class VersionValidationTests
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = "Negative Cost Tank" };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Negative Cost Tank" };
         database.Context.Vehicles.Add(v1);
 
         database.AddVehicleTreeEntry(version, v1, rank, rpCost: -500, slCost: -100, treeColumn: -1, treeRow: -2);

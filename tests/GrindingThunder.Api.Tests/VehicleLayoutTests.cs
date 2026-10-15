@@ -37,7 +37,7 @@ public class VehicleLayoutTests
         var versionB = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.45"));
         var rankA = database.AddTreeRank(versionA, 1);
         var rankB = database.AddTreeRank(versionB, 1);
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Stable vehicle" };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Stable vehicle" };
         database.Context.Vehicles.Add(vehicle);
 
         database.AddVehicleTreeEntry(versionA, vehicle, rankA, 100, treeColumn: 1, treeRow: 2);
@@ -65,8 +65,8 @@ public class VehicleLayoutTests
         var versionB = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.45"));
         var rankA = database.AddTreeRank(versionA, 1);
         var rankB = database.AddTreeRank(versionB, 1);
-        var parent = new Vehicle { Id = Guid.NewGuid(), Name = "Folder parent" };
-        var child = new Vehicle { Id = Guid.NewGuid(), Name = "Folder child" };
+        var parent = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder parent" };
+        var child = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder child" };
         database.Context.Vehicles.AddRange(parent, child);
 
         var parentA = database.AddVehicleTreeEntry(versionA, parent, rankA, 100);
@@ -93,8 +93,8 @@ public class VehicleLayoutTests
         var versionB = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.45"));
         var rankA = database.AddTreeRank(versionA, 1);
         var rankB = database.AddTreeRank(versionB, 1);
-        var parent = new Vehicle { Id = Guid.NewGuid(), Name = "Folder parent" };
-        var child = new Vehicle { Id = Guid.NewGuid(), Name = "Folder child" };
+        var parent = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder parent" };
+        var child = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder child" };
         database.Context.Vehicles.AddRange(parent, child);
         var parentB = database.AddVehicleTreeEntry(versionB, parent, rankB, 100);
         var childA = database.AddVehicleTreeEntry(versionA, child, rankA, 100);
@@ -112,8 +112,8 @@ public class VehicleLayoutTests
         var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
         var version = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.43"));
         var rank = database.AddTreeRank(version, 1);
-        var parent = new Vehicle { Id = Guid.NewGuid(), Name = "Folder parent" };
-        var child = new Vehicle { Id = Guid.NewGuid(), Name = "Folder child" };
+        var parent = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder parent" };
+        var child = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder child" };
         database.Context.Vehicles.AddRange(parent, child);
         var parentEntry = database.AddVehicleTreeEntry(version, parent, rank, 10, treeColumn: 1, treeRow: 1);
         database.AddVehicleTreeEntry(version, child, rank, 20, treeColumn: 1, treeRow: 2, folderParent: parentEntry);
@@ -137,8 +137,8 @@ public class VehicleLayoutTests
         var tree = database.AddResearchTree(nation, database.AddVehicleType("Ground"));
         var version = database.AddResearchTreeVersion(tree, database.AddGameUpdate("2.43"));
         var rank = database.AddTreeRank(version, 1);
-        var parent = new Vehicle { Id = Guid.NewGuid(), Name = "Folder parent" };
-        var child = new Vehicle { Id = Guid.NewGuid(), Name = "Folder child" };
+        var parent = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder parent" };
+        var child = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Folder child" };
         database.Context.Vehicles.AddRange(parent, child);
         var parentEntry = database.AddVehicleTreeEntry(version, parent, rank, 10, treeColumn: 3, treeRow: 4);
         database.AddVehicleTreeEntry(version, child, rank, 20, treeColumn: 3, treeRow: 5, folderParent: parentEntry);

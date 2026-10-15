@@ -91,7 +91,7 @@ public class TreeRankTests
         var version = database.AddResearchTreeVersion(tree, update);
         var rank = database.AddTreeRank(version, 1);
 
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Test Tank" };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Test Tank" };
         database.Context.Vehicles.Add(vehicle);
         database.AddVehicleTreeEntry(version, vehicle, rank, rpCost: 2900);
 

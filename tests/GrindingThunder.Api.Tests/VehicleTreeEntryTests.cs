@@ -22,7 +22,7 @@ public class VehicleTreeEntryTests
         var rank1 = database.AddTreeRank(version, 1);
 
         // One stable vehicle identity with version-specific rank and costs.
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Test Tank" };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = version.ResearchTreeId, Name = "Test Tank" };
         database.Context.Vehicles.Add(vehicle);
         database.AddVehicleTreeEntry(version, vehicle, rank1, rpCost: 2900, slCost: 700);
 
@@ -48,7 +48,7 @@ public class VehicleTreeEntryTests
         var version = database.AddResearchTreeVersion(
             database.AddResearchTree(nation, database.AddVehicleType("Ground")), update);
         var rank = database.AddTreeRank(version, 1);
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Test Tank" };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = version.ResearchTreeId, Name = "Test Tank" };
         database.Context.Vehicles.Add(vehicle);
 
         database.AddVehicleTreeEntry(version, vehicle, rank, 2900);
@@ -68,7 +68,7 @@ public class VehicleTreeEntryTests
         var updateB = database.AddGameUpdate("2.45");
         var versionA = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateA);
         var versionB = database.AddResearchTreeVersion(rank.ResearchTreeVersion.ResearchTree, updateB);
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Test Tank" };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = versionA.ResearchTreeId, Name = "Test Tank" };
         database.Context.Vehicles.Add(vehicle);
 
         // Same vehicle, different versions, different RP costs.
@@ -96,8 +96,8 @@ public class VehicleTreeEntryTests
             database.AddResearchTree(nation, database.AddVehicleType("Ground")), update);
         var rank1 = database.AddTreeRank(version, 1);
 
-        var researchable = new Vehicle { Id = Guid.NewGuid(), Name = "Regular Tank" };
-        var premium = new Vehicle { Id = Guid.NewGuid(), Name = "Premium Tank" };
+        var researchable = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = version.ResearchTreeId, Name = "Regular Tank" };
+        var premium = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = version.ResearchTreeId, Name = "Premium Tank" };
         database.Context.Vehicles.AddRange(researchable, premium);
 
         var defaultEntry = database.AddVehicleTreeEntry(
@@ -129,7 +129,7 @@ public class VehicleTreeEntryCalculatorTests
         using var database = new CalculatorTestDatabase();
         var nation = database.AddNation("USA");
         var rank = database.AddTreeRank(nation, 1);
-        var orphan = new Vehicle { Id = Guid.NewGuid(), Name = "Orphan" };
+        var orphan = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = rank.ResearchTreeVersion.ResearchTreeId, Name = "Orphan" };
         database.Context.Vehicles.Add(orphan);
         await database.SaveChangesAsync();
 
@@ -378,7 +378,7 @@ public class VehiclesControllerTests
         var placed = database.AddVehicle(rank.ResearchTreeVersion.ResearchTree, rank, "Placed", 10, treeVersion: version);
 
         // Entry-less vehicle: previously TreeEntries[0] would throw.
-        var orphan = new Vehicle { Id = Guid.NewGuid(), Name = "Orphan" };
+        var orphan = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = version.ResearchTreeId, Name = "Orphan" };
         database.Context.Vehicles.Add(orphan);
         await database.SaveChangesAsync();
 

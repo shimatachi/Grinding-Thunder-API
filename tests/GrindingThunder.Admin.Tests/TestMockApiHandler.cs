@@ -221,13 +221,13 @@ public class TestMockApiHandler : HttpMessageHandler
                 return await HandleTreeVersionRequestAsync(request, path);
             }
 
-            return HandleCatalogRequest(request, path);
+            return await HandleCatalogRequestAsync(request, path);
         }
 
         return new HttpResponseMessage(HttpStatusCode.NotFound);
     }
 
-    private static HttpResponseMessage HandleCatalogRequest(HttpRequestMessage request, string path)
+    private static async Task<HttpResponseMessage> HandleCatalogRequestAsync(HttpRequestMessage request, string path)
     {
         if (path.Equals("/api/admin/nations", StringComparison.OrdinalIgnoreCase))
         {
@@ -248,13 +248,22 @@ public class TestMockApiHandler : HttpMessageHandler
         if (path.Equals("/api/admin/vehicles", StringComparison.OrdinalIgnoreCase))
         {
             if (request.Method == HttpMethod.Get) return JsonResponse(HttpStatusCode.OK, new object[] {
-                new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png" },
-                new { id = VehicleId2, name = "F-4E", imageUrl = (string?)null }
+                new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = VehicleId2, name = "F-4E", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = Guid.Parse("33333335-3333-3335-3335-333333333335"), name = "Other tree vehicle", imageUrl = (string?)null, researchTreeId = Guid.Parse("55555556-5555-5556-5556-555555555556"), nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Ground" }
             });
-            if (request.Method == HttpMethod.Post) return JsonResponse(HttpStatusCode.Created, new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png" });
+            if (request.Method == HttpMethod.Post)
+            {
+                var body = await ReadJsonAsync(request);
+                var treeId = body.EnumerateObject()
+                    .FirstOrDefault(p => p.Name.Equals("ResearchTreeId", StringComparison.OrdinalIgnoreCase)).Value;
+                if (treeId.ValueKind != JsonValueKind.String || !treeId.TryGetGuid(out var ownerId) || ownerId != ResearchTreeId)
+                    return TextResponse(HttpStatusCode.BadRequest, "An existing ResearchTreeId is required.");
+                return JsonResponse(HttpStatusCode.Created, new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" });
+            }
         }
         if (path.Equals($"/api/admin/vehicles/{VehicleId}", StringComparison.OrdinalIgnoreCase))
-            return EntityResponse(request, new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png" });
+            return EntityResponse(request, new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" });
 
         if (path.Equals("/api/admin/game-updates", StringComparison.OrdinalIgnoreCase))
         {

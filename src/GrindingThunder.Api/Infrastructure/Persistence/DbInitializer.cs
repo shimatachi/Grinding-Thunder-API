@@ -185,6 +185,7 @@ public static class DbInitializer
                     var m2Light = new Vehicle
                     {
                         Id = Guid.NewGuid(),
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         Name = "M2 Light",
                         ImageUrl = ""
                     };
@@ -192,6 +193,7 @@ public static class DbInitializer
                     var m3Stuart = new Vehicle
                     {
                         Id = Guid.NewGuid(),
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         Name = "M3 Stuart",
                         ImageUrl = "https://static.encyclopedia.warthunder.com/images/us_m2a4.png"
                     };
@@ -199,6 +201,7 @@ public static class DbInitializer
                     var m2a4 = new Vehicle
                     {
                         Id = Guid.NewGuid(),
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         Name = "M2A4",
                         ImageUrl = ""
                     };
@@ -206,6 +209,7 @@ public static class DbInitializer
                     var m3a1Stuart = new Vehicle
                     {
                         Id = Guid.NewGuid(),
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         Name = "M3A1 Stuart",
                         ImageUrl = ""
                     };
@@ -214,6 +218,7 @@ public static class DbInitializer
                     var m4a1Sherman = new Vehicle
                     {
                         Id = Guid.NewGuid(),
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         Name = "M4A1 Sherman",
                         ImageUrl = ""
                     };
@@ -221,6 +226,7 @@ public static class DbInitializer
                     var m3Lee = new Vehicle
                     {
                         Id = Guid.NewGuid(),
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         Name = "M3 Lee",
                         ImageUrl = ""
                     };
@@ -234,6 +240,7 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         ResearchTreeVersionId = usaGroundVersion.Id,
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         VehicleId = m2Light.Id,
                         TreeRankId = rank1.Id,
                         RpCost = 2900,
@@ -246,6 +253,7 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         ResearchTreeVersionId = usaGroundVersion.Id,
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         VehicleId = m3Stuart.Id,
                         TreeRankId = rank1.Id,
                         RpCost = 4000,
@@ -258,6 +266,7 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         ResearchTreeVersionId = usaGroundVersion.Id,
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         VehicleId = m2a4.Id,
                         TreeRankId = rank1.Id,
                         RpCost = 2900,
@@ -270,6 +279,7 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         ResearchTreeVersionId = usaGroundVersion.Id,
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         VehicleId = m3a1Stuart.Id,
                         TreeRankId = rank1.Id,
                         RpCost = 4000,
@@ -282,6 +292,7 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         ResearchTreeVersionId = usaGroundVersion.Id,
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         VehicleId = m4a1Sherman.Id,
                         TreeRankId = rank2.Id,
                         RpCost = 9200,
@@ -294,6 +305,7 @@ public static class DbInitializer
                     {
                         Id = Guid.NewGuid(),
                         ResearchTreeVersionId = usaGroundVersion.Id,
+                        ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         VehicleId = m3Lee.Id,
                         TreeRankId = rank2.Id,
                         RpCost = 5900,

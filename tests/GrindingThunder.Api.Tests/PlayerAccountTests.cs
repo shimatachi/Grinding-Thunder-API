@@ -18,6 +18,13 @@ public class PlayerAccountTests : IDisposable
         SigningKey = SecurityServiceExtensions.DevelopmentFallbackSigningKey
     }));
 
+    private static ResearchTree NewTree() => new()
+    {
+        Id = Guid.NewGuid(),
+        Nation = new Nation { Id = Guid.NewGuid(), Name = "Player test nation" },
+        VehicleType = new VehicleType { Id = Guid.NewGuid(), Name = "Ground" }
+    };
+
     public void Dispose() => _database.Dispose();
     private PlayerAuthService Auth(ApplicationDbContext db) => new(db, _hasher, Tokens);
     private static PlayerRegisterRequest Registration(string name = "player", string email = "player@example.com") =>
@@ -98,8 +105,8 @@ public class PlayerAccountTests : IDisposable
     public async Task Progress_DeduplicatesReplacesAndClearsStableIds_AndPersistsPreferences()
     {
         Guid playerId;
-        var first = new Vehicle { Id = Guid.NewGuid(), Name = "Stable identity without any version entry" };
-        var second = new Vehicle { Id = Guid.NewGuid(), Name = "Second identity" };
+        var first = new Vehicle { Id = Guid.NewGuid(), ResearchTree = NewTree(), Name = "Stable identity without any version entry" };
+        var second = new Vehicle { Id = Guid.NewGuid(), ResearchTree = NewTree(), Name = "Second identity" };
         var preferences = new PlayerCalculatorPreferences(ResearchOptimizationMode.FewestMatches, 2500, 8000);
         await using (var db = _database.CreateContext())
         {
@@ -135,7 +142,7 @@ public class PlayerAccountTests : IDisposable
     {
         await using var db = _database.CreateContext();
         var id = (await Auth(db).RegisterAsync(Registration())).Account!.PlayerAccountId;
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Known" };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTree = NewTree(), Name = "Known" };
         db.Vehicles.Add(vehicle);
         await db.SaveChangesAsync();
         var prefs = new PlayerCalculatorPreferences(ResearchOptimizationMode.LeastSl, 500, 5000);
@@ -168,7 +175,7 @@ public class PlayerAccountTests : IDisposable
     public async Task Database_RejectsMissingVehicleAndDuplicateOwnership_AndRestrictsVehicleDeletion()
     {
         Guid id;
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Owned" };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTree = NewTree(), Name = "Owned" };
         await using (var db = _database.CreateContext())
         {
             id = (await Auth(db).RegisterAsync(Registration())).Account!.PlayerAccountId;
@@ -204,7 +211,7 @@ public class PlayerAccountTests : IDisposable
     public async Task Progress_OverlappingSave_ReturnsConflict_AndRollsBackOwnershipDiff()
     {
         Guid id;
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = "Concurrency vehicle" };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTree = NewTree(), Name = "Concurrency vehicle" };
         await using (var seed = _database.CreateContext())
         {
             id = (await Auth(seed).RegisterAsync(Registration())).Account!.PlayerAccountId;

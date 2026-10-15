@@ -110,7 +110,7 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         // Create a minimal valid draft version
         var update = new GameUpdate { Id = Guid.NewGuid(), Version = $"pub-test-{Guid.NewGuid():N}"[..18] };
         db.GameUpdates.Add(update);
-        var tree = await db.ResearchTrees.FirstAsync();
+        var tree = await db.ResearchTrees.FirstAsync(t => t.Vehicles.Any());
         var validDraft = new ResearchTreeVersion
         {
             Id = Guid.NewGuid(),
@@ -121,11 +121,12 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         // Rank 1 with 0 required unlocked vehicles and 1 vehicle entry
         var rank1 = new TreeRank { Id = Guid.NewGuid(), ResearchTreeVersionId = validDraft.Id, RankNumber = 1, RequiredVehiclesUnlocked = 0 };
         validDraft.TreeRanks.Add(rank1);
-        var vehicle = await db.Vehicles.FirstAsync();
+        var vehicle = await db.Vehicles.FirstAsync(v => v.ResearchTreeId == tree.Id);
         validDraft.Entries.Add(new VehicleTreeEntry
         {
             Id = Guid.NewGuid(),
             ResearchTreeVersionId = validDraft.Id,
+            ResearchTreeId = validDraft.ResearchTreeId,
             VehicleId = vehicle.Id,
             TreeRankId = rank1.Id,
             RpCost = 1000,
@@ -332,10 +333,11 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         var editorToken = await GetEditorTokenAsync();
         var adminToken = await GetAdminTokenAsync();
 
+        using var catalogDb = CreateDbContext();
         var vehicleName = $"Tank_{Guid.NewGuid():N}"[..15];
 
         // Editor create
-        using var createReq = CreateAuthorizedRequest(HttpMethod.Post, "/api/admin/vehicles", editorToken, new CreateVehicleRequest(vehicleName, "https://example.com/tank.png"));
+        using var createReq = CreateAuthorizedRequest(HttpMethod.Post, "/api/admin/vehicles", editorToken, new CreateVehicleRequest((await catalogDb.ResearchTrees.FirstAsync()).Id, vehicleName, "https://example.com/tank.png"));
         var createResp = await _client.SendAsync(createReq);
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
         var created = await createResp.Content.ReadFromJsonAsync<VehicleDto>();
@@ -407,8 +409,8 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         // Create draft version with rank and entry
         var update = new GameUpdate { Id = Guid.NewGuid(), Version = $"immut-{Guid.NewGuid():N}"[..18] };
         db.GameUpdates.Add(update);
-        var tree = await db.ResearchTrees.FirstAsync();
-        var vehicle = await db.Vehicles.FirstAsync();
+        var tree = await db.ResearchTrees.FirstAsync(t => t.Vehicles.Any());
+        var vehicle = await db.Vehicles.FirstAsync(v => v.ResearchTreeId == tree.Id);
         var publishedVersion = new ResearchTreeVersion
         {
             Id = Guid.NewGuid(),
@@ -421,6 +423,7 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         {
             Id = Guid.NewGuid(),
             ResearchTreeVersionId = publishedVersion.Id,
+            ResearchTreeId = publishedVersion.ResearchTreeId,
             VehicleId = vehicle.Id,
             TreeRankId = rank.Id,
             RpCost = 1000,
@@ -544,7 +547,7 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         var rank = draft.TreeRanks.First();
 
         // Create new vehicle
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = $"DraftTank_{Guid.NewGuid():N}"[..18] };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = draft.ResearchTreeId, Name = $"DraftTank_{Guid.NewGuid():N}"[..18] };
         db.Vehicles.Add(vehicle);
         await db.SaveChangesAsync();
 
@@ -603,14 +606,15 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         var rank = new TreeRank { Id = Guid.NewGuid(), ResearchTreeVersionId = draft.Id, RankNumber = 1, RequiredVehiclesUnlocked = 0 };
         draft.TreeRanks.Add(rank);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = $"PV1_{Guid.NewGuid():N}"[..15] };
-        var v2 = new Vehicle { Id = Guid.NewGuid(), Name = $"PV2_{Guid.NewGuid():N}"[..15] };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = draft.ResearchTreeId, Name = $"PV1_{Guid.NewGuid():N}"[..15] };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = draft.ResearchTreeId, Name = $"PV2_{Guid.NewGuid():N}"[..15] };
         db.Vehicles.AddRange(v1, v2);
 
         var entry1 = new VehicleTreeEntry
         {
             Id = Guid.NewGuid(),
             ResearchTreeVersionId = draft.Id,
+            ResearchTreeId = draft.ResearchTreeId,
             VehicleId = v1.Id,
             TreeRankId = rank.Id,
             RpCost = 1000,
@@ -623,6 +627,7 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         {
             Id = Guid.NewGuid(),
             ResearchTreeVersionId = draft.Id,
+            ResearchTreeId = draft.ResearchTreeId,
             VehicleId = v2.Id,
             TreeRankId = rank.Id,
             RpCost = 2000,
@@ -690,13 +695,14 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         draft.TreeRanks.Add(rank1);
         draft.TreeRanks.Add(rank2);
 
-        var v1 = new Vehicle { Id = Guid.NewGuid(), Name = $"RankTank_{Guid.NewGuid():N}"[..18] };
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = draft.ResearchTreeId, Name = $"RankTank_{Guid.NewGuid():N}"[..18] };
         db.Vehicles.Add(v1);
 
         var entry1 = new VehicleTreeEntry
         {
             Id = Guid.NewGuid(),
             ResearchTreeVersionId = draft.Id,
+            ResearchTreeId = draft.ResearchTreeId,
             VehicleId = v1.Id,
             TreeRankId = rank1.Id,
             RpCost = 1000,
@@ -733,7 +739,7 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
 
         var draft = await db.ResearchTreeVersions.Include(v => v.TreeRanks).FirstAsync(v => v.Status == ResearchTreeVersionStatus.Draft);
         var rank = draft.TreeRanks.First();
-        var vehicle = new Vehicle { Id = Guid.NewGuid(), Name = $"EnumTank_{Guid.NewGuid():N}"[..18] };
+        var vehicle = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = draft.ResearchTreeId, Name = $"EnumTank_{Guid.NewGuid():N}"[..18] };
         db.Vehicles.Add(vehicle);
         await db.SaveChangesAsync();
 

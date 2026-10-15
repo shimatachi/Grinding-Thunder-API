@@ -277,7 +277,18 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<string>("NormalizedName")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("text")
+                        .HasComputedColumnSql("lower(trim(\"Name\"))", true);
+
+                    b.Property<Guid>("ResearchTreeId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ResearchTreeId", "NormalizedName")
+                        .IsUnique();
 
                     b.ToTable("Vehicles");
                 });
@@ -321,6 +332,9 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("FolderParentEntryId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("ResearchTreeId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("ResearchTreeVersionId")
                         .HasColumnType("uuid");
 
@@ -346,7 +360,9 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TreeRankId");
 
-                    b.HasIndex("VehicleId");
+                    b.HasIndex("ResearchTreeId", "ResearchTreeVersionId");
+
+                    b.HasIndex("ResearchTreeId", "VehicleId");
 
                     b.HasIndex("ResearchTreeVersionId", "FolderParentEntryId");
 
@@ -451,6 +467,17 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
                     b.Navigation("ResearchTreeVersion");
                 });
 
+            modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.Vehicle", b =>
+                {
+                    b.HasOne("GrindingThunder.Api.Domain.Entities.ResearchTree", "ResearchTree")
+                        .WithMany("Vehicles")
+                        .HasForeignKey("ResearchTreeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ResearchTree");
+                });
+
             modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.VehiclePrerequisite", b =>
                 {
                     b.HasOne("GrindingThunder.Api.Domain.Entities.VehicleTreeEntry", "PrerequisiteVehicleTreeEntry")
@@ -475,21 +502,23 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.VehicleTreeEntry", b =>
                 {
-                    b.HasOne("GrindingThunder.Api.Domain.Entities.ResearchTreeVersion", "ResearchTreeVersion")
-                        .WithMany("Entries")
-                        .HasForeignKey("ResearchTreeVersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("GrindingThunder.Api.Domain.Entities.TreeRank", "TreeRank")
                         .WithMany("TreeEntries")
                         .HasForeignKey("TreeRankId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GrindingThunder.Api.Domain.Entities.ResearchTreeVersion", "ResearchTreeVersion")
+                        .WithMany("Entries")
+                        .HasForeignKey("ResearchTreeId", "ResearchTreeVersionId")
+                        .HasPrincipalKey("ResearchTreeId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("GrindingThunder.Api.Domain.Entities.Vehicle", "Vehicle")
                         .WithMany("TreeEntries")
-                        .HasForeignKey("VehicleId")
+                        .HasForeignKey("ResearchTreeId", "VehicleId")
+                        .HasPrincipalKey("ResearchTreeId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -530,6 +559,8 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("GrindingThunder.Api.Domain.Entities.ResearchTree", b =>
                 {
+                    b.Navigation("Vehicles");
+
                     b.Navigation("Versions");
                 });
 

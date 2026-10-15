@@ -106,6 +106,7 @@ public class VersionLifecycleService(ApplicationDbContext dbContext) : IVersionL
             clonedEntries.Add(new VehicleTreeEntry
             {
                 Id = entryIdMap[entry.Id],
+                ResearchTreeId = sourceVersion.ResearchTreeId,
                 ResearchTreeVersionId = clonedVersionId,
                 VehicleId = entry.VehicleId,
                 TreeRankId = newRankId,
@@ -256,6 +257,12 @@ public class VersionLifecycleService(ApplicationDbContext dbContext) : IVersionL
         foreach (var entry in version.Entries)
         {
             var vehicleName = entry.Vehicle?.Name ?? entry.VehicleId.ToString();
+
+            if (entry.ResearchTreeId != version.ResearchTreeId ||
+                entry.Vehicle?.ResearchTreeId != version.ResearchTreeId)
+            {
+                errors.Add($"Vehicle '{vehicleName}' does not belong to this version's research tree.");
+            }
 
             if (!rankMap.ContainsKey(entry.TreeRankId))
             {

@@ -151,13 +151,14 @@ internal sealed class CalculatorTestDatabase : IDisposable
         var vehicle = new Vehicle
         {
             Id = Guid.NewGuid(),
+            ResearchTreeId = researchTree.Id,
+            ResearchTree = researchTree,
             Name = name
         };
 
         Context.Vehicles.Add(vehicle);
 
-        // A vehicle only exists in a tree through a versioned tree entry
-        // carrying its rank and RP cost for that version.
+        // Stable identity belongs to the tree; progression state belongs to a version.
         var version = treeVersion ?? Context.ResearchTreeVersions.Local
             .FirstOrDefault(rtv => rtv.ResearchTreeId == researchTree.Id);
 
@@ -172,6 +173,7 @@ internal sealed class CalculatorTestDatabase : IDisposable
         Context.VehicleTreeEntries.Add(new VehicleTreeEntry
         {
             Id = Guid.NewGuid(),
+            ResearchTreeId = researchTree.Id,
             ResearchTreeVersionId = version.Id,
             ResearchTreeVersion = version,
             VehicleId = vehicle.Id,
@@ -203,6 +205,7 @@ internal sealed class CalculatorTestDatabase : IDisposable
         var entry = new VehicleTreeEntry
         {
             Id = Guid.NewGuid(),
+            ResearchTreeId = version.ResearchTreeId,
             ResearchTreeVersionId = version.Id,
             ResearchTreeVersion = version,
             VehicleId = vehicle.Id,

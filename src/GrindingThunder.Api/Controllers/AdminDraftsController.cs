@@ -330,7 +330,7 @@ public class AdminDraftsController(
         [FromBody] AddVehicleTreeEntryRequest request,
         CancellationToken cancellationToken)
     {
-        var (_, error) = await EnsureDraftVersionAsync(versionId, cancellationToken);
+        var (version, error) = await EnsureDraftVersionAsync(versionId, cancellationToken);
         if (error is not null) return error;
 
         if (request is null)
@@ -372,6 +372,11 @@ public class AdminDraftsController(
             return NotFound($"Vehicle '{request.VehicleId}' was not found.");
         }
 
+        if (vehicle.ResearchTreeId != version!.ResearchTreeId)
+        {
+            return BadRequest($"Vehicle '{request.VehicleId}' does not belong to this version's research tree.");
+        }
+
         var rankExists = await _context.TreeRanks
             .AnyAsync(r => r.Id == request.TreeRankId && r.ResearchTreeVersionId == versionId, cancellationToken);
 
@@ -402,6 +407,7 @@ public class AdminDraftsController(
         var entry = new VehicleTreeEntry
         {
             Id = Guid.NewGuid(),
+            ResearchTreeId = version.ResearchTreeId,
             ResearchTreeVersionId = versionId,
             VehicleId = request.VehicleId,
             TreeRankId = request.TreeRankId,

@@ -21,7 +21,9 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
         var vehicles = await _context.Vehicles
             .AsNoTracking()
             .OrderBy(v => v.Name)
-            .Select(v => new VehicleDto(v.Id, v.Name, v.ImageUrl))
+            .Select(v => new VehicleDto(v.Id, v.Name, v.ImageUrl, v.ResearchTreeId,
+                v.ResearchTree.NationId, v.ResearchTree.Nation.Name,
+                v.ResearchTree.VehicleTypeId, v.ResearchTree.VehicleType.Name))
             .ToListAsync(cancellationToken);
 
         return Ok(vehicles);
@@ -35,6 +37,8 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
     {
         var vehicle = await _context.Vehicles
             .AsNoTracking()
+            .Include(v => v.ResearchTree).ThenInclude(t => t.Nation)
+            .Include(v => v.ResearchTree).ThenInclude(t => t.VehicleType)
             .FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
 
         if (vehicle is null)
@@ -42,7 +46,7 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
             return NotFound($"Vehicle '{id}' was not found.");
         }
 
-        return Ok(new VehicleDto(vehicle.Id, vehicle.Name, vehicle.ImageUrl));
+        return Ok(ToDto(vehicle));
     }
 
     [HttpPost]
@@ -58,8 +62,16 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
 
         var trimmedName = request.Name.Trim();
 
+        if (trimmedName.Length > 150) return BadRequest("Name must be at most 150 characters.");
+        if (request.ResearchTreeId == Guid.Empty) return BadRequest("ResearchTreeId is required.");
+        var tree = await _context.ResearchTrees
+            .Include(t => t.Nation).Include(t => t.VehicleType)
+            .SingleOrDefaultAsync(t => t.Id == request.ResearchTreeId, cancellationToken);
+        if (tree is null) return BadRequest($"Research tree '{request.ResearchTreeId}' was not found.");
+
         var exists = await _context.Vehicles
-            .AnyAsync(v => v.Name.ToLower() == trimmedName.ToLower(), cancellationToken);
+            .AnyAsync(v => v.ResearchTreeId == request.ResearchTreeId &&
+                v.Name.Trim().ToLower() == trimmedName.ToLower(), cancellationToken);
 
         if (exists)
         {
@@ -69,14 +81,20 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
         var vehicle = new Vehicle
         {
             Id = Guid.NewGuid(),
+            ResearchTreeId = tree.Id,
+            ResearchTree = tree,
             Name = trimmedName,
             ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim()
         };
 
         _context.Vehicles.Add(vehicle);
-        await _context.SaveChangesAsync(cancellationToken);
+        try { await _context.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateException ex) when (IsDuplicateName(ex))
+        {
+            return Conflict($"Vehicle with name '{trimmedName}' already exists in this research tree.");
+        }
 
-        var dto = new VehicleDto(vehicle.Id, vehicle.Name, vehicle.ImageUrl);
+        var dto = ToDto(vehicle);
         return CreatedAtAction(nameof(GetById), new { id = vehicle.Id }, dto);
     }
 
@@ -101,9 +119,11 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
         }
 
         var trimmedName = request.Name.Trim();
+        if (trimmedName.Length > 150) return BadRequest("Name must be at most 150 characters.");
 
         var duplicate = await _context.Vehicles
-            .AnyAsync(v => v.Id != id && v.Name.ToLower() == trimmedName.ToLower(), cancellationToken);
+            .AnyAsync(v => v.Id != id && v.ResearchTreeId == vehicle.ResearchTreeId &&
+                v.Name.Trim().ToLower() == trimmedName.ToLower(), cancellationToken);
 
         if (duplicate)
         {
@@ -113,10 +133,24 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
         vehicle.Name = trimmedName;
         vehicle.ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim();
 
-        await _context.SaveChangesAsync(cancellationToken);
+        try { await _context.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateException ex) when (IsDuplicateName(ex))
+        {
+            return Conflict($"Vehicle with name '{trimmedName}' already exists in this research tree.");
+        }
 
         return NoContent();
     }
+
+    private static VehicleDto ToDto(Vehicle vehicle) => new(vehicle.Id, vehicle.Name, vehicle.ImageUrl,
+        vehicle.ResearchTreeId, vehicle.ResearchTree.NationId, vehicle.ResearchTree.Nation.Name,
+        vehicle.ResearchTree.VehicleTypeId, vehicle.ResearchTree.VehicleType.Name);
+
+    private static bool IsDuplicateName(DbUpdateException exception) =>
+        exception.InnerException is Npgsql.PostgresException
+        { SqlState: "23505", ConstraintName: "IX_Vehicles_ResearchTreeId_NormalizedName" } ||
+        (exception.InnerException?.Message.Contains(
+            "UNIQUE constraint failed: Vehicles.ResearchTreeId, Vehicles.NormalizedName", StringComparison.Ordinal) ?? false);
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AuthPolicies.RequireAdminRole)]

@@ -4,6 +4,7 @@
 <partial name="/Pages/Catalog/_CatalogNav.cshtml" />
 <div class="page-header"><h1 class="page-title">Create Vehicle</h1></div>
 <div class="card catalog-form mt-3"><div class="card-body"><form method="post"><div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+<div class="mb-3"><label asp-for="Input.ResearchTreeId" class="form-label"></label><select asp-for="Input.ResearchTreeId" class="form-select"><option value="">Select research tree</option>@foreach (var tree in Model.Trees) { <option value="@tree.Id">@tree.NationName / @tree.VehicleTypeName</option> }</select><span asp-validation-for="Input.ResearchTreeId"></span></div>
 <div class="mb-3"><label asp-for="Input.Name" class="form-label"></label><input asp-for="Input.Name" class="form-control" autofocus /><span asp-validation-for="Input.Name"></span></div>
 <div class="mb-3"><label asp-for="Input.ImageUrl" class="form-label"></label><input asp-for="Input.ImageUrl" class="form-control" placeholder="https://…" /><span asp-validation-for="Input.ImageUrl"></span><div class="form-hint">Optional absolute image URL.</div></div>
 <div class="btn-list"><button class="btn btn-primary" type="submit">Create</button><a class="btn" asp-page="Index">Cancel</a></div></form></div></div>

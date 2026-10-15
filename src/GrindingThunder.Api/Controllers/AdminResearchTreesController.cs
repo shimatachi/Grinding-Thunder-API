@@ -142,8 +142,18 @@ public class AdminResearchTreesController(ApplicationDbContext context) : Contro
             return Conflict($"Cannot delete research tree '{id}' because it has associated versions.");
         }
 
+        if (await _context.Vehicles.AnyAsync(v => v.ResearchTreeId == id, cancellationToken))
+        {
+            return Conflict($"Cannot delete research tree '{id}' because it owns vehicles.");
+        }
+
         _context.ResearchTrees.Remove(tree);
-        await _context.SaveChangesAsync(cancellationToken);
+        try { await _context.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23503" } ||
+            (ex.InnerException?.Message.Contains("FOREIGN KEY constraint failed", StringComparison.OrdinalIgnoreCase) ?? false))
+        {
+            return Conflict($"Cannot delete research tree '{id}' because it became referenced by vehicles or versions.");
+        }
 
         return NoContent();
     }

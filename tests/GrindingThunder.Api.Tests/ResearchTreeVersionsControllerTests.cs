@@ -74,7 +74,7 @@ public class ResearchTreeVersionsControllerTests
         var update = database.AddGameUpdate("2.43");
         var version = database.AddResearchTreeVersion(tree, update);
         var rank = database.AddTreeRank(version, 1, 1);
-        var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
+        var veh = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank" };
         database.Context.Vehicles.Add(veh);
         database.AddVehicleTreeEntry(version, veh, rank, 1000);
         await database.SaveChangesAsync();

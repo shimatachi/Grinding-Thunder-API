@@ -127,7 +127,7 @@ public class CatalogIntegrationTests
     {
         { "/Catalog/Nations/Create", "/api/admin/nations", new() { ["Input.Name"] = "Canada" } },
         { "/Catalog/Vehicle-Types/Create", "/api/admin/vehicle-types", new() { ["Input.Name"] = "Ground" } },
-        { "/Catalog/Vehicles/Create", "/api/admin/vehicles", new() { ["Input.Name"] = "Leopard 2A7", ["Input.ImageUrl"] = "https://example.test/leopard.png" } },
+        { "/Catalog/Vehicles/Create", "/api/admin/vehicles", new() { ["Input.ResearchTreeId"] = TestMockApiHandler.ResearchTreeId.ToString(), ["Input.Name"] = "Leopard 2A7", ["Input.ImageUrl"] = "https://example.test/leopard.png" } },
         { "/Catalog/Game-Updates/Create", "/api/admin/game-updates", new() { ["Input.Version"] = "2.51", ["Input.Name"] = "Next Update", ["Input.ReleaseDate"] = "2026-11-01" } },
         { "/Catalog/Research-Trees/Create", "/api/admin/research-trees", new() { ["Input.NationId"] = TestMockApiHandler.NationId.ToString(), ["Input.VehicleTypeId"] = TestMockApiHandler.VehicleTypeId.ToString() } }
     };

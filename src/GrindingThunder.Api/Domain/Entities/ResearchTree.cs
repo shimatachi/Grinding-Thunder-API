@@ -8,5 +8,6 @@ public class ResearchTree
 
     public Nation Nation { get; set; } = null!;
     public VehicleType VehicleType { get; set; } = null!;
+    public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
     public ICollection<ResearchTreeVersion> Versions { get; set; } = new List<ResearchTreeVersion>();
 }

@@ -256,6 +256,7 @@ public class PlayerIntegrationTests(CustomWebApplicationFactory factory) : IClas
         using (var scope = factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            vehicle.ResearchTreeId = (await db.ResearchTrees.FirstAsync()).Id;
             db.Vehicles.Add(vehicle);
             await db.SaveChangesAsync();
         }

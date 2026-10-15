@@ -123,7 +123,8 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
         try
         {
             // 1. Auto-create missing vehicles in Vehicle catalog
-            var catalogVehicles = await _context.Vehicles.ToListAsync(cancellationToken);
+            var catalogVehicles = await _context.Vehicles
+                .Where(v => v.ResearchTreeId == version.ResearchTreeId).ToListAsync(cancellationToken);
             var catalogMap = catalogVehicles.ToDictionary(v => v.Name.Trim().ToLowerInvariant(), v => v);
 
             if (autoCreateMissingVehicles && valContext.AutoCreatedVehicles.Count > 0)
@@ -136,6 +137,7 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
                         var newVehicle = new Vehicle
                         {
                             Id = Guid.NewGuid(),
+                            ResearchTreeId = version.ResearchTreeId,
                             Name = missingName.Trim(),
                             ImageUrl = null
                         };
@@ -210,6 +212,7 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
                     entry = new VehicleTreeEntry
                     {
                         Id = Guid.NewGuid(),
+                        ResearchTreeId = version.ResearchTreeId,
                         ResearchTreeVersionId = versionId,
                         VehicleId = vehicle.Id,
                         TreeRankId = rank.Id,
@@ -323,7 +326,8 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
         var valContext = new ValidationContext();
 
         // 1. Load catalog vehicles and existing draft entities
-        var catalogVehicles = await _context.Vehicles.AsNoTracking().ToListAsync(cancellationToken);
+        var catalogVehicles = await _context.Vehicles.AsNoTracking()
+            .Where(v => v.ResearchTreeId == version.ResearchTreeId).ToListAsync(cancellationToken);
         var catalogMap = catalogVehicles.ToDictionary(v => v.Name.Trim().ToLowerInvariant(), v => v);
 
         var existingRanks = await _context.TreeRanks.AsNoTracking()

@@ -8,12 +8,12 @@ Migrations build the following entities/tables. `Nation` and `VehicleType` are s
 | --- | --- |
 | `Nation` | ID and name; has many `ResearchTree` rows. |
 | `VehicleType` | ID and name (Ground, Aviation, ...); has many `ResearchTree` rows. |
-| `ResearchTree` | Unique Nation + VehicleType combination; has many `ResearchTreeVersion` rows. Deleting a research tree is restricted while versions exist. |
+| `ResearchTree` | Unique Nation + VehicleType combination; owns `Vehicles` and `ResearchTreeVersion` rows. Deletion is restricted while vehicles or versions exist. |
 | `GameUpdate` | ID, unique version string, optional name and release date; has many `ResearchTreeVersion` rows. Deleting a game update is restricted while versions exist. |
 | `ResearchTreeVersion` | Belongs to one `ResearchTree` and one `GameUpdate` (pair is unique); has a `Status` (Draft/Published). Foreign keys from `ResearchTree` and `GameUpdate` use `DeleteBehavior.Restrict` to protect historical snapshot data. |
 | `TreeRank` | Belongs to a `ResearchTreeVersion` (version + rank number is unique); holds `RequiredVehiclesUnlocked`; has many `VehicleTreeEntry` rows. Deleting a version cascades its ranks. |
-| `Vehicle` | Stable identity and presentation metadata: name and optional image URL. Has many `VehicleTreeEntry` rows; owns no tree layout or folder state. |
-| `VehicleTreeEntry` | Version-specific placement: belongs to one `ResearchTreeVersion`, one `Vehicle`, and one `TreeRank` (version + vehicle pair is unique); holds RP/SL costs, acquisition type (`VehicleAcquisitionType`, integer-backed, default `Researchable`), integer tree row/column, and an optional same-version folder-parent entry. |
+| `Vehicle` | Stable identity within exactly one `ResearchTree`: required `ResearchTreeId`, name, optional image URL. Unique `(ResearchTreeId, NormalizedName)` with database-generated `NormalizedName = lower(trim(Name))`. Alternate key `(ResearchTreeId, Id)` supports entry integrity. Has many `VehicleTreeEntry` rows; owns no progression/layout state. Tree deletion is restricted. |
+| `VehicleTreeEntry` | Version-specific placement: belongs to one `ResearchTreeVersion`, one `Vehicle`, and one `TreeRank` (version + vehicle pair is unique). Required `ResearchTreeId` is shared by composite FKs to `Vehicles(ResearchTreeId, Id)` and `ResearchTreeVersions(ResearchTreeId, Id)`, preventing cross-tree entries. Holds RP/SL costs, acquisition type (`VehicleAcquisitionType`, integer-backed, default `Researchable`), integer tree row/column, and an optional same-version folder-parent entry. |
 | `VehiclePrerequisite` | Composite key of vehicle tree entry ID and prerequisite vehicle tree entry ID (`VehicleTreeEntryId`, `PrerequisiteVehicleTreeEntryId`); both reference `VehicleTreeEntry(ResearchTreeVersionId, Id)` via composite foreign keys with shared `ResearchTreeVersionId`, forming version-isolated explicit progression edges. |
 | `AdminAccounts` | Persistent administrator accounts: GUID `Id` primary key, `Username` (max 64), unique index on `NormalizedUsername` (max 64), `PasswordHash` (PBKDF2), `IsActive`, and integer `SecurityStamp`. Has many `AdminAccountRoles` with `DeleteBehavior.Cascade`. |
 | `AdminAccountRoles` | Administrator role assignments: composite primary key `(AdminAccountId, Role)`. `Role` is restricted by check constraint `CK_AdminAccountRoles_SupportedRole` to `('Admin', 'Publisher', 'Editor')`. Foreign key to `AdminAccounts` cascades on account deletion. |
@@ -41,7 +41,7 @@ The `VersionVehicleLayoutAndFolders` migration adds entry layout/folder columns,
 | `Nation`, `VehicleType` | Stable nation and tree-type identities. |
 | `ResearchTree` | One unique Nation + VehicleType combination, conceptually. |
 | `GameUpdate`, `ResearchTreeVersion` | Identify the update and a historical snapshot of a tree; implemented with version-owned ranks, entries, prerequisites, and layout data. |
-| `Vehicle` | Stable vehicle identity across snapshots. |
+| `Vehicle` | Stable vehicle identity within one ResearchTree across its snapshots. |
 | `TreeRank` or equivalent | Version-specific rank and rank-gate configuration. |
 | `VehicleTreeEntry` or equivalent | Version-specific vehicle membership, cost, rank, availability, visual position, and folder/group placement. |
 | Versioned prerequisite edge | Explicit progression dependency within a tree snapshot. |
@@ -49,3 +49,17 @@ The `VersionVehicleLayoutAndFolders` migration adds entry layout/folder columns,
 These concepts have concrete implementations in the current schema. Published versions are immutable historical snapshots: a new game update creates new tree state by cloning an existing version into an editable `Draft` via `IVersionLifecycleService.CloneVersionAsync`, editing the draft, and publishing via `PublishVersionAsync`. Immutability is enforced in `ApplicationDbContext`, rejecting any additions, modifications, or deletions of `ResearchTreeVersion`, `TreeRank`, `VehicleTreeEntry`, and `VehiclePrerequisite` entities belonging to published versions.
 
 Acquisition type is stored on `VehicleTreeEntry.AcquisitionType` as an integer-backed `VehicleAcquisitionType` enum (default `Researchable = 0`). The `AddVehicleAcquisitionType` migration safely adds the non-null integer column with default 0.
+
+## Batch 23 ownership migration and constraints
+
+Vehicle is stable identity within one ResearchTree. Update-specific progression state remains in VehicleTreeEntry.
+
+`20261015142100_ScopeVehiclesToResearchTree` audits each vehicle through its entries and versions. Exactly one distinct tree permits backfill, including vehicles present in several versions of that tree. Zero or multiple trees abort the transaction with a total count and up to 20 vehicle IDs, names, and candidate tree IDs. Duplicate `lower(trim(Name))` values within a tree also abort with IDs rather than merging identities. Resolve reported rows explicitly before retrying; no arbitrary tree selection, vehicle duplication, or player-ownership deletion occurs. The migration locks the source tables against concurrent writes while auditing and backfilling, then makes ownership columns required and installs the constraints.
+
+`Vehicles.ResearchTreeId -> ResearchTrees.Id` uses Restrict, as do entry-to-vehicle and player-to-vehicle references. The existing version-to-entry cascade for deliberate draft deletion remains; no new path cascades from trees to vehicles, versions, or player progress. Published immutability stays enforced in `ApplicationDbContext`. Composite alternate keys on vehicles and versions also make tree ownership immutable for tracked EF entities. No update API reparents vehicles.
+
+The generated normalized-name column makes the unique index authoritative for concurrent API requests and direct SQL. Normalization uses the database's `lower(trim(Name))` semantics. No new package, collation extension, or application-maintained normalization field is required.
+
+Down restores the previous entry foreign keys without changing vehicle IDs or player rows. It refuses to drop ownership while entryless vehicles exist, because their tree mapping could not be recovered on a later Up. Historical migrations remain unchanged; some legacy raw SQL omits trailing semicolons, so the PostgreSQL verifier recreates its baseline using individual migration commands, matching EF's runtime execution.
+
+Run `powershell -NoProfile -File tests/GrindingThunder.Api.Tests/Verify-VehicleOwnershipPostgres.ps1` against the configured development PostgreSQL database. It audits existing pre-Batch-23 data, tests safe/unowned/multi-tree/duplicate fixtures, Up/Down/Up, both composite FKs, uniqueness, required ownership, delete restrictions, stable player IDs, synchronization, and version-specific calculation. Fixtures use private schemas inside rolled-back transactions. It does not migrate the development schema. Batch 23 was additionally applied to development PostgreSQL after the audit passed; an exact before/after comparison preserved existing vehicle identities, entries, versions, ranks, prerequisites, and player ownership. Subsequent live REST checks removed all their fixtures; the existing Development startup initializer added one missing `dev-sample` published version with eight ranks, without modifying any pre-existing records.

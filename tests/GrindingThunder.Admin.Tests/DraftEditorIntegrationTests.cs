@@ -26,6 +26,7 @@ public class DraftEditorIntegrationTests
         Assert.Contains("Rank 1", html);
         Assert.Contains("F-16A", html);
         Assert.Contains("F-4E", html);
+        Assert.DoesNotContain("Other tree vehicle", html);
         Assert.Contains("handler=AddRank", html);
         Assert.Contains("handler=UpdateRank", html);
         Assert.Contains("handler=AddEntry", html);

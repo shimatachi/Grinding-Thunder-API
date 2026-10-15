@@ -171,7 +171,7 @@ public class TechTreeImportServiceTests
         {
             var lifecycle = new VersionLifecycleService(db.Context);
             var rank = db.AddTreeRank(draft, 1, 0);
-            var v = new Vehicle { Id = Guid.NewGuid(), Name = "Sample" };
+            var v = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = draft.ResearchTreeId, Name = "Sample" };
             db.Context.Vehicles.Add(v);
             db.AddVehicleTreeEntry(draft, v, rank, 1000, 1000, 1, 1);
             await db.SaveChangesAsync();
@@ -219,7 +219,7 @@ public class TechTreeImportServiceTests
         using (db)
         {
             var rank = db.AddTreeRank(draft, 1, 0);
-            var existingVeh = new Vehicle { Id = Guid.NewGuid(), Name = "Existing Vehicle" };
+            var existingVeh = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = draft.ResearchTreeId, Name = "Existing Vehicle" };
             db.Context.Vehicles.Add(existingVeh);
             db.AddVehicleTreeEntry(draft, existingVeh, rank, 1000, 1000, treeColumn: 2, treeRow: 3);
             await db.SaveChangesAsync();

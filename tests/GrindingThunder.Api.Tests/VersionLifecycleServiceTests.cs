@@ -25,9 +25,9 @@ public class VersionLifecycleServiceTests
         var rank1 = database.AddTreeRank(sourceVersion, 1, 2);
         var rank2 = database.AddTreeRank(sourceVersion, 2, 2);
 
-        var veh1 = new Vehicle { Id = Guid.NewGuid(), Name = "M2 Light" };
-        var veh2 = new Vehicle { Id = Guid.NewGuid(), Name = "M3 Stuart" };
-        var veh3 = new Vehicle { Id = Guid.NewGuid(), Name = "M3A1 Stuart" };
+        var veh1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "M2 Light" };
+        var veh2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "M3 Stuart" };
+        var veh3 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "M3A1 Stuart" };
         database.Context.Vehicles.AddRange(veh1, veh2, veh3);
 
         var entry1 = database.AddVehicleTreeEntry(sourceVersion, veh1, rank1, 2900, 700, treeColumn: 1, treeRow: 1, acquisitionType: VehicleAcquisitionType.Researchable);
@@ -118,8 +118,8 @@ public class VersionLifecycleServiceTests
 
         var sourceVersion = database.AddResearchTreeVersion(tree, update1);
         var rank = database.AddTreeRank(sourceVersion, 1);
-        var veh1 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank 1" };
-        var veh2 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank 2" };
+        var veh1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank 1" };
+        var veh2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank 2" };
         database.Context.Vehicles.AddRange(veh1, veh2);
         var entry1 = database.AddVehicleTreeEntry(sourceVersion, veh1, rank, 100);
         var entry2 = database.AddVehicleTreeEntry(sourceVersion, veh2, rank, 200);
@@ -203,7 +203,7 @@ public class VersionLifecycleServiceTests
         var update = database.AddGameUpdate("2.43");
         var draft = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(draft, 1, 1);
-        var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
+        var veh = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank" };
         database.Context.Vehicles.Add(veh);
         database.AddVehicleTreeEntry(draft, veh, rank, 1000);
         await database.SaveChangesAsync();
@@ -225,7 +225,7 @@ public class VersionLifecycleServiceTests
         var update = database.AddGameUpdate("2.43");
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1, 1);
-        var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
+        var veh = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank" };
         database.Context.Vehicles.Add(veh);
         database.AddVehicleTreeEntry(version, veh, rank, 1000);
         await database.SaveChangesAsync();
@@ -260,7 +260,7 @@ public class VersionLifecycleServiceTests
         var update = database.AddGameUpdate("2.43");
         var draft = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(draft, 1);
-        var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
+        var veh = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank" };
         database.Context.Vehicles.Add(veh);
         database.AddVehicleTreeEntry(draft, veh, rank, 100);
         await database.SaveChangesAsync();
@@ -285,7 +285,7 @@ public class VersionLifecycleServiceTests
         var update = database.AddGameUpdate("2.43");
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1, 1);
-        var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
+        var veh = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank" };
         database.Context.Vehicles.Add(veh);
         database.AddVehicleTreeEntry(version, veh, rank, 1000);
         await database.SaveChangesAsync();
@@ -308,7 +308,7 @@ public class VersionLifecycleServiceTests
         var update = database.AddGameUpdate("2.43");
         var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
         var rank = database.AddTreeRank(version, 1, 1);
-        var veh = new Vehicle { Id = Guid.NewGuid(), Name = "Tank" };
+        var veh = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank" };
         database.Context.Vehicles.Add(veh);
         var entry = database.AddVehicleTreeEntry(version, veh, rank, 1000);
         await database.SaveChangesAsync();
@@ -333,12 +333,13 @@ public class VersionLifecycleServiceTests
         database.Context.ChangeTracker.Clear();
 
         // 3. Adding a new entry to published version throws
-        var newVeh = new Vehicle { Id = Guid.NewGuid(), Name = "New Tank" };
+        var newVeh = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "New Tank" };
         database.Context.Vehicles.Add(newVeh);
         database.Context.VehicleTreeEntries.Add(new VehicleTreeEntry
         {
             Id = Guid.NewGuid(),
             ResearchTreeVersionId = version.Id,
+            ResearchTreeId = version.ResearchTreeId,
             VehicleId = newVeh.Id,
             TreeRankId = rank.Id,
             RpCost = 500
@@ -365,7 +366,7 @@ public class VersionLifecycleServiceTests
         database.Context.ChangeTracker.Clear();
 
         // 6. Adding a prerequisite to published version throws
-        var veh2 = new Vehicle { Id = Guid.NewGuid(), Name = "Tank 2" };
+        var veh2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank 2" };
         database.Context.Vehicles.Add(veh2);
         // Note: entry2 can't be added directly to published version, so prerequisite cannot be added to published version
         database.Context.VehiclePrerequisites.Add(new VehiclePrerequisite
@@ -383,14 +384,15 @@ public class VersionLifecycleServiceTests
     {
         using var database = new CalculatorTestDatabase();
         var tree1 = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
-        var tree2 = database.AddResearchTree(database.AddNation("Germany"), database.AddVehicleType("Ground"));
+        var nextUpdate = database.AddGameUpdate("2.45");
         var update = database.AddGameUpdate("2.43");
         var version = database.AddResearchTreeVersion(tree1, update, ResearchTreeVersionStatus.Draft);
         await database.SaveChangesAsync();
 
-        // Attempting to modify ResearchTreeId while transitioning to Published
+        // Attempting to modify GameUpdateId while transitioning to Published.
+        // ResearchTreeId is now an alternate-key member and EF rejects reparenting earlier.
         version.Status = ResearchTreeVersionStatus.Published;
-        version.ResearchTreeId = tree2.Id;
+        version.GameUpdateId = nextUpdate.Id;
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => database.SaveChangesAsync());
         Assert.Contains("Cannot modify properties other than Status", exception.Message);

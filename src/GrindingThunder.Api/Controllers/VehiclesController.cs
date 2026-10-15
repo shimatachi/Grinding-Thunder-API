@@ -22,6 +22,11 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
             .Select(v => new
             {
                 v.Id,
+                v.ResearchTreeId,
+                v.ResearchTree.NationId,
+                NationName = v.ResearchTree.Nation.Name,
+                v.ResearchTree.VehicleTypeId,
+                VehicleTypeName = v.ResearchTree.VehicleType.Name,
                 TreeEntries = v.TreeEntries.Select(e => new
                 {
                     e.ResearchTreeVersionId,
@@ -64,6 +69,11 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
             return new
             {
                 v.Id,
+                v.ResearchTreeId,
+                v.NationId,
+                v.NationName,
+                v.VehicleTypeId,
+                v.VehicleTypeName,
                 RankId = singleEntry?.TreeRankId,
                 v.Name,
                 v.ImageUrl,
@@ -110,6 +120,11 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
             .Select(e => new
             {
                 e.Vehicle.Id,
+                e.Vehicle.ResearchTreeId,
+                e.Vehicle.ResearchTree.NationId,
+                NationName = e.Vehicle.ResearchTree.Nation.Name,
+                e.Vehicle.ResearchTree.VehicleTypeId,
+                VehicleTypeName = e.Vehicle.ResearchTree.VehicleType.Name,
                 e.TreeRankId,
                 e.TreeRank.ResearchTreeVersionId,
                 e.Vehicle.Name,

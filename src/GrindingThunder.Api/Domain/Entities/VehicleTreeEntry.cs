@@ -8,6 +8,8 @@ namespace GrindingThunder.Api.Domain.Entities;
 public class VehicleTreeEntry
 {
     public Guid Id { get; set; }
+    // Shared by both composite foreign keys: vehicle and version must share a tree.
+    public Guid ResearchTreeId { get; set; }
     public Guid ResearchTreeVersionId { get; set; }
     public Guid VehicleId { get; set; }
     public Guid TreeRankId { get; set; }

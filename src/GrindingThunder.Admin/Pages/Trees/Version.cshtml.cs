@@ -123,7 +123,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
                 }
 
                 var vehicles = await apiClient.GetVehiclesAsync(cancellationToken);
-                if (vehicles.IsSuccess) Vehicles = vehicles.Value ?? [];
+                if (vehicles.IsSuccess) Vehicles = (vehicles.Value ?? []).Where(v => v.ResearchTreeId == Summary.ResearchTreeId).ToList();
             }
             else
             {

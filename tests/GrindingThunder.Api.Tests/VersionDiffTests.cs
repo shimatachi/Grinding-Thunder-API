@@ -28,9 +28,9 @@ public class VersionDiffTests
         var sourceRank1 = database.AddTreeRank(sourceVersion, 1, 2);
         var targetRank1 = database.AddTreeRank(targetVersion, 1, 3); // modified threshold
 
-        var vCommon = new Vehicle { Id = Guid.NewGuid(), Name = "Common Tank" };
-        var vRemoved = new Vehicle { Id = Guid.NewGuid(), Name = "Removed Tank" };
-        var vAdded = new Vehicle { Id = Guid.NewGuid(), Name = "Added Tank" };
+        var vCommon = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Common Tank" };
+        var vRemoved = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Removed Tank" };
+        var vAdded = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Added Tank" };
         database.Context.Vehicles.AddRange(vCommon, vRemoved, vAdded);
 
         // Source entries

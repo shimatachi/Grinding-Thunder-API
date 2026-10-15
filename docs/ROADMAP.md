@@ -212,47 +212,26 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - Batch 21 identity decisions.
   Result: delivered `PlayerAccounts` and `PlayerUnlockedVehicles` entities via the `AddPlayerAccounts` migration, featuring PBKDF2 hashing, case-insensitive normalized username and email uniqueness, check constraints on preferences (`OptimizationMode`, `AverageRpPerMatch > 0`, `AverageNetSlPerMatch > 0`), and separate JWT audience (`GrindingThunder.Player`) with dedicated `RequirePlayerPolicy`. Unlocked vehicle progress attaches to stable `VehicleId` (cascading on player deletion, restricting catalog vehicle deletion). Implemented atomic full-set progress synchronization (`PUT /api/player/progress`) with optimistic concurrency (`ProgressStamp`). Traversal and calculator endpoints remain anonymous and decoupled, evaluating explicit caller-selected version intersections. Both migrations verified with transactional Up/Down/Up and constraint validation on PostgreSQL.
 
+- **Batch 23 — Tree-scoped vehicle ownership** (status: Completed)
+  Goal: make stable identity belong to exactly one ResearchTree while preserving
+  version-specific progression state and player-owned Vehicle IDs.
+  Result: required tree ownership, tree-scoped normalized-name uniqueness, shared-tree
+  composite entry FKs, guarded data-preserving backfill, ownership-aware vehicle DTOs
+  and creation, scoped import matching/auto-creation, and minimal Admin compatibility.
+  Vehicle is stable identity within one ResearchTree. Update-specific progression
+  state remains in VehicleTreeEntry.
+  Verification: restore/build; all 338 API and 132 Admin tests; PostgreSQL safe,
+  unowned, multi-tree and duplicate fixtures; Up/Down/Up; physical constraints;
+  stable player IDs; live REST vehicle/import checks; development migration applied
+  after a clean ownership audit, preserving all pre-existing progression records.
+  Existing Development startup seed additionally created one missing dev-sample
+  published version with eight ranks; no pre-existing records changed.
+  Full admin workflow redesign remains Batch 24.
+  Dependency: Batch 22.
+
 ---
 
 ## Next
-
-- **Batch 23 — Tree-scoped vehicle ownership** (status: Planned)
-  Goal: make stable vehicle identity belong to exactly one ResearchTree so the
-  core catalog hierarchy becomes Nation -> ResearchTree/category -> Vehicle,
-  while preserving version-specific progression state in VehicleTreeEntry.
-
-  Scope:
-  - add required `ResearchTreeId` ownership to `Vehicle`;
-  - expose `ResearchTree.Vehicles`;
-  - keep `VehicleTreeEntry` as the owner of version-specific RP, SL, rank,
-    acquisition type, layout, folder membership, and prerequisites;
-  - enforce that a VehicleTreeEntry may reference only a Vehicle owned by the
-    same ResearchTree as its ResearchTreeVersion;
-  - change vehicle-name uniqueness from global semantics to tree-scoped semantics;
-  - update vehicle CRUD/API contracts to include ResearchTree ownership;
-  - make import matching and auto-created Vehicles scoped to the selected
-    ResearchTreeVersion's ResearchTree;
-  - preserve `PlayerUnlockedVehicle -> VehicleId` as stable player progression;
-  - preserve calculator, versioning, draft cloning, validation, diff, publishing,
-    prerequisite traversal, and rank-gate behavior;
-  - perform a guarded, data-preserving migration for existing Vehicles.
-
-  Migration requirements:
-  - infer ownership only when an existing Vehicle is associated with exactly one
-    ResearchTree through its VehicleTreeEntries;
-  - do not arbitrarily assign Vehicles referenced by multiple ResearchTrees;
-  - do not silently assign Vehicles with no inferable ResearchTree;
-  - surface ambiguous/unowned rows explicitly instead of guessing;
-  - preserve existing player-owned Vehicle references.
-
-  Out of scope:
-  - full back-office navigation/workflow redesign;
-  - Game Update release-workspace redesign;
-  - Dashboard redesign;
-  - Blazor/Tailwind migration;
-  - player/admin authentication redesign.
-
-  Dependency: Batch 22.
 
 - **Batch 24 — Nation -> Category -> Vehicle admin workflow** (status: Planned)
   Goal: reorganize the back office around the domain hierarchy

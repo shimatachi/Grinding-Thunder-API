@@ -9,7 +9,7 @@ public class CatalogIntegrationTests
     [Theory]
     [InlineData("/Catalog/Nations", "USA")]
     [InlineData("/Catalog/Vehicle-Types", "Aviation")]
-    [InlineData("/Catalog/Vehicles", "F-16A")]
+    [InlineData("/Trees/11111111-1111-1111-1111-111111111111/55555555-5555-5555-5555-555555555555/Vehicles", "F-16A")]
     [InlineData("/Catalog/Game-Updates", "2.50")]
     [InlineData("/Catalog/Research-Trees", "USA")]
     public async Task CatalogList_RendersApiData(string path, string expectedText)
@@ -94,7 +94,7 @@ public class CatalogIntegrationTests
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
         await LoginAsync(client);
-        var path = $"/Catalog/Vehicles/{TestMockApiHandler.VehicleId}/Delete";
+        var path = $"/Trees/{TestMockApiHandler.NationId}/{TestMockApiHandler.ResearchTreeId}/Vehicles/{TestMockApiHandler.VehicleId}/Delete";
         var form = await client.GetAsync(path);
         var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(form);
         factory.MockApiHandler.ConflictNextDelete = true;
@@ -127,7 +127,7 @@ public class CatalogIntegrationTests
     {
         { "/Catalog/Nations/Create", "/api/admin/nations", new() { ["Input.Name"] = "Canada" } },
         { "/Catalog/Vehicle-Types/Create", "/api/admin/vehicle-types", new() { ["Input.Name"] = "Ground" } },
-        { "/Catalog/Vehicles/Create", "/api/admin/vehicles", new() { ["Input.ResearchTreeId"] = TestMockApiHandler.ResearchTreeId.ToString(), ["Input.Name"] = "Leopard 2A7", ["Input.ImageUrl"] = "https://example.test/leopard.png" } },
+        { $"/Trees/{TestMockApiHandler.NationId}/{TestMockApiHandler.ResearchTreeId}/Vehicles/Create", "/api/admin/vehicles", new() { ["Input.Name"] = "Leopard 2A7", ["Input.ImageUrl"] = "https://example.test/leopard.png" } },
         { "/Catalog/Game-Updates/Create", "/api/admin/game-updates", new() { ["Input.Version"] = "2.51", ["Input.Name"] = "Next Update", ["Input.ReleaseDate"] = "2026-11-01" } },
         { "/Catalog/Research-Trees/Create", "/api/admin/research-trees", new() { ["Input.NationId"] = TestMockApiHandler.NationId.ToString(), ["Input.VehicleTypeId"] = TestMockApiHandler.VehicleTypeId.ToString() } }
     };
@@ -136,7 +136,7 @@ public class CatalogIntegrationTests
     {
         { $"/Catalog/Nations/{TestMockApiHandler.NationId}/Edit", $"/api/admin/nations/{TestMockApiHandler.NationId}", new() { ["Input.Name"] = "United States" } },
         { $"/Catalog/Vehicle-Types/{TestMockApiHandler.VehicleTypeId}/Edit", $"/api/admin/vehicle-types/{TestMockApiHandler.VehicleTypeId}", new() { ["Input.Name"] = "Military Aviation" } },
-        { $"/Catalog/Vehicles/{TestMockApiHandler.VehicleId}/Edit", $"/api/admin/vehicles/{TestMockApiHandler.VehicleId}", new() { ["Input.Name"] = "F-16A ADF", ["Input.ImageUrl"] = "https://example.test/f16-adf.png" } },
+        { $"/Trees/{TestMockApiHandler.NationId}/{TestMockApiHandler.ResearchTreeId}/Vehicles/{TestMockApiHandler.VehicleId}/Edit", $"/api/admin/vehicles/{TestMockApiHandler.VehicleId}", new() { ["Input.Name"] = "F-16A ADF", ["Input.ImageUrl"] = "https://example.test/f16-adf.png" } },
         { $"/Catalog/Game-Updates/{TestMockApiHandler.GameUpdateId}/Edit", $"/api/admin/game-updates/{TestMockApiHandler.GameUpdateId}", new() { ["Input.Version"] = "2.50.1", ["Input.Name"] = "Test Update Revised", ["Input.ReleaseDate"] = "2026-10-13" } }
     };
 

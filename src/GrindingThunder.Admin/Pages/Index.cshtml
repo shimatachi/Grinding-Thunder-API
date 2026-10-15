@@ -15,10 +15,10 @@ else
         <dl class="row"><dt class="col-5">Username</dt><dd class="col-7" id="session-username">@Model.Username</dd><dt class="col-5">Granted roles</dt><dd class="col-7" id="session-roles">@string.Join(", ", Model.LocalRoles)</dd><dt class="col-5">API identity</dt><dd class="col-7">@(Model.ApiUser?.Username ?? "Unverified")</dd><dt class="col-5">Backend URL</dt><dd class="col-7"><code>@Model.ApiBaseUrl</code></dd></dl>
     </div></div></div>
     <div class="col-md-6"><div class="card h-100"><div class="card-header"><h2 class="card-title">Back-Office Modules</h2></div><div class="list-group list-group-flush">
-        <a class="list-group-item list-group-item-action" asp-page="/Catalog"><strong>Vehicle Catalog</strong><div class="text-secondary small">Nations, vehicle types, vehicles, updates, and research trees</div></a>
-        <a class="list-group-item list-group-item-action" asp-page="/Trees"><strong>Tech Tree Versions</strong><div class="text-secondary small">Drafts, ranks, entries, layout, and prerequisites</div></a>
+        <a class="list-group-item list-group-item-action" asp-page="/Trees"><strong>Tech Trees</strong><div class="text-secondary small">Choose a nation and category to manage vehicles and versions</div></a>
         @if (User.IsInRole("Editor") || User.IsInRole("Admin"))
         {
+            <a class="list-group-item list-group-item-action" asp-page="/Administration"><strong>Administration</strong><div class="text-secondary small">Nations, categories, and back-office access</div></a>
             <a class="list-group-item list-group-item-action" asp-page="/Import"><strong>Draft data import</strong><div class="text-secondary small">Preview and commit CSV, TSV, or XLSX data</div></a>
         }
     </div></div></div>

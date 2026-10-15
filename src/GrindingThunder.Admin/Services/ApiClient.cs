@@ -160,6 +160,9 @@ public class ApiClient(HttpClient httpClient) : IApiClient
     public Task<ApiResponse<IReadOnlyList<VehicleDto>>> GetVehiclesAsync(CancellationToken cancellationToken = default) =>
         GetListAsync<VehicleDto>("api/admin/vehicles", cancellationToken);
 
+    public Task<ApiResponse<IReadOnlyList<VehicleDto>>> GetTreeVehiclesAsync(Guid researchTreeId, CancellationToken cancellationToken = default) =>
+        GetListAsync<VehicleDto>($"api/admin/vehicles/tree/{researchTreeId}", cancellationToken);
+
     public Task<ApiResponse<VehicleDto>> GetVehicleAsync(Guid id, CancellationToken cancellationToken = default) =>
         GetAsync<VehicleDto>($"api/admin/vehicles/{id}", cancellationToken);
 

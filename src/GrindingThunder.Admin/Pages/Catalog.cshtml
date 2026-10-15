@@ -1,18 +1,2 @@
 @page "/Catalog"
 @model GrindingThunder.Admin.Pages.CatalogModel
-@{
-    ViewData["Title"] = "Catalog";
-}
-
-<div class="page-header">
-    <div class="page-header d-print-none"><div><h1 class="page-title">Catalog Management</h1><div class="text-secondary mt-1">Manage stable catalog data used by research-tree versions.</div></div></div>
-</div>
-<div class="card mt-3">
-    <div class="list-group list-group-flush">
-        <a class="list-group-item list-group-item-action" asp-page="/Catalog/Nations/Index"><strong>Nations</strong><div class="text-secondary small">Country catalog</div></a>
-        <a class="list-group-item list-group-item-action" asp-page="/Catalog/VehicleTypes/Index"><strong>Vehicle Types</strong><div class="text-secondary small">Aviation, ground, naval, and other categories</div></a>
-        <a class="list-group-item list-group-item-action" asp-page="/Catalog/Vehicles/Index"><strong>Vehicles</strong><div class="text-secondary small">Stable vehicle identities and image URLs</div></a>
-        <a class="list-group-item list-group-item-action" asp-page="/Catalog/GameUpdates/Index"><strong>Game Updates</strong><div class="text-secondary small">Version and release metadata</div></a>
-        <a class="list-group-item list-group-item-action" asp-page="/Catalog/ResearchTrees/Index"><strong>Research Trees</strong><div class="text-secondary small">Nation and vehicle-type combinations</div></a>
-    </div>
-</div>

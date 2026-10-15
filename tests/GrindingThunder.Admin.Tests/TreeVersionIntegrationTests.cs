@@ -28,7 +28,7 @@ public class TreeVersionIntegrationTests
     }
 
     [Fact]
-    public async Task TreesIndex_WithoutSelection_DefaultsToFirstTree()
+    public async Task TreesIndex_WithoutSelection_ListsNationsWithoutSelectingATree()
     {
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
@@ -39,8 +39,9 @@ public class TreeVersionIntegrationTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var html = await response.Content.ReadAsStringAsync();
         Assert.Contains("USA", html);
-        Assert.Contains("Aviation", html);
-        Assert.Contains("2.50", html);
+        Assert.Contains("Germany", html);
+        Assert.DoesNotContain("2.50", html);
+        Assert.DoesNotContain("handler=CreateDraft", html);
     }
 
     [Theory]
@@ -51,7 +52,7 @@ public class TreeVersionIntegrationTests
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
         await LoginAsync(client, username);
-        var form = await client.GetAsync("/Trees");
+        var form = await client.GetAsync($"/Trees?researchTreeId={TestMockApiHandler.ResearchTreeId}");
         var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(form);
 
         var response = await client.PostAsync("/Trees?handler=CreateDraft", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -73,7 +74,7 @@ public class TreeVersionIntegrationTests
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
         await LoginAsync(client);
-        var form = await client.GetAsync("/Trees");
+        var form = await client.GetAsync($"/Trees?researchTreeId={TestMockApiHandler.ResearchTreeId}");
         var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(form);
         factory.MockApiHandler.ConflictNextCatalogMutation = true;
 
@@ -99,7 +100,7 @@ public class TreeVersionIntegrationTests
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
         await LoginAsync(client, username);
-        var form = await client.GetAsync("/Trees");
+        var form = await client.GetAsync($"/Trees?researchTreeId={TestMockApiHandler.ResearchTreeId}");
         var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(form);
 
         var response = await client.PostAsync("/Trees?handler=Clone", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -122,7 +123,7 @@ public class TreeVersionIntegrationTests
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
         await LoginAsync(client);
-        var form = await client.GetAsync("/Trees");
+        var form = await client.GetAsync($"/Trees?researchTreeId={TestMockApiHandler.ResearchTreeId}");
         var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(form);
 
         var response = await client.PostAsync("/Trees?handler=Delete", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -144,7 +145,7 @@ public class TreeVersionIntegrationTests
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
         await LoginAsync(client);
-        var form = await client.GetAsync("/Trees");
+        var form = await client.GetAsync($"/Trees?researchTreeId={TestMockApiHandler.ResearchTreeId}");
         var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(form);
 
         var response = await client.PostAsync("/Trees?handler=Delete", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -184,7 +185,7 @@ public class TreeVersionIntegrationTests
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
         await LoginAsync(client, username);
-        var page = await client.GetAsync("/Trees");
+        var page = await client.GetAsync($"/Trees?researchTreeId={TestMockApiHandler.ResearchTreeId}");
         var html = await page.Content.ReadAsStringAsync();
         Assert.DoesNotContain("handler=Delete", html);
         Assert.Equal(username == "editor", html.Contains("handler=CreateDraft"));
@@ -212,7 +213,7 @@ public class TreeVersionIntegrationTests
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
         await LoginAsync(client, "publisher");
-        var page = await client.GetAsync("/Trees");
+        var page = await client.GetAsync($"/Trees?researchTreeId={TestMockApiHandler.ResearchTreeId}");
         var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(page);
         factory.MockApiHandler.RecordedRequests.Clear();
 
@@ -281,7 +282,7 @@ public class TreeVersionIntegrationTests
     [Theory]
     [InlineData("admin")]
     [InlineData("editor")]
-    public async Task EditorAndAdmin_TreesIndex_UsesSecuredAdminEndpoints(string username)
+    public async Task EditorAndAdmin_VersionsWorkspace_LoadsUpdatesAndPublicTreeContext(string username)
     {
         using var factory = new AdminWebApplicationFactory();
         using var client = factory.CreateClient(ClientOptions());
@@ -292,7 +293,7 @@ public class TreeVersionIntegrationTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains(factory.MockApiHandler.RecordedRequests, request =>
-            request.RequestUri?.AbsolutePath == "/api/admin/research-trees");
+            request.RequestUri?.AbsolutePath == "/api/nations");
         Assert.Contains(factory.MockApiHandler.RecordedRequests, request =>
             request.RequestUri?.AbsolutePath == "/api/admin/game-updates");
     }

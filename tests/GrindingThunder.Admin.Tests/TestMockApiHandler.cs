@@ -7,6 +7,10 @@ namespace GrindingThunder.Admin.Tests;
 public class TestMockApiHandler : HttpMessageHandler
 {
     public static readonly Guid NationId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+    public static readonly Guid OtherNationId = Guid.Parse("11111112-1111-1112-1112-111111111112");
+    public static readonly Guid OtherTreeId = Guid.Parse("55555556-5555-5556-5556-555555555556");
+    public static readonly Guid GroundTypeId = Guid.Parse("22222223-2222-2223-2223-222222222223");
+    public static readonly Guid OtherVehicleId = Guid.Parse("33333335-3333-3335-3335-333333333335");
     public static readonly Guid VehicleTypeId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     public static readonly Guid VehicleId = Guid.Parse("33333333-3333-3333-3333-333333333333");
     public static readonly Guid VehicleId2 = Guid.Parse("33333334-3333-3334-3334-333333333334");
@@ -21,6 +25,7 @@ public class TestMockApiHandler : HttpMessageHandler
     public static readonly Guid EntryId2 = Guid.Parse("9999999a-9999-999a-999a-99999999999a");
     public static readonly Guid AdminAccountId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
+    public List<(string Path, string Body)> RecordedJsonRequests { get; } = [];
     public List<HttpRequestMessage> RecordedRequests { get; } = [];
     public bool ConflictNextCatalogMutation { get; set; }
     public bool ConflictNextDelete { get; set; }
@@ -35,6 +40,8 @@ public class TestMockApiHandler : HttpMessageHandler
         RecordedRequests.Add(request);
 
         var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+        if (request.Content?.Headers.ContentType?.MediaType == "application/json")
+            RecordedJsonRequests.Add((path, await request.Content.ReadAsStringAsync(cancellationToken)));
 
         if (request.Method == HttpMethod.Post && path.EndsWith("/api/auth/login", StringComparison.OrdinalIgnoreCase))
         {
@@ -129,6 +136,11 @@ public class TestMockApiHandler : HttpMessageHandler
                             }
                         }
                     }
+                },
+                new
+                {
+                    id = OtherNationId, name = "Germany",
+                    researchTrees = new object[] { new { id = OtherTreeId, vehicleTypeId = GroundTypeId, vehicleTypeName = "Ground", versions = Array.Empty<object>() } }
                 }
             });
         }
@@ -239,18 +251,31 @@ public class TestMockApiHandler : HttpMessageHandler
 
         if (path.Equals("/api/admin/vehicle-types", StringComparison.OrdinalIgnoreCase))
         {
-            if (request.Method == HttpMethod.Get) return JsonResponse(HttpStatusCode.OK, new[] { new { id = VehicleTypeId, name = "Aviation" } });
+            if (request.Method == HttpMethod.Get) return JsonResponse(HttpStatusCode.OK, new[] { new { id = VehicleTypeId, name = "Aviation" }, new { id = GroundTypeId, name = "Ground" } });
             if (request.Method == HttpMethod.Post) return JsonResponse(HttpStatusCode.Created, new { id = VehicleTypeId, name = "Aviation" });
         }
         if (path.Equals($"/api/admin/vehicle-types/{VehicleTypeId}", StringComparison.OrdinalIgnoreCase))
             return EntityResponse(request, new { id = VehicleTypeId, name = "Aviation" });
+
+        if (request.Method == HttpMethod.Get && path.StartsWith("/api/admin/vehicles/tree/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!Guid.TryParse(path.Split('/').Last(), out var treeId) || (treeId != ResearchTreeId && treeId != OtherTreeId))
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            using var all = await HandleCatalogRequestAsync(request, "/api/admin/vehicles");
+            using var doc = JsonDocument.Parse(await all.Content.ReadAsStringAsync());
+            return JsonResponse(HttpStatusCode.OK, doc.RootElement.EnumerateArray()
+                .Where(v => v.GetProperty("researchTreeId").GetGuid() == treeId).ToArray());
+        }
+        if (path.Equals($"/api/admin/vehicles/{OtherVehicleId}", StringComparison.OrdinalIgnoreCase))
+            return EntityResponse(request, new { id = OtherVehicleId, name = "Other tree vehicle", imageUrl = (string?)null,
+                researchTreeId = OtherTreeId, nationId = OtherNationId, nationName = "Germany", vehicleTypeId = GroundTypeId, vehicleTypeName = "Ground" });
 
         if (path.Equals("/api/admin/vehicles", StringComparison.OrdinalIgnoreCase))
         {
             if (request.Method == HttpMethod.Get) return JsonResponse(HttpStatusCode.OK, new object[] {
                 new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
                 new { id = VehicleId2, name = "F-4E", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
-                new { id = Guid.Parse("33333335-3333-3335-3335-333333333335"), name = "Other tree vehicle", imageUrl = (string?)null, researchTreeId = Guid.Parse("55555556-5555-5556-5556-555555555556"), nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Ground" }
+                new { id = OtherVehicleId, name = "Other tree vehicle", imageUrl = (string?)null, researchTreeId = OtherTreeId, nationId = OtherNationId, nationName = "Germany", vehicleTypeId = GroundTypeId, vehicleTypeName = "Ground" }
             });
             if (request.Method == HttpMethod.Post)
             {
@@ -652,6 +677,8 @@ public class TestMockApiHandler : HttpMessageHandler
 
     private static string GetRequiredPolicy(HttpRequestMessage request, string path)
     {
+        if (request.Method == HttpMethod.Get && path.StartsWith("/api/admin/vehicles/tree/", StringComparison.OrdinalIgnoreCase))
+            return "AdminRead";
         if (path.StartsWith("/api/admin/accounts", StringComparison.OrdinalIgnoreCase))
         {
             return "RequireAdminRole";
@@ -678,6 +705,7 @@ public class TestMockApiHandler : HttpMessageHandler
 
     private static bool IsAuthorized(string? role, string requiredPolicy) => requiredPolicy switch
     {
+        "AdminRead" => role is "Admin" or "Editor" or "Publisher",
         "RequireAdminRole" => role == "Admin",
         "RequirePublisherRole" => role == "Publisher" || role == "Admin",
         "RequireEditorRole" => role == "Editor" || role == "Admin",

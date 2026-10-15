@@ -36,9 +36,6 @@ public class NameInputModel
 
 public class VehicleInputModel : NameInputModel
 {
-    [Display(Name = "Research tree")]
-    public Guid ResearchTreeId { get; set; }
-
     [Url(ErrorMessage = "Image URL must be a valid absolute URL.")]
     [Display(Name = "Image URL")]
     public string? ImageUrl { get; set; }

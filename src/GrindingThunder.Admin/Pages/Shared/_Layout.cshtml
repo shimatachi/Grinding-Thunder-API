@@ -42,15 +42,20 @@
                     <div class="container-xl">
                         <ul class="navbar-nav">
                             <li class="nav-item @(currentPage == "/Index" ? "active" : "")"><a class="nav-link" asp-page="/Index">Dashboard</a></li>
-                            <li class="nav-item @(currentPage.StartsWith("/Catalog", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><a class="nav-link" asp-page="/Catalog">Catalog</a></li>
-                            <li class="nav-item @(currentPage.Equals("/Trees", StringComparison.OrdinalIgnoreCase) || currentPage.StartsWith("/Trees/", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><a class="nav-link" asp-page="/Trees">Tech Trees</a></li>
+                            <li class="nav-item @(currentPage.Equals("/Trees", StringComparison.OrdinalIgnoreCase) || currentPage.StartsWith("/Trees/", StringComparison.OrdinalIgnoreCase) || currentPage.StartsWith("/Catalog/Vehicles", StringComparison.OrdinalIgnoreCase) || currentPage.StartsWith("/Catalog/ResearchTrees", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><a class="nav-link" asp-page="/Trees" asp-route-nationId="" asp-route-researchTreeId="">Tech Trees</a></li>
                             @if (User.IsInRole("Editor") || User.IsInRole("Admin"))
                             {
                                 <li class="nav-item @(currentPage == "/Import" ? "active" : "")"><a class="nav-link" asp-page="/Import">Import</a></li>
-                            }
-                            @if (User.IsInRole("Admin"))
-                            {
-                                <li class="nav-item @(currentPage.StartsWith("/Accounts", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><a class="nav-link" asp-page="/Accounts/Index">Accounts</a></li>
+                                <li class="nav-item @(currentPage.StartsWith("/Catalog/GameUpdates", StringComparison.OrdinalIgnoreCase) ? "active" : "")"><a class="nav-link" asp-page="/Catalog/GameUpdates/Index">Game Updates</a></li>
+                                <li class="nav-item dropdown @(currentPage == "/Administration" || currentPage.StartsWith("/Catalog/Nations", StringComparison.OrdinalIgnoreCase) || currentPage.StartsWith("/Catalog/VehicleTypes", StringComparison.OrdinalIgnoreCase) || currentPage.StartsWith("/Accounts", StringComparison.OrdinalIgnoreCase) ? "active" : "")">
+                                    <a class="nav-link dropdown-toggle" href="#administration-menu" data-bs-toggle="dropdown" role="button" aria-expanded="false">Administration</a>
+                                    <div class="dropdown-menu" id="administration-menu">
+                                        <a class="dropdown-item" asp-page="/Administration">Overview</a>
+                                        <a class="dropdown-item" asp-page="/Catalog/Nations/Index">Nations</a>
+                                        <a class="dropdown-item" asp-page="/Catalog/VehicleTypes/Index">Categories</a>
+                                        @if (User.IsInRole("Admin")) { <a class="dropdown-item" asp-page="/Accounts/Index">Admin Accounts</a> }
+                                    </div>
+                                </li>
                             }
                         </ul>
                     </div>

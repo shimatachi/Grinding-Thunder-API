@@ -28,7 +28,14 @@ The backend is one ASP.NET Core `.NET 10` project located under `src/GrindingThu
 - `POST /api/admin/vehicles` now requires `{ researchTreeId, name, imageUrl? }`. Omitted/empty or unknown ownership returns 400; a normalized duplicate within the tree returns 409. This intentionally replaces creation of globally unowned vehicles. `PUT` continues accepting name/image only, preserving stable ownership.
 - Admin vehicle DTOs and public vehicle projections add `researchTreeId`, `nationId`, `nationName`, `vehicleTypeId`, and `vehicleTypeName`. Existing public IDs and version-specific/flat fields keep their meanings; entities are never serialized directly.
 - Adding a vehicle entry from another tree returns 400 before saving. PostgreSQL independently rejects invalid entries through composite foreign keys.
-- Admin compatibility changes are limited to matching DTOs, a tree selector on vehicle creation, ownership labels in the existing vehicle list, and filtering the draft vehicle picker to its tree. The Dashboard and navigation are unchanged; Batch 24 owns the contextual back-office workflow.
+- Batch 23 initially provided matching DTOs, a tree selector on vehicle creation, ownership labels, and a tree-filtered draft vehicle picker. Batch 24 replaces the vehicle ownership selector with the contextual workflow below.
+
+## Batch 24 contextual back office
+
+- `/Trees` lists nations, `/Trees/{nationId}` lists enabled ResearchTree categories and offers missing VehicleTypes to Editor/Admin users, and `/Trees/{nationId}/{researchTreeId}` lists that tree's versions. The existing version detail, import, validation, comparison, and publication workflows keep their semantics. Old `researchTreeId` query bookmarks remain readable.
+- Vehicle pages use `/Trees/{nationId}/{researchTreeId}/Vehicles` and nested Create/Edit/Delete routes. Shared `TreeContextPageModel` checks the nation/tree pair through `IApiClient`; edit/delete additionally verify the vehicle's owner before sending a mutation. Route-bound IDs prevent posted form values from replacing ownership. Name/image input contains no ownership property, and updates still send only name/image.
+- `GET /api/admin/vehicles/tree/{researchTreeId}` is the only new API endpoint. It returns stable vehicle DTOs filtered in the database, including identities without version entries, and permits Admin, Editor, and Publisher roles. Unknown trees return 404; empty trees return an empty list. Existing global catalog endpoints and mutation policies retain their authorization. Reusing the public vehicle-tree projection would omit identities with no version entries, while the global vehicle projection also loads unrelated snapshot data.
+- Administration groups existing nation/category screens and Admin-only accounts; Game Updates remains separate. The Dashboard changes only module navigation. Shared breadcrumbs and Vehicles/Versions links retain context, including return navigation from version detail and comparison screens. No database, domain, dependency, or project-boundary changes are needed; the Admin client remains HTTP-only.
 
 ## TARGET — direction
 

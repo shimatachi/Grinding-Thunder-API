@@ -25,6 +25,63 @@ public class VehicleOwnershipApiTests(CustomWebApplicationFactory factory)
         return await _client.SendAsync(request);
     }
 
+    [Theory]
+    [InlineData("admin", "AdminPass123!")]
+    [InlineData("editor", "EditorPass123!")]
+    [InlineData("publisher", "PublisherPass123!")]
+    public async Task TreeVehicleBrowsing_IncludesUnversionedIdentitiesAndOnlySelectedTree(string username, string password)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var trees = await db.ResearchTrees.Take(2).ToListAsync();
+        var local = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = trees[0].Id, Name = $"New local {Guid.NewGuid():N}" };
+        var foreign = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = trees[1].Id, Name = $"Foreign {Guid.NewGuid():N}" };
+        db.Vehicles.AddRange(local, foreign);
+        await db.SaveChangesAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/admin/vehicles/tree/{trees[0].Id}");
+        request.Headers.Authorization = new("Bearer", await factory.GetTokenAsync(username, password));
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var vehicles = (await response.Content.ReadFromJsonAsync<List<VehicleDto>>())!;
+        Assert.Contains(vehicles, v => v.Id == local.Id);
+        Assert.DoesNotContain(vehicles, v => v.Id == foreign.Id);
+        Assert.All(vehicles, v => Assert.Equal(trees[0].Id, v.ResearchTreeId));
+        Assert.False(await db.VehicleTreeEntries.AnyAsync(e => e.VehicleId == local.Id));
+    }
+
+    [Fact]
+    public async Task TreeVehicleBrowsing_RejectsAnonymousAndUnknownTree_AndSupportsEmptyTrees()
+    {
+        var missing = Guid.NewGuid();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync($"/api/admin/vehicles/tree/{missing}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await SendAsync(HttpMethod.Get, $"/api/admin/vehicles/tree/{missing}")).StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var nation = new Nation { Id = Guid.NewGuid(), Name = $"Empty {Guid.NewGuid():N}" };
+        var type = await db.VehicleTypes.FirstAsync();
+        var tree = new ResearchTree { Id = Guid.NewGuid(), Nation = nation, VehicleTypeId = type.Id };
+        db.ResearchTrees.Add(tree);
+        await db.SaveChangesAsync();
+        var response = await SendAsync(HttpMethod.Get, $"/api/admin/vehicles/tree/{tree.Id}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty((await response.Content.ReadFromJsonAsync<List<VehicleDto>>())!);
+    }
+
+    [Fact]
+    public async Task Publisher_ScopedReadAccessDoesNotAllowGlobalCatalogAccessOrMutations()
+    {
+        var token = await factory.GetTokenAsync("publisher", "PublisherPass123!");
+        foreach (var method in new[] { HttpMethod.Get, HttpMethod.Post, HttpMethod.Put, HttpMethod.Delete })
+        {
+            var path = method == HttpMethod.Put || method == HttpMethod.Delete ? $"/api/admin/vehicles/{Guid.NewGuid()}" : "/api/admin/vehicles";
+            using var request = new HttpRequestMessage(method, path);
+            request.Headers.Authorization = new("Bearer", token);
+            if (method == HttpMethod.Post || method == HttpMethod.Put) request.Content = JsonContent.Create(new { name = "Forbidden", researchTreeId = Guid.NewGuid() });
+            Assert.Equal(HttpStatusCode.Forbidden, (await _client.SendAsync(request)).StatusCode);
+        }
+    }
+
     [Fact]
     public async Task VehicleCreate_RequiresExistingTree_AndReturnsOwnershipContext()
     {

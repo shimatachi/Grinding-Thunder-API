@@ -1,0 +1,12 @@
+@model GrindingThunder.Admin.Models.ResearchTreeDto
+<nav aria-label="Breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Trees" asp-route-nationId="" asp-route-researchTreeId="">Tech Trees</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Trees" asp-route-nationId="@Model.NationId" asp-route-researchTreeId="">@Model.NationName</a></li>
+        <li class="breadcrumb-item active">@Model.VehicleTypeName</li>
+    </ol>
+</nav>
+<div class="btn-list mb-3">
+    <a class="btn btn-outline-primary" asp-page="/Catalog/Vehicles/Index" asp-route-nationId="@Model.NationId" asp-route-researchTreeId="@Model.Id">Vehicles</a>
+    <a class="btn btn-outline-primary" asp-page="/Trees" asp-route-nationId="@Model.NationId" asp-route-researchTreeId="@Model.Id">Versions</a>
+</div>

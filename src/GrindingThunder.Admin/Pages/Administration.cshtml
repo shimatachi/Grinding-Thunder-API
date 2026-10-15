@@ -1,0 +1,12 @@
+@page "/Administration"
+@model GrindingThunder.Admin.Pages.AdministrationModel
+@{ ViewData["Title"] = "Administration"; }
+<div class="page-header"><h1 class="page-title">Administration</h1><div class="text-secondary">Manage master reference data and back-office access.</div></div>
+<div class="card mt-3"><div class="list-group list-group-flush">
+    <a class="list-group-item list-group-item-action" asp-page="/Catalog/Nations/Index"><strong>Nations</strong><div class="text-secondary small">Master nation list</div></a>
+    <a class="list-group-item list-group-item-action" asp-page="/Catalog/VehicleTypes/Index"><strong>Categories</strong><div class="text-secondary small">Master vehicle types available to each nation</div></a>
+    @if (User.IsInRole("Admin"))
+    {
+        <a class="list-group-item list-group-item-action" asp-page="/Accounts/Index"><strong>Admin Accounts</strong><div class="text-secondary small">Back-office accounts and roles</div></a>
+    }
+</div></div>

@@ -8,6 +8,7 @@ namespace GrindingThunder.Admin.Pages.Trees;
 [Authorize]
 public class DiffModel(IApiClient apiClient) : PageModel
 {
+    public Guid? NationId { get; private set; }
     public Guid ResearchTreeId { get; private set; }
     public Guid SourceVersionId { get; private set; }
     public Guid TargetVersionId { get; private set; }
@@ -35,6 +36,7 @@ public class DiffModel(IApiClient apiClient) : PageModel
         }
 
         TreeLabel = $"{match.nation.Name} / {match.tree.VehicleTypeName}";
+        NationId = match.nation.Id;
         Versions = match.tree.Versions.OrderByDescending(version => version.UpdateVersion, StringComparer.OrdinalIgnoreCase).ToList();
         SourceVersionId = sourceVersionId ?? Guid.Empty;
         TargetVersionId = targetVersionId ?? Guid.Empty;

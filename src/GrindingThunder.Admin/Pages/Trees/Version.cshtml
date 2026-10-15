@@ -1,6 +1,7 @@
 @page "/Trees/Version/{versionId:guid}"
 @model GrindingThunder.Admin.Pages.Trees.VersionModel
 @{ ViewData["Title"] = "Research Tree Version"; }
+@if (Model.Tree is not null) { <partial name="/Pages/Trees/_TreeNav.cshtml" model="Model.Tree" /> }
 <div class="page-header"><div class="row align-items-center">
     <div class="col">
         <h1 class="page-title">@Model.TreeLabel</h1>
@@ -18,7 +19,7 @@
             <a class="btn btn-outline-secondary" asp-page="/Trees/Diff" asp-route-researchTreeId="@Model.Summary.ResearchTreeId" asp-route-targetVersionId="@Model.VersionId">Compare versions</a>
             @if (Model.IsDraft && Model.CanEdit) { <a class="btn btn-outline-primary" asp-page="/Import" asp-route-versionId="@Model.VersionId">Import data</a> }
         }
-        <a class="btn btn-outline-secondary" asp-page="/Trees">Back to versions</a>
+        <a class="btn btn-outline-secondary" asp-page="/Trees" asp-route-nationId="@Model.Tree?.NationId" asp-route-researchTreeId="@Model.Tree?.Id">Back to versions</a>
     </div>
 </div></div>
 @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success mt-3">@success</div> }

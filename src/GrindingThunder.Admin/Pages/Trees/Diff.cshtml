@@ -1,7 +1,7 @@
 @page "/Trees/Diff"
 @model GrindingThunder.Admin.Pages.Trees.DiffModel
 @{ ViewData["Title"] = "Compare versions"; }
-<div class="page-header"><div class="row align-items-center"><div class="col"><h1 class="page-title">Compare versions</h1><div class="text-secondary">@Model.TreeLabel</div></div><div class="col-auto"><a asp-page="/Trees" asp-route-researchTreeId="@Model.ResearchTreeId" class="btn btn-outline-secondary">Back to versions</a></div></div></div>
+<div class="page-header"><div class="row align-items-center"><div class="col"><h1 class="page-title">Compare versions</h1><div class="text-secondary">@Model.TreeLabel</div></div><div class="col-auto"><a asp-page="/Trees" asp-route-nationId="@Model.NationId" asp-route-researchTreeId="@(Model.NationId.HasValue ? Model.ResearchTreeId : (Guid?)null)" class="btn btn-outline-secondary">Back to versions</a></div></div></div>
 @if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
 <div class="card mt-3"><div class="card-body"><form method="get" class="row g-3 align-items-end">
     <input type="hidden" name="researchTreeId" value="@Model.ResearchTreeId" />

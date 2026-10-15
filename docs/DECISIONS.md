@@ -212,5 +212,12 @@ Append new entries at the end. Keep each entry to the decisions and tradeoffs th
 - Chose transactional fail-fast backfill instead of automatically splitting multi-tree identities or assigning entryless vehicles. Only a single inferred tree is safe; guard errors report bounded examples for explicit resolution. Player ownership is never deleted, duplicated, or reassigned. Down refuses to discard entryless ownership mappings.
 - Kept Admin changes to contract compatibility. Batch 24 remains responsible for Nation -> Category -> Vehicle navigation and workflow.
 
+## 2026 — Batch 24: contextual admin navigation
+
+- Reorganized the existing Razor Pages around Nation -> ResearchTree/category -> Vehicles and Versions. VehicleType remains the master category concept; enabling a category creates the existing Nation/VehicleType combination through the existing API. No new domain entity or schema is needed.
+- Used verified route ownership for vehicle creation and checked the full nation/tree/vehicle relationship before editing or deleting. The shared page-model base centralizes these checks across the four vehicle screens. Stable identity input now contains only name/image, while version-dependent progression remains in the existing editor.
+- Added one bounded read endpoint, `GET /api/admin/vehicles/tree/{researchTreeId}`, for Admin/Editor/Publisher. The existing public entry projection omits unversioned vehicles, and its global alternative loads unrelated snapshot state. A filtered stable-identity DTO projection supports complete Publisher browsing without granting global catalog or mutation access. Other role policies, including Publisher/Admin publication and Admin-only deletion, remain intact.
+- Kept Dashboard session/connection details and existing version lifecycle behavior. Administration groups master reference data and accounts, and existing catalog/account URLs remain where practical. Vehicle routes now require nation/tree context; old version query bookmarks still work. Using the existing public nation/version projection avoids another tree-read endpoint, with the tradeoff that hierarchy navigation currently fetches the complete nation/version list.
+
 
 

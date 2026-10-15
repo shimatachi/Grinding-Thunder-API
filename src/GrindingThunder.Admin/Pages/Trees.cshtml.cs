@@ -7,13 +7,14 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace GrindingThunder.Admin.Pages;
 
 /// <summary>
-/// Research-tree version index: selects a research tree and lists its draft and
-/// published version snapshots with lifecycle controls (create draft, clone,
-/// delete draft).
+/// Nation-first browsing, category setup, and the selected tree's version workspace.
 /// </summary>
 [Authorize]
 public class TreesModel(IApiClient apiClient) : PageModel
 {
+    public IReadOnlyList<NationVersionsDto> Nations { get; private set; } = [];
+    public NationVersionsDto? SelectedNation { get; private set; }
+    public IReadOnlyList<VehicleTypeDto> AvailableCategories { get; private set; } = [];
     public IReadOnlyList<ResearchTreeDto> Trees { get; private set; } = [];
     public IReadOnlyList<GameUpdateDto> GameUpdates { get; private set; } = [];
     public Guid SelectedTreeId { get; private set; }
@@ -26,94 +27,84 @@ public class TreesModel(IApiClient apiClient) : PageModel
 
     public record VersionListItem(Guid Id, string UpdateVersion, bool IsPublished, int RankCount);
 
-    public async Task<IActionResult> OnGetAsync(Guid? researchTreeId, CancellationToken cancellationToken)
+    public async Task<IActionResult> OnGetAsync(Guid? nationId, Guid? researchTreeId, CancellationToken cancellationToken)
     {
+        var response = await apiClient.GetNationsWithVersionsAsync(cancellationToken);
+        if (response.IsForbidden) return RedirectToPage("/AccessDenied");
+        if (!response.IsSuccess)
+        {
+            ErrorMessage = response.ErrorMessage;
+            return Page();
+        }
+
+        Nations = (response.Value ?? []).OrderBy(n => n.Name).ToList();
+        Trees = Nations.SelectMany(n => n.ResearchTrees.Select(t =>
+            new ResearchTreeDto(t.Id, n.Id, n.Name, t.VehicleTypeId, t.VehicleTypeName))).ToList();
+        // Old bookmarks with only researchTreeId still open that tree's versions.
+        if (researchTreeId.HasValue)
+        {
+            SelectedTree = Trees.FirstOrDefault(t => t.Id == researchTreeId && (!nationId.HasValue || t.NationId == nationId));
+            if (SelectedTree is null) return NotFound();
+            SelectedTreeId = SelectedTree.Id;
+            nationId = SelectedTree.NationId;
+        }
+        if (!nationId.HasValue) return Page();
+        SelectedNation = Nations.FirstOrDefault(n => n.Id == nationId);
+        if (SelectedNation is null) return NotFound();
+
+        if (SelectedTree is null)
+        {
+            if (CanEdit)
+            {
+                var categories = await apiClient.GetVehicleTypesAsync(cancellationToken);
+                if (categories.IsForbidden) return RedirectToPage("/AccessDenied");
+                if (!categories.IsSuccess) ErrorMessage = categories.ErrorMessage;
+                AvailableCategories = (categories.Value ?? [])
+                    .Where(c => !SelectedNation.ResearchTrees.Any(t => t.VehicleTypeId == c.Id))
+                    .OrderBy(c => c.Name).ToList();
+            }
+            return Page();
+        }
+
+        Versions = SelectedNation.ResearchTrees.Single(t => t.Id == SelectedTreeId).Versions
+            .OrderBy(v => v.Status).ThenByDescending(v => v.UpdateVersion, StringComparer.OrdinalIgnoreCase)
+            .Select(v => new VersionListItem(v.Id, v.UpdateVersion, v.Status == 1, v.TreeRanks.Count)).ToList();
         if (CanEdit)
         {
-            var trees = await apiClient.GetResearchTreesAsync(cancellationToken);
-            if (trees.IsForbidden) return RedirectToPage("/AccessDenied");
-            if (trees.IsSuccess) Trees = trees.Value ?? [];
-            else ErrorMessage = trees.ErrorMessage;
-
             var updates = await apiClient.GetGameUpdatesAsync(cancellationToken);
+            if (updates.IsForbidden) return RedirectToPage("/AccessDenied");
             if (updates.IsSuccess) GameUpdates = updates.Value ?? [];
-
-            SelectedTreeId = researchTreeId ?? Trees.FirstOrDefault()?.Id ?? Guid.Empty;
-            SelectedTree = Trees.FirstOrDefault(tree => tree.Id == SelectedTreeId);
-
-            if (SelectedTree is not null)
-            {
-                var nations = await apiClient.GetNationsWithVersionsAsync(cancellationToken);
-                if (nations.IsSuccess && nations.Value is not null)
-                {
-                    Versions = nations.Value
-                        .SelectMany(nation => nation.ResearchTrees)
-                        .Where(tree => tree.Id == SelectedTreeId)
-                        .SelectMany(tree => tree.Versions)
-                        .OrderBy(version => version.Status)
-                        .ThenByDescending(version => version.UpdateVersion, StringComparer.OrdinalIgnoreCase)
-                        .Select(version => new VersionListItem(
-                            version.Id,
-                            version.UpdateVersion,
-                            version.Status == 1,
-                            version.TreeRanks.Count))
-                        .ToList();
-                }
-                else if (!nations.IsSuccess)
-                {
-                    ErrorMessage = nations.ErrorMessage;
-                }
-            }
-
-            return Page();
+            else ErrorMessage = updates.ErrorMessage;
         }
-        else
+        return Page();
+    }
+
+    public async Task<IActionResult> OnPostEnableCategoryAsync([FromRoute] Guid nationId, Guid vehicleTypeId, CancellationToken cancellationToken)
+    {
+        if (!CanEdit) return RedirectToPage("/AccessDenied");
+        var page = await OnGetAsync(nationId, null, cancellationToken);
+        if (page is not PageResult || ErrorMessage is not null) return page;
+        if (!ModelState.IsValid || !AvailableCategories.Any(c => c.Id == vehicleTypeId))
         {
-            var nations = await apiClient.GetNationsWithVersionsAsync(cancellationToken);
-            if (nations.IsForbidden) return RedirectToPage("/AccessDenied");
-            if (!nations.IsSuccess || nations.Value is null)
-            {
-                ErrorMessage = nations.ErrorMessage;
-                return Page();
-            }
-
-            Trees = nations.Value
-                .SelectMany(nation => nation.ResearchTrees.Select(tree => new ResearchTreeDto(
-                    tree.Id,
-                    nation.Id,
-                    nation.Name,
-                    tree.VehicleTypeId,
-                    tree.VehicleTypeName)))
-                .OrderBy(tree => tree.NationName)
-                .ThenBy(tree => tree.VehicleTypeName)
-                .ToList();
-
-            SelectedTreeId = researchTreeId ?? Trees.FirstOrDefault()?.Id ?? Guid.Empty;
-            SelectedTree = Trees.FirstOrDefault(tree => tree.Id == SelectedTreeId);
-
-            if (SelectedTree is not null)
-            {
-                Versions = nations.Value
-                    .SelectMany(nation => nation.ResearchTrees)
-                    .Where(tree => tree.Id == SelectedTreeId)
-                    .SelectMany(tree => tree.Versions)
-                    .OrderBy(version => version.Status)
-                    .ThenByDescending(version => version.UpdateVersion, StringComparer.OrdinalIgnoreCase)
-                    .Select(version => new VersionListItem(
-                        version.Id,
-                        version.UpdateVersion,
-                        version.Status == 1,
-                        version.TreeRanks.Count))
-                    .ToList();
-            }
-
+            ModelState.AddModelError(string.Empty, "Choose an available category for this nation.");
             return Page();
         }
+        var response = await apiClient.CreateResearchTreeAsync(new(nationId, vehicleTypeId), cancellationToken);
+        if (response.IsForbidden) return RedirectToPage("/AccessDenied");
+        if (!response.IsSuccess)
+        {
+            ModelState.AddModelError(string.Empty, response.ErrorMessage ?? "Unable to enable category.");
+            return Page();
+        }
+        TempData["SuccessMessage"] = "Category enabled for this nation.";
+        return RedirectToPage("/Trees", new { nationId, researchTreeId = (Guid?)null });
     }
 
     public async Task<IActionResult> OnPostCreateDraftAsync(Guid researchTreeId, Guid gameUpdateId, CancellationToken cancellationToken)
     {
         if (!CanEdit) return RedirectToPage("/AccessDenied");
+        var contextError = await CheckWorkspaceAsync(researchTreeId, null, cancellationToken);
+        if (contextError is not null) return contextError;
 
         var response = await apiClient.CreateDraftVersionAsync(
             new CreateDraftVersionRequest(researchTreeId, gameUpdateId), cancellationToken);
@@ -121,7 +112,7 @@ public class TreesModel(IApiClient apiClient) : PageModel
         if (!response.IsSuccess || response.Value is null)
         {
             TempData["TreeErrorMessage"] = response.ErrorMessage ?? "Unable to create draft version.";
-            return RedirectToPage("/Trees", new { researchTreeId });
+            return BackToVersions();
         }
 
         return RedirectToPage("/Trees/Version", new { versionId = response.Value.Id });
@@ -130,6 +121,8 @@ public class TreesModel(IApiClient apiClient) : PageModel
     public async Task<IActionResult> OnPostCloneAsync(Guid versionId, Guid targetGameUpdateId, Guid researchTreeId, CancellationToken cancellationToken)
     {
         if (!CanEdit) return RedirectToPage("/AccessDenied");
+        var contextError = await CheckWorkspaceAsync(researchTreeId, versionId, cancellationToken);
+        if (contextError is not null) return contextError;
 
         var response = await apiClient.CloneResearchTreeVersionAsync(
             versionId, new CloneVersionRequest(targetGameUpdateId), cancellationToken);
@@ -137,7 +130,7 @@ public class TreesModel(IApiClient apiClient) : PageModel
         if (!response.IsSuccess || response.Value is null)
         {
             TempData["TreeErrorMessage"] = response.ErrorMessage ?? "Unable to clone version.";
-            return RedirectToPage("/Trees", new { researchTreeId });
+            return BackToVersions();
         }
 
         return RedirectToPage("/Trees/Version", new { versionId = response.Value.Id });
@@ -146,17 +139,38 @@ public class TreesModel(IApiClient apiClient) : PageModel
     public async Task<IActionResult> OnPostDeleteAsync(Guid versionId, Guid researchTreeId, CancellationToken cancellationToken)
     {
         if (!IsAdmin) return RedirectToPage("/AccessDenied");
+        var contextError = await CheckWorkspaceAsync(researchTreeId, versionId, cancellationToken);
+        if (contextError is not null) return contextError;
 
         var response = await apiClient.DeleteResearchTreeVersionAsync(versionId, cancellationToken);
         if (response.IsForbidden) return RedirectToPage("/AccessDenied");
         if (!response.IsSuccess)
         {
             TempData["TreeErrorMessage"] = response.ErrorMessage ?? "Unable to delete draft version.";
-            return RedirectToPage("/Trees", new { researchTreeId });
+            return BackToVersions();
         }
 
         TempData["SuccessMessage"] = "Draft version was deleted.";
-        return RedirectToPage("/Trees", new { researchTreeId });
+        return BackToVersions();
+    }
+
+    private IActionResult BackToVersions() => RedirectToPage("/Trees",
+        new { nationId = SelectedTree!.NationId, researchTreeId = SelectedTree.Id });
+
+    private async Task<IActionResult?> CheckWorkspaceAsync(Guid researchTreeId, Guid? versionId, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid) return BadRequest();
+        // Never let form fields move a contextual operation to a different tree.
+        if (Guid.TryParse(RouteData.Values["researchTreeId"]?.ToString(), out var routeTree) && routeTree != researchTreeId)
+            return NotFound();
+        Guid? nationId = Guid.TryParse(RouteData.Values["nationId"]?.ToString(), out var routeNation) ? routeNation : null;
+        var response = await apiClient.GetNationsWithVersionsAsync(cancellationToken);
+        if (!response.IsSuccess) return StatusCode((int)response.StatusCode, response.ErrorMessage ?? "Unable to load research trees.");
+        var nation = response.Value?.FirstOrDefault(n => (!nationId.HasValue || n.Id == nationId) && n.ResearchTrees.Any(t => t.Id == researchTreeId));
+        var tree = nation?.ResearchTrees.FirstOrDefault(t => t.Id == researchTreeId);
+        if (nation is null || tree is null || (versionId.HasValue && !tree.Versions.Any(v => v.Id == versionId))) return NotFound();
+        SelectedTree = new(tree.Id, nation.Id, nation.Name, tree.VehicleTypeId, tree.VehicleTypeName);
+        return null;
     }
 }
 

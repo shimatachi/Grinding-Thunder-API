@@ -226,19 +226,15 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   after a clean ownership audit, preserving all pre-existing progression records.
   Existing Development startup seed additionally created one missing dev-sample
   published version with eight ranks; no pre-existing records changed.
-  Full admin workflow redesign remains Batch 24.
+  Contextual admin workflow is delivered in Batch 24.
   Dependency: Batch 22.
 
----
-
-## Next
-
-- **Batch 24 — Nation -> Category -> Vehicle admin workflow** (status: Planned)
+- **Batch 24 — Nation -> Category -> Vehicle admin workflow** (status: Completed)
   Goal: reorganize the back office around the domain hierarchy
   Nation -> ResearchTree/category -> Vehicle so administrators manage game data
   contextually instead of through disconnected global CRUD screens.
 
-  Intended admin flow:
+  Implemented admin flow:
 
   `Tech Trees -> Nation -> Category / ResearchTree -> Vehicles`
 
@@ -270,7 +266,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - reuse existing API endpoints where practical and add only bounded API
     orchestration/support where required by the new workflow.
 
-  Suggested navigation:
+  Navigation:
 
   - Dashboard
   - Tech Trees
@@ -292,6 +288,16 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - introducing Tailwind;
   - changing versioning or calculator semantics.
 
+  Result: nation-first browsing, contextual stable vehicle CRUD with route-verified
+  ownership, missing-category setup from VehicleTypes, and an Administration menu
+  for reference data and accounts. Versions remain accessible within each tree;
+  version detail and comparison links preserve context. Publisher browsing includes
+  vehicles with no version entries through one bounded read-only API endpoint.
+  Existing mutation/publication/deletion roles, Dashboard overview, HTTP-only Admin
+  boundary, and published snapshots are preserved. No schema or dependency changes.
+  Verification: solution build with zero warnings; all 343 API and 166 Admin tests
+  pass, including route/form navigation, ownership tampering, cross-tree rejection,
+  category conflict feedback, and single-role authorization regressions.
   Dependency: Batch 23.
 
 ## Later

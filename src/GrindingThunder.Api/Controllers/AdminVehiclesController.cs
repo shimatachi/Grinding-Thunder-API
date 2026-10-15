@@ -14,6 +14,25 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
 {
     private readonly ApplicationDbContext _context = context;
 
+    // Stable identities include vehicles which have not yet been added to a version.
+    // Publishers can browse this bounded projection without access to catalog mutations.
+    [HttpGet("tree/{researchTreeId:guid}")]
+    [Authorize(Roles = "Admin,Editor,Publisher")]
+    public async Task<IActionResult> GetByTree(Guid researchTreeId, CancellationToken cancellationToken)
+    {
+        if (!await _context.ResearchTrees.AnyAsync(t => t.Id == researchTreeId, cancellationToken))
+            return NotFound($"Research tree '{researchTreeId}' was not found.");
+
+        var vehicles = await _context.Vehicles.AsNoTracking()
+            .Where(v => v.ResearchTreeId == researchTreeId)
+            .OrderBy(v => v.Name)
+            .Select(v => new VehicleDto(v.Id, v.Name, v.ImageUrl, v.ResearchTreeId,
+                v.ResearchTree.NationId, v.ResearchTree.Nation.Name,
+                v.ResearchTree.VehicleTypeId, v.ResearchTree.VehicleType.Name))
+            .ToListAsync(cancellationToken);
+        return Ok(vehicles);
+    }
+
     [HttpGet]
     [Authorize(Policy = AuthPolicies.RequireEditorRole)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)

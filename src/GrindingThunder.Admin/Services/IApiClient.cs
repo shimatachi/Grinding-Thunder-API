@@ -7,6 +7,7 @@ namespace GrindingThunder.Admin.Services;
 /// </summary>
 public interface IApiClient
 {
+    Task<ApiResponse<IReadOnlyList<VehicleDto>>> GetTreeVehiclesAsync(Guid researchTreeId, CancellationToken cancellationToken = default);
     /// <summary>
     /// Gets the configured base URL of the backend API.
     /// </summary>

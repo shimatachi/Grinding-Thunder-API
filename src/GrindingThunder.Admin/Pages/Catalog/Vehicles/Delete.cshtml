@@ -1,7 +1,8 @@
-@page "/Catalog/Vehicles/{id:guid}/Delete"
+@page "/Trees/{nationId:guid}/{researchTreeId:guid}/Vehicles/{id:guid}/Delete"
 @model GrindingThunder.Admin.Pages.Catalog.Vehicles.DeleteModel
 @{ ViewData["Title"] = "Delete Vehicle"; }
-<partial name="/Pages/Catalog/_CatalogNav.cshtml" />
+<partial name="/Pages/Trees/_TreeNav.cshtml" model="Model.Tree" />
+<div class="text-secondary mb-2">@Model.Tree.NationName - @Model.Tree.VehicleTypeName</div>
 <div class="page-header"><h1 class="page-title">Delete Vehicle</h1></div>
 @if (Model.Message is not null) { <div class="alert @(Model.IsMissing ? "alert-warning" : "alert-danger") mt-3">@Model.Message</div> }
-@if (Model.Item is not null) { <div class="card catalog-form mt-3"><div class="card-body"><p>Delete vehicle <strong>@Model.Item.Name</strong>?</p><p class="text-secondary">This succeeds only when it is not referenced by a research tree entry.</p><form method="post"><button class="btn btn-danger" type="submit">Delete vehicle</button> <a class="btn" asp-page="Index">Cancel</a></form></div></div> } else { <a class="btn mt-3" asp-page="Index">Back to vehicles</a> }
+@if (Model.Item is not null) { <div class="card catalog-form mt-3"><div class="card-body"><p>Delete vehicle <strong>@Model.Item.Name</strong>?</p><p class="text-secondary">This succeeds only when it is not referenced by a research tree entry.</p><form method="post"><button class="btn btn-danger" type="submit">Delete vehicle</button> <a class="btn" asp-page="Index" asp-route-nationId="@Model.Tree.NationId" asp-route-researchTreeId="@Model.Tree.Id">Cancel</a></form></div></div> } else { <a class="btn mt-3" asp-page="Index" asp-route-nationId="@Model.Tree.NationId" asp-route-researchTreeId="@Model.Tree.Id">Back to vehicles</a> }

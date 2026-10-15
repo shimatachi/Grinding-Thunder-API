@@ -1,7 +1,7 @@
 @page "/Catalog/Vehicle-Types/{id:guid}/Delete"
 @model GrindingThunder.Admin.Pages.Catalog.VehicleTypes.DeleteModel
-@{ ViewData["Title"] = "Delete Vehicle Type"; }
+@{ ViewData["Title"] = "Delete Category"; }
 <partial name="/Pages/Catalog/_CatalogNav.cshtml" />
-<div class="page-header"><h1 class="page-title">Delete Vehicle Type</h1></div>
+<div class="page-header"><h1 class="page-title">Delete Category</h1></div>
 @if (Model.Message is not null) { <div class="alert @(Model.IsMissing ? "alert-warning" : "alert-danger") mt-3">@Model.Message</div> }
-@if (Model.Item is not null) { <div class="card catalog-form mt-3"><div class="card-body"><p>Delete vehicle type <strong>@Model.Item.Name</strong>?</p><p class="text-secondary">This succeeds only when it has no associated research tree versions.</p><form method="post"><button class="btn btn-danger" type="submit">Delete vehicle type</button> <a class="btn" asp-page="Index">Cancel</a></form></div></div> } else { <a class="btn mt-3" asp-page="Index">Back to vehicle types</a> }
+@if (Model.Item is not null) { <div class="card catalog-form mt-3"><div class="card-body"><p>Delete category <strong>@Model.Item.Name</strong>?</p><p class="text-secondary">This succeeds only when it has no associated research tree versions.</p><form method="post"><button class="btn btn-danger" type="submit">Delete category</button> <a class="btn" asp-page="Index">Cancel</a></form></div></div> } else { <a class="btn mt-3" asp-page="Index">Back to categories</a> }

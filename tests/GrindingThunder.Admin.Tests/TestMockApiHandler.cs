@@ -14,6 +14,8 @@ public class TestMockApiHandler : HttpMessageHandler
     public static readonly Guid VehicleTypeId = Guid.Parse("22222222-2222-2222-2222-222222222222");
     public static readonly Guid VehicleId = Guid.Parse("33333333-3333-3333-3333-333333333333");
     public static readonly Guid VehicleId2 = Guid.Parse("33333334-3333-3334-3334-333333333334");
+    public static readonly Guid AvailableVehicleId = Guid.Parse("33333336-3333-3336-3336-333333333336");
+    public static readonly Guid CreatedVehicleId = Guid.Parse("33333337-3333-3337-3337-333333333337");
     public static readonly Guid GameUpdateId = Guid.Parse("44444444-4444-4444-4444-444444444444");
     public static readonly Guid GameUpdate2Id = Guid.Parse("44444445-4444-4445-4445-444444444445");
     public static readonly Guid ResearchTreeId = Guid.Parse("55555555-5555-5555-5555-555555555555");
@@ -35,6 +37,7 @@ public class TestMockApiHandler : HttpMessageHandler
     public bool InvalidNextImportPreview { get; set; }
     public bool FailNextPublish { get; set; }
     public bool ConflictNextAccountMutation { get; set; }
+    public bool ConflictNextEntryUpdate { get; set; }
     public bool DraftPublished { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -277,6 +280,7 @@ public class TestMockApiHandler : HttpMessageHandler
             if (request.Method == HttpMethod.Get) return JsonResponse(HttpStatusCode.OK, new object[] {
                 new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
                 new { id = VehicleId2, name = "F-4E", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = AvailableVehicleId, name = "F-15C", imageUrl = "https://example.test/f15.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
                 new { id = OtherVehicleId, name = "Other tree vehicle", imageUrl = (string?)null, researchTreeId = OtherTreeId, nationId = OtherNationId, nationName = "Germany", vehicleTypeId = GroundTypeId, vehicleTypeName = "Ground" }
             });
             if (request.Method == HttpMethod.Post)
@@ -286,7 +290,11 @@ public class TestMockApiHandler : HttpMessageHandler
                     .FirstOrDefault(p => p.Name.Equals("ResearchTreeId", StringComparison.OrdinalIgnoreCase)).Value;
                 if (treeId.ValueKind != JsonValueKind.String || !treeId.TryGetGuid(out var ownerId) || ownerId != ResearchTreeId)
                     return TextResponse(HttpStatusCode.BadRequest, "An existing ResearchTreeId is required.");
-                return JsonResponse(HttpStatusCode.Created, new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" });
+                var name = body.GetPropertyIgnoreCase("Name").GetString();
+                var imageUrl = body.GetPropertyIgnoreCase("ImageUrl").ValueKind == JsonValueKind.Null
+                    ? null
+                    : body.GetPropertyIgnoreCase("ImageUrl").GetString();
+                return JsonResponse(HttpStatusCode.Created, new { id = CreatedVehicleId, name, imageUrl, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" });
             }
         }
         if (path.Equals($"/api/admin/vehicles/{VehicleId}", StringComparison.OrdinalIgnoreCase))
@@ -519,7 +527,21 @@ public class TestMockApiHandler : HttpMessageHandler
         // PUT/DELETE /api/admin/drafts/{versionId}/entries/{entryId}
         if (segments.Length == 6 && segments[4].Equals("entries", StringComparison.OrdinalIgnoreCase))
         {
-            if (request.Method == HttpMethod.Put || request.Method == HttpMethod.Delete)
+            if (request.Method == HttpMethod.Put)
+            {
+                if (ConflictNextEntryUpdate)
+                {
+                    ConflictNextEntryUpdate = false;
+                    return TextResponse(HttpStatusCode.Conflict, "Coordinate collision: another root entry already occupies that tree position.");
+                }
+
+                var body = await ReadJsonAsync(request);
+                if (body.GetPropertyIgnoreCase("RpCost").GetInt32() < 0 || body.GetPropertyIgnoreCase("SlCost").GetInt32() < 0)
+                    return TextResponse(HttpStatusCode.BadRequest, "RP and SL costs cannot be negative.");
+                return new HttpResponseMessage(HttpStatusCode.NoContent);
+            }
+
+            if (request.Method == HttpMethod.Delete)
             {
                 return new HttpResponseMessage(HttpStatusCode.NoContent);
             }

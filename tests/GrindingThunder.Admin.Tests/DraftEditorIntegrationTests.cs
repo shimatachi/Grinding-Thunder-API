@@ -398,6 +398,8 @@ public class DraftEditorIntegrationTests
     [InlineData("DeleteRank")]
     [InlineData("AddEntry")]
     [InlineData("DeleteEntry")]
+    [InlineData("UpdateVisualEntry")]
+    [InlineData("CreateAndAddEntry")]
     [InlineData("AddPrerequisite")]
     [InlineData("RemovePrerequisite")]
     public async Task DraftMutationOnPublishedVersion_BlockedBeforeReachingApi(string handler)
@@ -514,6 +516,8 @@ public class DraftEditorIntegrationTests
     [InlineData("DeleteRank")]
     [InlineData("AddEntry")]
     [InlineData("DeleteEntry")]
+    [InlineData("UpdateVisualEntry")]
+    [InlineData("CreateAndAddEntry")]
     [InlineData("AddPrerequisite")]
     [InlineData("RemovePrerequisite")]
     public async Task Publisher_CannotSeeOrInvokeDraftMutationForms(string handler)

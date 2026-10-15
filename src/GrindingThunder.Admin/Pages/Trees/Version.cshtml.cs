@@ -23,6 +23,17 @@ public class VersionModel(IApiClient apiClient) : PageModel
     public IReadOnlyList<PublicVehicleTreeEntryDto> PublishedEntries { get; private set; } = [];
     public IReadOnlyList<VehicleDto> Vehicles { get; private set; } = [];
     public VisualResearchTreeViewModel VisualTree { get; private set; } = new([], [], [], 0);
+    public VisualTreeWorkspaceViewModel VisualWorkspace => new(
+        VisualTree,
+        IsDraft && CanEdit && Draft is not null,
+        VersionId,
+        TreeLabel,
+        Tree?.Id,
+        Draft,
+        Vehicles
+            .Where(vehicle => Draft?.Entries.All(entry => entry.VehicleId != vehicle.Id) == true)
+            .OrderBy(vehicle => vehicle.Name)
+            .ToList());
 
     public bool IsDraft => Summary?.Status.Equals("Draft", StringComparison.OrdinalIgnoreCase) == true;
     public bool CanEdit => User.IsInRole("Editor") || User.IsInRole("Admin");
@@ -36,6 +47,8 @@ public class VersionModel(IApiClient apiClient) : PageModel
     [BindProperty] public AddRankInputModel AddRank { get; set; } = new();
     [BindProperty] public AddEntryInputModel AddEntry { get; set; } = new();
     [BindProperty] public AddPrerequisiteInputModel AddPrerequisite { get; set; } = new();
+    [BindProperty] public VisualEntryInputModel VisualEntry { get; set; } = new();
+    [BindProperty] public CreateVehicleEntryInputModel CreateEntry { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync(Guid versionId, CancellationToken cancellationToken)
     {
@@ -123,8 +136,8 @@ public class VersionModel(IApiClient apiClient) : PageModel
                     ErrorMessage = draft.ErrorMessage ?? "Unable to load draft details.";
                 }
 
-                var vehicles = await apiClient.GetVehiclesAsync(cancellationToken);
-                if (vehicles.IsSuccess) Vehicles = (vehicles.Value ?? []).Where(v => v.ResearchTreeId == Summary.ResearchTreeId).ToList();
+                var vehicles = await apiClient.GetTreeVehiclesAsync(Summary.ResearchTreeId, cancellationToken);
+                if (vehicles.IsSuccess) Vehicles = vehicles.Value ?? [];
             }
             else
             {
@@ -332,6 +345,135 @@ public class VersionModel(IApiClient apiClient) : PageModel
             "Vehicle tree entry was deleted.",
             "Unable to delete vehicle tree entry.",
             cancellationToken);
+    }
+
+    public async Task<IActionResult> OnPostUpdateVisualEntryAsync(Guid versionId, CancellationToken cancellationToken)
+    {
+        VersionId = versionId;
+        var guard = await EnsureEditableAsync(cancellationToken);
+        if (guard is not null) return guard;
+
+        if (VisualEntry.EntryId == Guid.Empty || Draft?.Entries.All(entry => entry.Id != VisualEntry.EntryId) != false)
+        {
+            ModelState.AddModelError(string.Empty, "Select a vehicle entry from the visual tree before saving.");
+            return Page();
+        }
+
+        if (Draft.TreeRanks.All(rank => rank.Id != VisualEntry.TreeRankId))
+        {
+            ModelState.AddModelError("VisualEntry.TreeRankId", "Select a rank from this draft.");
+        }
+
+        if (VisualEntry.FolderParentEntryId == VisualEntry.EntryId)
+        {
+            ModelState.AddModelError("VisualEntry.FolderParentEntryId", "An entry cannot be its own folder parent.");
+        }
+        else if (VisualEntry.FolderParentEntryId.HasValue &&
+                 Draft.Entries.All(entry => entry.Id != VisualEntry.FolderParentEntryId.Value))
+        {
+            ModelState.AddModelError("VisualEntry.FolderParentEntryId", "Select a folder parent from this draft.");
+        }
+
+        if (!Enum.IsDefined(VisualEntry.AcquisitionType))
+        {
+            ModelState.AddModelError("VisualEntry.AcquisitionType", "Select a valid acquisition type.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return Page();
+        }
+
+        var response = await apiClient.UpdateVehicleTreeEntryAsync(
+            versionId,
+            VisualEntry.EntryId,
+            new UpdateVehicleTreeEntryRequest(
+                VisualEntry.RpCost,
+                VisualEntry.SlCost,
+                VisualEntry.TreeColumn,
+                VisualEntry.TreeRow,
+                VisualEntry.TreeRankId,
+                VisualEntry.AcquisitionType,
+                VisualEntry.FolderParentEntryId),
+            cancellationToken);
+
+        if (response.IsForbidden) return RedirectToPage("/AccessDenied");
+        if (!response.IsSuccess)
+        {
+            ModelState.AddModelError(string.Empty, response.ErrorMessage ?? "Unable to update vehicle tree entry.");
+            return Page();
+        }
+
+        TempData["SuccessMessage"] = "Vehicle tree entry was updated from the visual editor.";
+        return RedirectToPage("/Trees/Version", new { versionId });
+    }
+
+    public async Task<IActionResult> OnPostCreateAndAddEntryAsync(Guid versionId, CancellationToken cancellationToken)
+    {
+        VersionId = versionId;
+        var guard = await EnsureEditableAsync(cancellationToken);
+        if (guard is not null) return guard;
+
+        if (string.IsNullOrWhiteSpace(CreateEntry.Name))
+        {
+            ModelState.AddModelError("CreateEntry.Name", "Vehicle name is required.");
+        }
+
+        if (Draft?.TreeRanks.All(rank => rank.Id != CreateEntry.TreeRankId) != false)
+        {
+            ModelState.AddModelError("CreateEntry.TreeRankId", "Select a rank from this draft.");
+        }
+
+        if (CreateEntry.FolderParentEntryId.HasValue &&
+            Draft?.Entries.All(entry => entry.Id != CreateEntry.FolderParentEntryId.Value) != false)
+        {
+            ModelState.AddModelError("CreateEntry.FolderParentEntryId", "Select a folder parent from this draft.");
+        }
+
+        if (!Enum.IsDefined(CreateEntry.AcquisitionType))
+        {
+            ModelState.AddModelError("CreateEntry.AcquisitionType", "Select a valid acquisition type.");
+        }
+
+        if (!ModelState.IsValid || Tree is null)
+        {
+            return Page();
+        }
+
+        var createResponse = await apiClient.CreateVehicleAsync(
+            new CreateVehicleRequest(Tree.Id, CreateEntry.Name.Trim(), CreateEntry.ImageUrl),
+            cancellationToken);
+        if (createResponse.IsForbidden) return RedirectToPage("/AccessDenied");
+        if (!createResponse.IsSuccess || createResponse.Value is null)
+        {
+            ModelState.AddModelError(string.Empty, createResponse.ErrorMessage ?? "Unable to create the vehicle.");
+            return Page();
+        }
+
+        var addResponse = await apiClient.AddVehicleTreeEntryAsync(
+            versionId,
+            new AddVehicleTreeEntryRequest(
+                createResponse.Value.Id,
+                CreateEntry.TreeRankId,
+                CreateEntry.RpCost,
+                CreateEntry.SlCost,
+                CreateEntry.TreeColumn,
+                CreateEntry.TreeRow,
+                CreateEntry.AcquisitionType,
+                CreateEntry.FolderParentEntryId),
+            cancellationToken);
+        if (addResponse.IsForbidden) return RedirectToPage("/AccessDenied");
+        if (!addResponse.IsSuccess)
+        {
+            ModelState.AddModelError(
+                string.Empty,
+                $"Vehicle '{createResponse.Value.Name}' was created, but could not be placed in the draft: " +
+                (addResponse.ErrorMessage ?? "Unable to add vehicle tree entry."));
+            return Page();
+        }
+
+        TempData["SuccessMessage"] = $"Vehicle '{createResponse.Value.Name}' was created and added to the draft.";
+        return RedirectToPage("/Trees/Version", new { versionId });
     }
 
     public async Task<IActionResult> OnPostAddPrerequisiteAsync(Guid versionId, CancellationToken cancellationToken)

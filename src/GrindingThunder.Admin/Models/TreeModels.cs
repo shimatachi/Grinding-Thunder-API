@@ -148,9 +148,16 @@ public class AddEntryInputModel
     [Required(ErrorMessage = "Rank is required.")]
     public Guid TreeRankId { get; set; }
 
+    [Range(0, int.MaxValue, ErrorMessage = "RP cost cannot be negative.")]
     public int RpCost { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "SL cost cannot be negative.")]
     public int SlCost { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "Tree column cannot be negative.")]
     public int TreeColumn { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "Tree row cannot be negative.")]
     public int TreeRow { get; set; }
 
     public VehicleAcquisitionType AcquisitionType { get; set; } = VehicleAcquisitionType.Researchable;
@@ -174,15 +181,19 @@ public class EntryInputModel
     public Guid TreeRankId { get; set; }
 
     [Display(Name = "RP cost")]
+    [Range(0, int.MaxValue, ErrorMessage = "RP cost cannot be negative.")]
     public int RpCost { get; set; }
 
     [Display(Name = "SL cost")]
+    [Range(0, int.MaxValue, ErrorMessage = "SL cost cannot be negative.")]
     public int SlCost { get; set; }
 
     [Display(Name = "Tree column")]
+    [Range(0, int.MaxValue, ErrorMessage = "Tree column cannot be negative.")]
     public int TreeColumn { get; set; }
 
     [Display(Name = "Tree row")]
+    [Range(0, int.MaxValue, ErrorMessage = "Tree row cannot be negative.")]
     public int TreeRow { get; set; }
 
     [Display(Name = "Acquisition type")]
@@ -190,4 +201,18 @@ public class EntryInputModel
 
     [Display(Name = "Folder parent")]
     public Guid? FolderParentEntryId { get; set; }
+}
+
+public class VisualEntryInputModel : EntryInputModel
+{
+    public Guid EntryId { get; set; }
+}
+
+public class CreateVehicleEntryInputModel : EntryInputModel
+{
+    public string Name { get; set; } = string.Empty;
+
+    [Url(ErrorMessage = "Image URL must be a valid absolute URL.")]
+    [Display(Name = "Image URL")]
+    public string? ImageUrl { get; set; }
 }

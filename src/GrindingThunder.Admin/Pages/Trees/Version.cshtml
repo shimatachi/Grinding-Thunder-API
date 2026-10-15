@@ -23,7 +23,7 @@
     </div>
 </div></div>
 @if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success mt-3">@success</div> }
-<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<div asp-validation-summary="All" class="alert alert-danger mt-3"></div>
 @if (Model.NotFoundMessage is not null) { <div class="alert alert-danger mt-3">@Model.NotFoundMessage</div> }
 @if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
 @if (Model.Validation is not null) {
@@ -52,7 +52,7 @@
 </ul>
 <div class="tab-content" id="version-view-content">
 <div class="tab-pane fade show active pt-3" id="visual-tree-pane" role="tabpanel" aria-labelledby="visual-tree-tab" tabindex="0">
-    <partial name="/Pages/Trees/_VisualTree.cshtml" model="Model.VisualTree" />
+    <partial name="/Pages/Trees/_VisualTree.cshtml" model="Model.VisualWorkspace" />
 </div>
 <div class="tab-pane fade" id="table-details-pane" role="tabpanel" aria-labelledby="table-details-tab" tabindex="0">
 <div class="card mt-3">
@@ -173,7 +173,7 @@
                 <div class="col-auto"><label class="form-label" for="AddEntry_VehicleId">Vehicle</label>
                     <select asp-for="AddEntry.VehicleId" class="form-select" id="AddEntry_VehicleId">
                         <option value="">— select vehicle —</option>
-                        @foreach (var vehicle in Model.Vehicles)
+                        @foreach (var vehicle in Model.VisualWorkspace.AvailableVehicles)
                         {
                             <option value="@vehicle.Id">@vehicle.Name</option>
                         }

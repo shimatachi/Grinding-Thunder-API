@@ -14,6 +14,30 @@ public sealed record VisualResearchTreeViewModel(
     public bool IsEmpty => Nodes.Count == 0;
 }
 
+/// <summary>
+/// Page-specific context layered over the reusable visual tree projection.
+/// Editing capabilities are supplied by the Razor Page so the tree mapper stays
+/// independent from authentication and HTTP concerns.
+/// </summary>
+public sealed record VisualTreeWorkspaceViewModel(
+    VisualResearchTreeViewModel Tree,
+    bool CanEdit,
+    Guid VersionId,
+    string ResearchTreeLabel,
+    Guid? ResearchTreeId,
+    DraftVersionDetailDto? Draft,
+    IReadOnlyList<VehicleDto> AvailableVehicles)
+{
+    public IReadOnlyList<TreeRankDto> Ranks => Draft?.TreeRanks ?? [];
+    public IReadOnlyList<VehicleTreeEntryDto> Entries => Draft?.Entries ?? [];
+}
+
+public sealed record VisualEntryFieldsViewModel(
+    string FieldPrefix,
+    string IdPrefix,
+    IReadOnlyList<TreeRankDto> Ranks,
+    IReadOnlyList<VehicleTreeEntryDto> Entries);
+
 public sealed record VisualTreeRankViewModel(
     Guid Id,
     int RankNumber,

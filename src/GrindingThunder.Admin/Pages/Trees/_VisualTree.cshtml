@@ -1,122 +1,259 @@
-@model VisualResearchTreeViewModel
+@model VisualTreeWorkspaceViewModel
 @{
-    var stageWidth = Math.Max(960, ((Model.MaximumTreeColumn + 1) * 240) + 220);
+    var tree = Model.Tree;
+    var stageWidth = Math.Max(960, ((tree.MaximumTreeColumn + 1) * 240) + 220);
 }
 
-<div class="card visual-tree-card" data-visual-tree>
-    <div class="card-header flex-wrap gap-3">
-        <div>
-            <h3 class="card-title">Visual research tree</h3>
-            <div class="text-secondary small">Read-only snapshot layout. Progression comes from explicit prerequisites, not node proximity.</div>
-        </div>
-        <div class="ms-auto btn-list visual-tree-controls" aria-label="Tree viewport controls">
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-zoom-out aria-label="Zoom out">−</button>
-            <span class="visual-tree-zoom-label" data-tree-zoom-label aria-live="polite">100%</span>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-zoom-in aria-label="Zoom in">+</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-fit>Fit</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-reset>Reset</button>
-        </div>
-    </div>
-    <div class="card-body py-2 visual-tree-legend" aria-label="Tree relationship legend">
-        <span><i class="visual-tree-legend-line visual-tree-legend-line-prerequisite"></i> Progression prerequisite</span>
-        <span><i class="visual-tree-legend-line visual-tree-legend-line-folder"></i> Folder / group membership</span>
-        <span class="text-secondary ms-auto">Drag empty space to pan · use controls or Ctrl + wheel to zoom</span>
-    </div>
-    @if (Model.IsEmpty)
-    {
-        <div class="empty-message">This version has no vehicle entries to display.</div>
-    }
-    else
-    {
-        <div class="visual-tree-viewport" data-tree-viewport tabindex="0" aria-label="Scrollable visual research tree">
-            <div class="visual-tree-surface" data-tree-surface>
-                <div class="visual-tree-stage" data-tree-stage style="width: @(stageWidth)px">
-                    <svg class="visual-tree-connectors" data-tree-connectors aria-hidden="true">
-                        <defs>
-                            <marker id="visual-tree-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
-                                <path d="M 0 0 L 8 4 L 0 8 z" class="visual-tree-arrowhead"></path>
-                            </marker>
-                        </defs>
-                        <g data-tree-paths></g>
-                    </svg>
-                    <div class="d-none" aria-hidden="true">
-                        @foreach (var edge in Model.Edges)
-                        {
-                            <span data-tree-edge
-                                  data-from-node="@edge.FromNodeId"
-                                  data-to-node="@edge.ToNodeId"
-                                  data-edge-kind="@edge.Kind.ToString().ToLowerInvariant()"></span>
-                        }
+<div class="visual-tree-workspace" data-visual-tree data-can-edit="@Model.CanEdit.ToString().ToLowerInvariant()">
+    <div class="visual-tree-main">
+        <div class="card visual-tree-card">
+            <div class="card-header flex-wrap gap-3">
+                <div>
+                    <h3 class="card-title">Visual research tree</h3>
+                    <div class="text-secondary small">
+                        @(Model.CanEdit
+                            ? "Inspect the snapshot, or enable Edit Mode to select and move entries."
+                            : "Read-only snapshot layout. Progression comes from explicit prerequisites, not node proximity.")
                     </div>
-                    @foreach (var rank in Model.Ranks)
+                </div>
+                <div class="ms-auto d-flex flex-wrap align-items-center gap-2">
+                    @if (Model.CanEdit)
                     {
-                        var rowCount = Math.Max(1, rank.MaximumTreeRow - rank.MinimumTreeRow + 1);
-                        var rankHeight = (rowCount * 176) + 36;
-                        <section class="visual-tree-rank" data-tree-rank="@rank.RankNumber" style="min-height: @(rankHeight)px">
-                            <header class="visual-tree-rank-header">
-                                <span class="visual-tree-rank-number">Rank @rank.RankNumber</span>
-                                <span class="visual-tree-rank-quota">Unlock quota: <strong>@rank.RequiredVehiclesUnlocked</strong></span>
-                            </header>
-                            <div class="visual-tree-rank-grid">
-                                @if (rank.Nodes.Count == 0)
-                                {
-                                    <div class="visual-tree-empty-rank">No entries in this rank</div>
-                                }
-                                @foreach (var node in rank.Nodes)
-                                {
-                                    var acquisitionClass = node.AcquisitionType switch
-                                    {
-                                        VehicleAcquisitionType.Researchable => "bg-green-lt",
-                                        VehicleAcquisitionType.Premium => "bg-yellow-lt",
-                                        VehicleAcquisitionType.Squadron => "bg-purple-lt",
-                                        VehicleAcquisitionType.Event => "bg-orange-lt",
-                                        VehicleAcquisitionType.Pack => "bg-blue-lt",
-                                        _ => "bg-secondary-lt"
-                                    };
-                                    var folderClass = node.IsFolderParent ? "visual-tree-node-folder-parent" :
-                                        node.FolderParentId.HasValue ? "visual-tree-node-folder-child" : string.Empty;
-                                    <article id="@node.DomId"
-                                             class="visual-tree-node @folderClass"
-                                             data-tree-node="@node.Id"
-                                             data-tree-column="@node.TreeColumn"
-                                             data-tree-row="@node.TreeRow"
-                                             data-tree-rank-number="@node.RankNumber"
-                                             style="--tree-column: @node.TreeColumn; --tree-row: @node.RowOffset; --tree-stack: @node.CoordinateStackIndex">
-                                        <div class="visual-tree-node-image">
-                                            @if (!string.IsNullOrWhiteSpace(node.ImageUrl))
-                                            {
-                                                <img src="@node.ImageUrl" alt="" loading="lazy" />
-                                            }
-                                            else
-                                            {
-                                                <span aria-hidden="true">No image</span>
-                                            }
-                                        </div>
-                                        <div class="visual-tree-node-body">
-                                            <div class="visual-tree-node-name" title="@node.Name">@node.Name</div>
-                                            <div class="visual-tree-node-costs">
-                                                <span title="Research Points">@node.RpCost.ToString("N0") RP</span>
-                                                <span title="Silver Lions">@node.SlCost.ToString("N0") SL</span>
-                                            </div>
-                                            <div class="visual-tree-node-badges">
-                                                <span class="badge @acquisitionClass">@node.AcquisitionType</span>
-                                                @if (node.IsFolderParent)
-                                                {
-                                                    <span class="badge bg-azure-lt">Folder</span>
-                                                }
-                                                @if (node.FolderParentId.HasValue)
-                                                {
-                                                    <span class="badge bg-azure-lt">Folder member</span>
-                                                }
-                                            </div>
-                                        </div>
-                                    </article>
-                                }
-                            </div>
-                        </section>
+                        <label class="form-check form-switch mb-0 visual-tree-edit-toggle">
+                            <input class="form-check-input" type="checkbox" role="switch" data-tree-edit-toggle />
+                            <span class="form-check-label fw-semibold">Edit Mode</span>
+                        </label>
                     }
+                    <div class="btn-list visual-tree-controls" aria-label="Tree viewport controls">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-zoom-out aria-label="Zoom out">−</button>
+                        <span class="visual-tree-zoom-label" data-tree-zoom-label aria-live="polite">100%</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-zoom-in aria-label="Zoom in">+</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-fit>Fit</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-reset>Reset</button>
+                    </div>
                 </div>
             </div>
+            <div class="card-body py-2 visual-tree-legend" aria-label="Tree relationship legend">
+                <span><i class="visual-tree-legend-line visual-tree-legend-line-prerequisite"></i> Progression prerequisite</span>
+                <span><i class="visual-tree-legend-line visual-tree-legend-line-folder"></i> Folder / group membership</span>
+                <span class="text-secondary ms-auto" data-tree-help>
+                    @(Model.CanEdit
+                        ? "Drag empty space to pan · enable Edit Mode to select nodes"
+                        : "Drag empty space to pan · use controls or Ctrl + wheel to zoom")
+                </span>
+            </div>
+            @if (tree.IsEmpty)
+            {
+                <div class="empty-message">This version has no vehicle entries to display.</div>
+            }
+            else
+            {
+                <div class="visual-tree-viewport" data-tree-viewport tabindex="0" aria-label="Scrollable visual research tree">
+                    <div class="visual-tree-surface" data-tree-surface>
+                        <div class="visual-tree-stage" data-tree-stage style="width: @(stageWidth)px">
+                            <svg class="visual-tree-connectors" data-tree-connectors aria-hidden="true">
+                                <defs>
+                                    <marker id="visual-tree-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                                        <path d="M 0 0 L 8 4 L 0 8 z" class="visual-tree-arrowhead"></path>
+                                    </marker>
+                                </defs>
+                                <g data-tree-paths></g>
+                            </svg>
+                            <div class="d-none" aria-hidden="true">
+                                @foreach (var edge in tree.Edges)
+                                {
+                                    <span data-tree-edge
+                                          data-from-node="@edge.FromNodeId"
+                                          data-to-node="@edge.ToNodeId"
+                                          data-edge-kind="@edge.Kind.ToString().ToLowerInvariant()"></span>
+                                }
+                            </div>
+                            @foreach (var rank in tree.Ranks)
+                            {
+                                var rowCount = Math.Max(1, rank.MaximumTreeRow - rank.MinimumTreeRow + 1);
+                                var rankHeight = (rowCount * 176) + 36;
+                                <section class="visual-tree-rank"
+                                         data-tree-rank="@rank.RankNumber"
+                                         data-tree-rank-id="@rank.Id"
+                                         data-tree-min-row="@rank.MinimumTreeRow"
+                                         style="min-height: @(rankHeight)px">
+                                    <header class="visual-tree-rank-header">
+                                        <span class="visual-tree-rank-number">Rank @rank.RankNumber</span>
+                                        <span class="visual-tree-rank-quota">Unlock quota: <strong>@rank.RequiredVehiclesUnlocked</strong></span>
+                                    </header>
+                                    <div class="visual-tree-rank-grid">
+                                        @if (rank.Nodes.Count == 0)
+                                        {
+                                            <div class="visual-tree-empty-rank">No entries in this rank</div>
+                                        }
+                                        @foreach (var node in rank.Nodes)
+                                        {
+                                            var acquisitionClass = node.AcquisitionType switch
+                                            {
+                                                VehicleAcquisitionType.Researchable => "bg-green-lt",
+                                                VehicleAcquisitionType.Premium => "bg-yellow-lt",
+                                                VehicleAcquisitionType.Squadron => "bg-purple-lt",
+                                                VehicleAcquisitionType.Event => "bg-orange-lt",
+                                                VehicleAcquisitionType.Pack => "bg-blue-lt",
+                                                _ => "bg-secondary-lt"
+                                            };
+                                            var folderClass = node.IsFolderParent ? "visual-tree-node-folder-parent" :
+                                                node.FolderParentId.HasValue ? "visual-tree-node-folder-child" : string.Empty;
+                                            <article id="@node.DomId"
+                                                     class="visual-tree-node @folderClass"
+                                                     data-tree-node="@node.Id"
+                                                     data-vehicle-id="@node.VehicleId"
+                                                     data-vehicle-name="@node.Name"
+                                                     data-image-url="@node.ImageUrl"
+                                                     data-tree-rank-id="@node.TreeRankId"
+                                                     data-rp-cost="@node.RpCost"
+                                                     data-sl-cost="@node.SlCost"
+                                                     data-tree-column="@node.TreeColumn"
+                                                     data-tree-row="@node.TreeRow"
+                                                     data-acquisition-type="@((int)node.AcquisitionType)"
+                                                     data-folder-parent-id="@node.FolderParentId"
+                                                     data-tree-rank-number="@node.RankNumber"
+                                                     tabindex="@(Model.CanEdit ? "0" : "-1")"
+                                                     style="--tree-column: @node.TreeColumn; --tree-row: @node.RowOffset; --tree-stack: @node.CoordinateStackIndex">
+                                                <div class="visual-tree-node-image">
+                                                    @if (!string.IsNullOrWhiteSpace(node.ImageUrl))
+                                                    {
+                                                        <img src="@node.ImageUrl" alt="" loading="lazy" />
+                                                    }
+                                                    else
+                                                    {
+                                                        <span aria-hidden="true">No image</span>
+                                                    }
+                                                </div>
+                                                <div class="visual-tree-node-body">
+                                                    <div class="visual-tree-node-name" title="@node.Name">@node.Name</div>
+                                                    <div class="visual-tree-node-costs">
+                                                        <span title="Research Points">@node.RpCost.ToString("N0") RP</span>
+                                                        <span title="Silver Lions">@node.SlCost.ToString("N0") SL</span>
+                                                    </div>
+                                                    <div class="visual-tree-node-badges">
+                                                        <span class="badge @acquisitionClass">@node.AcquisitionType</span>
+                                                        @if (node.IsFolderParent)
+                                                        {
+                                                            <span class="badge bg-azure-lt">Folder</span>
+                                                        }
+                                                        @if (node.FolderParentId.HasValue)
+                                                        {
+                                                            <span class="badge bg-azure-lt">Folder member</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        }
+                                    </div>
+                                </section>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
+    </div>
+
+    @if (Model.CanEdit)
+    {
+        <aside class="visual-tree-sidebar" data-tree-sidebar aria-label="Visual tree editor">
+            <div class="card">
+                <div class="card-header"><h3 class="card-title">Entry inspector</h3></div>
+                <div class="card-body text-secondary" data-tree-selection-empty>Select a vehicle node to inspect and edit it.</div>
+                <form method="post" asp-page-handler="UpdateVisualEntry" class="d-none" data-tree-inspector-form>
+                    <div class="card-body">
+                        <input type="hidden" name="VisualEntry.EntryId" data-inspector-entry-id />
+                        <div class="visual-tree-identity mb-3">
+                            <div class="visual-tree-inspector-image"><img alt="" data-inspector-image /></div>
+                            <div>
+                                <div class="fw-bold" data-inspector-name></div>
+                                <div class="text-secondary small">@Model.ResearchTreeLabel</div>
+                                <div class="text-secondary small">Tree ID: <code>@Model.ResearchTreeId</code></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="VisualEntry_TreeRankId">Rank</label>
+                            <select class="form-select" id="VisualEntry_TreeRankId" name="VisualEntry.TreeRankId" data-inspector-rank required>
+                                @foreach (var rank in Model.Ranks.OrderBy(rank => rank.RankNumber))
+                                {
+                                    <option value="@rank.Id">Rank @rank.RankNumber</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6"><label class="form-label" for="VisualEntry_RpCost">RP cost</label><input class="form-control" id="VisualEntry_RpCost" name="VisualEntry.RpCost" type="number" min="0" required data-inspector-rp /></div>
+                            <div class="col-6"><label class="form-label" for="VisualEntry_SlCost">SL cost</label><input class="form-control" id="VisualEntry_SlCost" name="VisualEntry.SlCost" type="number" min="0" required data-inspector-sl /></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="VisualEntry_AcquisitionType">Acquisition type</label>
+                            <select class="form-select" id="VisualEntry_AcquisitionType" name="VisualEntry.AcquisitionType" data-inspector-acquisition>
+                                @foreach (var acquisitionType in Enum.GetValues<VehicleAcquisitionType>())
+                                {
+                                    <option value="@((int)acquisitionType)">@acquisitionType</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeColumn">Tree column</label><input class="form-control" id="VisualEntry_TreeColumn" name="VisualEntry.TreeColumn" type="number" min="0" required data-inspector-column /></div>
+                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeRow">Tree row</label><input class="form-control" id="VisualEntry_TreeRow" name="VisualEntry.TreeRow" type="number" min="0" required data-inspector-row /></div>
+                        </div>
+                        <div class="btn-list mb-3" aria-label="Move selected vehicle">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-nudge="left" aria-label="Move left">←</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-nudge="right" aria-label="Move right">→</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-nudge="up" aria-label="Move up">↑</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-nudge="down" aria-label="Move down">↓</button>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="VisualEntry_FolderParentEntryId">Folder parent (optional)</label>
+                            <select class="form-select" id="VisualEntry_FolderParentEntryId" name="VisualEntry.FolderParentEntryId" data-inspector-folder>
+                                <option value="">— none —</option>
+                                @foreach (var entry in Model.Entries.OrderBy(entry => entry.VehicleName))
+                                {
+                                    <option value="@entry.Id">@entry.VehicleName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-hint">Drag the selected card or use the arrow buttons. Movement snaps to integer tree coordinates and is persisted only when saved.</div>
+                    </div>
+                    <div class="card-footer"><button type="submit" class="btn btn-primary w-100">Save Changes</button></div>
+                </form>
+                <form method="post" asp-page-handler="DeleteEntry" class="d-none card-footer pt-0" data-tree-remove-form onsubmit="return confirm('Remove this vehicle from the draft?');">
+                    <input type="hidden" name="entryId" data-remove-entry-id />
+                    <button type="submit" class="btn btn-outline-danger w-100">Remove from Draft</button>
+                </form>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header"><h3 class="card-title">Add vehicle</h3></div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="AddEntry" data-tree-add-existing>
+                        <h4>Existing tree vehicle</h4>
+                        <div class="mb-3">
+                            <label class="form-label" for="VisualAdd_VehicleId">Vehicle not in this draft</label>
+                            <select class="form-select" id="VisualAdd_VehicleId" name="AddEntry.VehicleId" required>
+                                <option value="">— select vehicle —</option>
+                                @foreach (var vehicle in Model.AvailableVehicles)
+                                {
+                                    <option value="@vehicle.Id">@vehicle.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <partial name="/Pages/Trees/_VisualEntryFields.cshtml" model="@(new VisualEntryFieldsViewModel("AddEntry", "VisualAdd", Model.Ranks, Model.Entries))" />
+                        <button type="submit" class="btn btn-primary w-100">Add to Draft</button>
+                    </form>
+
+                    <hr class="my-4" />
+
+                    <form method="post" asp-page-handler="CreateAndAddEntry" data-tree-create-entry>
+                        <h4>Create in @Model.ResearchTreeLabel</h4>
+                        <div class="mb-3"><label class="form-label" for="CreateEntry_Name">Vehicle name</label><input class="form-control" id="CreateEntry_Name" name="CreateEntry.Name" required /></div>
+                        <div class="mb-3"><label class="form-label" for="CreateEntry_ImageUrl">Image URL (optional)</label><input class="form-control" id="CreateEntry_ImageUrl" name="CreateEntry.ImageUrl" type="url" /></div>
+                        <partial name="/Pages/Trees/_VisualEntryFields.cshtml" model="@(new VisualEntryFieldsViewModel("CreateEntry", "VisualCreate", Model.Ranks, Model.Entries))" />
+                        <button type="submit" class="btn btn-primary w-100">Create and Add</button>
+                    </form>
+                </div>
+            </div>
+        </aside>
     }
 </div>

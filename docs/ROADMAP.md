@@ -378,9 +378,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   read-only behavior.
   Dependency: Batch 24.
 
-## Next
-
-- **Batch 26 — Visual vehicle-entry editor** (status: Planned)
+- **Batch 26 — Visual vehicle-entry editor** (status: Completed)
   Goal: turn the visual research-tree viewer into an administrator editing workspace
   for VehicleTreeEntry placement and version-specific vehicle configuration.
 
@@ -439,8 +437,24 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - multi-user collaborative editing;
   - Game Update release orchestration.
 
+  Result: extended the Batch 25 server-rendered canvas into an explicit Draft-only
+  editing workspace for Editor/Admin accounts. Nodes can be selected, dragged or
+  nudged on the integer `TreeColumn` / `TreeRow` grid, and saved through a side
+  inspector that edits rank, RP/SL costs, acquisition type, coordinates, and
+  same-version folder parent. The workspace can place an unused tree-scoped stable
+  Vehicle or contextually create one in the owning ResearchTree before placement,
+  and can remove an entry with confirmation. Razor handlers retain antiforgery,
+  role, Draft-status, tree/version ownership, and validation guards before calling
+  the existing HTTP API; API errors remain visible on the workspace. Published
+  versions and Publisher-only sessions render no edit controls, and Table / Details
+  remains the complete fallback. No backend, persistence, migration, framework,
+  npm, or graph-library changes were required. Verification: solution build with
+  zero warnings and errors; all 343 API and 185 Admin tests pass (528 total).
+
   Dependency: Batch 25.
 
+
+## Next
 
 - **Batch 27 — Visual progression and prerequisite editor** (status: Planned)
   Goal: allow administrators to create, inspect, and remove progression

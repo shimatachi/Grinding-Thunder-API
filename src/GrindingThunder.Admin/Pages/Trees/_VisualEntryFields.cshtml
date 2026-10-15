@@ -1,0 +1,36 @@
+@model VisualEntryFieldsViewModel
+<div class="row g-2 mb-3">
+    <div class="col-12">
+        <label class="form-label" for="@(Model.IdPrefix)_TreeRankId">Rank</label>
+        <select class="form-select" id="@(Model.IdPrefix)_TreeRankId" name="@(Model.FieldPrefix).TreeRankId" required>
+            <option value="">— select rank —</option>
+            @foreach (var rank in Model.Ranks.OrderBy(rank => rank.RankNumber))
+            {
+                <option value="@rank.Id">Rank @rank.RankNumber</option>
+            }
+        </select>
+    </div>
+    <div class="col-6"><label class="form-label" for="@(Model.IdPrefix)_RpCost">RP cost</label><input class="form-control" id="@(Model.IdPrefix)_RpCost" name="@(Model.FieldPrefix).RpCost" type="number" min="0" value="0" required /></div>
+    <div class="col-6"><label class="form-label" for="@(Model.IdPrefix)_SlCost">SL cost</label><input class="form-control" id="@(Model.IdPrefix)_SlCost" name="@(Model.FieldPrefix).SlCost" type="number" min="0" value="0" required /></div>
+    <div class="col-6"><label class="form-label" for="@(Model.IdPrefix)_TreeColumn">Column</label><input class="form-control" id="@(Model.IdPrefix)_TreeColumn" name="@(Model.FieldPrefix).TreeColumn" type="number" min="0" value="0" required /></div>
+    <div class="col-6"><label class="form-label" for="@(Model.IdPrefix)_TreeRow">Row</label><input class="form-control" id="@(Model.IdPrefix)_TreeRow" name="@(Model.FieldPrefix).TreeRow" type="number" min="0" value="0" required /></div>
+    <div class="col-12">
+        <label class="form-label" for="@(Model.IdPrefix)_AcquisitionType">Acquisition</label>
+        <select class="form-select" id="@(Model.IdPrefix)_AcquisitionType" name="@(Model.FieldPrefix).AcquisitionType">
+            @foreach (var acquisitionType in Enum.GetValues<VehicleAcquisitionType>())
+            {
+                <option value="@((int)acquisitionType)">@acquisitionType</option>
+            }
+        </select>
+    </div>
+    <div class="col-12">
+        <label class="form-label" for="@(Model.IdPrefix)_FolderParentEntryId">Folder parent (optional)</label>
+        <select class="form-select" id="@(Model.IdPrefix)_FolderParentEntryId" name="@(Model.FieldPrefix).FolderParentEntryId">
+            <option value="">— none —</option>
+            @foreach (var entry in Model.Entries.OrderBy(entry => entry.VehicleName))
+            {
+                <option value="@entry.Id">@entry.VehicleName</option>
+            }
+        </select>
+    </div>
+</div>

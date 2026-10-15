@@ -300,17 +300,272 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   category conflict feedback, and single-role authorization regressions.
   Dependency: Batch 23.
 
+## Next
+
+- **Batch 25 — Shared visual research-tree viewer** (status: Planned)
+  Goal: introduce a visual research-tree renderer that represents one
+  ResearchTreeVersion using the same structure administrators will eventually edit
+  and players will eventually view.
+
+  Product direction:
+  - move away from table-only presentation for research-tree versions;
+  - render the tree as a visual progression graph similar in spirit to the
+    War Thunder research-tree presentation;
+  - use one canonical visual representation for both admin and future public/player
+    views;
+  - keep existing tables/forms/import workflows available as fallback tools.
+
+  Scope:
+  - add a read-only visual tree view for one explicit ResearchTreeVersion;
+  - render version-defined ranks without assuming ranks start at 1 or are contiguous;
+  - display each TreeRank's editable/configured `RequiredVehiclesUnlocked` value;
+  - render VehicleTreeEntry nodes using their version-specific:
+    - rank;
+    - RP cost;
+    - SL cost;
+    - acquisition type;
+    - tree column;
+    - tree row;
+    - folder/group membership;
+  - render VehiclePrerequisite relationships as visual progression edges;
+  - render folder/group relationships clearly;
+  - support sparse trees such as Israel Aviation where the first rank may be IV;
+  - preserve the exact selected ResearchTreeVersion with no fallback to another
+    version;
+  - provide a reusable tree data/view model suitable for both read-only and future
+    edit modes;
+  - integrate the viewer into the existing Razor Pages + Tabler admin application;
+  - keep the admin application as an HTTP client of GrindingThunder.Api.
+
+  UI direction:
+  - use the existing Razor Pages page shell and authentication;
+  - use a specialized JavaScript graph/tree component inside the page where useful;
+  - do not rewrite the full admin application as a SPA;
+  - do not migrate the full admin application to Blazor;
+  - keep custom presentation code focused on tech-tree visualization;
+  - allow zooming/panning where useful for large trees;
+  - preserve usable responsive behavior.
+
+  Important domain rules:
+  - TreeRank definitions are version-specific;
+  - rank numbers may be sparse and non-contiguous;
+  - no code may assume Rank I exists;
+  - no code may assume all trees share the same ranks;
+  - `RequiredVehiclesUnlocked` is per TreeRank and must not be globally hardcoded;
+  - the visual renderer must reflect persisted tree data rather than deriving
+    prerequisites from visual proximity.
+
+  Out of scope:
+  - drag/drop persistence;
+  - editing vehicle details directly from the canvas;
+  - creating/removing prerequisite edges visually;
+  - Game Update release orchestration;
+  - public/player frontend implementation;
+  - replacing existing import workflows.
+
+  Dependency: Batch 24.
+
+
+- **Batch 26 — Visual vehicle-entry editor** (status: Planned)
+  Goal: turn the visual research-tree viewer into an administrator editing workspace
+  for VehicleTreeEntry placement and version-specific vehicle configuration.
+
+  Scope:
+  - add explicit edit mode to the visual tree;
+  - allow Editor/Admin users to add a Vehicle into a Draft ResearchTreeVersion
+    from the visual workspace;
+  - allow choosing an existing tree-scoped Vehicle or creating one contextually
+    where the current APIs permit it;
+  - allow moving vehicle nodes visually;
+  - persist visual movement using existing `TreeColumn` / `TreeRow` state;
+  - allow editing selected VehicleTreeEntry details through a side panel or
+    equivalent contextual editor;
+  - support editing:
+    - TreeRank;
+    - RP cost;
+    - SL cost;
+    - acquisition type;
+    - folder parent/group relationship;
+  - preserve Published ResearchTreeVersions as read-only;
+  - show validation/API errors in the visual editing workflow;
+  - keep table/form editing available as a fallback.
+
+  Intended interaction model:
+
+  `visual canvas -> select node -> detail panel -> save`
+
+  Example detail panel fields:
+  - vehicle name / identity context;
+  - rank;
+  - RP;
+  - SL;
+  - acquisition type;
+  - tree column;
+  - tree row;
+  - folder parent.
+
+  Persistence rules:
+  - visual position must remain application-owned structured data;
+  - do not introduce arbitrary free-form pixel coordinates as the canonical
+    persistence model unless later requirements prove TreeColumn/TreeRow inadequate;
+  - do not mutate Published versions;
+  - continue enforcing ResearchTree ownership boundaries.
+
+  UI direction:
+  - reuse the Batch 25 renderer;
+  - add edit controls only when the selected version is Draft and the current user
+    has Editor/Admin permission;
+  - prefer a side-panel inspector over placing every editable field directly on
+    the node;
+  - preserve keyboard/mouse usability where practical.
+
+  Out of scope:
+  - visual prerequisite edge creation/removal;
+  - undo/redo history unless required to make basic editing safe;
+  - multi-user collaborative editing;
+  - Game Update release orchestration.
+
+  Dependency: Batch 25.
+
+
+- **Batch 27 — Visual progression and prerequisite editor** (status: Planned)
+  Goal: allow administrators to create, inspect, and remove progression
+  relationships directly from the visual research-tree editor.
+
+  Scope:
+  - render prerequisite edges distinctly from folder/group relationships;
+  - allow Editor/Admin users to enter an edge-creation mode;
+  - allow selecting a dependent VehicleTreeEntry and its prerequisite visually;
+  - persist created relationships through the existing prerequisite API/domain
+    rules;
+  - allow removing prerequisite edges visually;
+  - prevent self-dependencies;
+  - prevent cross-version relationships;
+  - preserve same-tree/version integrity;
+  - surface DAG/cycle validation errors clearly;
+  - enforce acquisition progression rules;
+  - prevent prerequisites from pointing from a lower-rank vehicle to an invalid
+    higher-rank prerequisite;
+  - preserve existing validation as the authoritative backend guard.
+
+  Intended interaction model:
+
+  `select/connect node A -> node B -> preview relationship -> save`
+
+  or equivalent interaction supported cleanly by the selected graph library.
+
+  Important rule:
+  - visual position must never implicitly create a prerequisite;
+  - prerequisites remain explicit VehiclePrerequisite data;
+  - moving a node must not alter progression relationships.
+
+  UX:
+  - visually distinguish:
+    - progression/prerequisite edges;
+    - folder/group membership;
+    - selected node;
+    - validation errors;
+  - provide enough contextual information that an administrator can understand why
+    an edge is rejected.
+
+  Keep:
+  - existing table-based prerequisite management as fallback;
+  - import support;
+  - validation and historical diff.
+
+  Out of scope:
+  - Game Update release workspace;
+  - public editing;
+  - real-time collaborative editing;
+  - automatic prerequisite inference from layout.
+
+  Dependency: Batch 26.
+
+
+- **Batch 28 — Game Update release workspace** (status: Planned)
+  Goal: turn Game Updates from primarily catalog records into a release-oriented
+  workspace for coordinating ResearchTreeVersion changes across nations and
+  categories.
+
+  Intended flow:
+
+  `Create Game Update
+    -> review research trees
+    -> create/clone Draft versions
+    -> edit/import
+    -> validate
+    -> review diff
+    -> publish individual tree snapshots`
+
+  Scope:
+  - provide one Game Update detail/workspace page;
+  - show relevant ResearchTrees grouped by Nation/category;
+  - show whether each tree has:
+    - no version for the update;
+    - Draft version;
+    - validation errors;
+    - valid Draft;
+    - Published version;
+  - allow creating a Draft version for a tree;
+  - allow cloning an appropriate existing Published version into the new update;
+  - link directly into the visual tree editor;
+  - expose validation status;
+  - expose historical diff/review;
+  - allow Publisher/Admin users to publish individual valid Draft versions;
+  - show aggregate release progress across trees.
+
+  Example presentation:
+
+  `Game Update 2.xx`
+
+  - USA
+    - Aviation — Draft
+    - Ground — Published
+    - Helicopter — No Draft
+  - Germany
+    - Aviation — Valid Draft
+    - Ground — Validation Failed
+
+  Publishing direction:
+  - continue publishing ResearchTreeVersions independently;
+  - do not introduce an atomic "publish entire Game Update" operation in this
+    batch;
+  - Published versions remain immutable historical snapshots.
+
+  Important rules:
+  - no arbitrary source-version selection when cloning;
+  - source and target ResearchTree must match;
+  - preserve explicit GameUpdate/ResearchTreeVersion relationships;
+  - reuse existing validation, diff, clone, and publish services rather than
+    duplicating their logic in the UI.
+
+  UI direction:
+  - preserve the existing Dashboard;
+  - reuse Razor Pages + Tabler;
+  - link to the visual editor from each tree's Draft;
+  - keep release status easy to scan.
+
+  Out of scope:
+  - atomic multi-tree publishing;
+  - scheduled release automation;
+  - public/player frontend;
+  - redesigning core domain versioning.
+
+  Dependency: Batches 25–27.
+
+
 ## Later
 
-- **Batch 25 candidate — Game Update release workspace**
-  Rework Game Updates into a release-oriented workflow for creating/cloning
-  ResearchTreeVersion drafts, reviewing affected trees, validating, diffing, and
-  publishing individual tree snapshots for a War Thunder update.
-
-- Public/player web frontend
+- Public/player web frontend using the same visual research-tree representation
+- Visual editor polish:
+  - better keyboard controls;
+  - selection/multi-selection;
+  - undo/redo if justified;
+  - alignment helpers;
+  - optional snapping;
+  - improved large-tree navigation
 - Vehicle modification progression
 - Advanced War Thunder economy/RP mechanics
 - Assisted scraping/data-conversion tooling
-- Better visual research-tree editor if the simple editor proves insufficient
 - Audit/history improvements for admin operations
 - Performance/caching only when measurements justify it

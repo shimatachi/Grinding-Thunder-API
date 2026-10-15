@@ -22,6 +22,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
     public IReadOnlyList<TreeRankSummaryDto> PublishedRanks { get; private set; } = [];
     public IReadOnlyList<PublicVehicleTreeEntryDto> PublishedEntries { get; private set; } = [];
     public IReadOnlyList<VehicleDto> Vehicles { get; private set; } = [];
+    public VisualResearchTreeViewModel VisualTree { get; private set; } = new([], [], [], 0);
 
     public bool IsDraft => Summary?.Status.Equals("Draft", StringComparison.OrdinalIgnoreCase) == true;
     public bool CanEdit => User.IsInRole("Editor") || User.IsInRole("Admin");
@@ -152,6 +153,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
                 }
             }
 
+            BuildVisualTree();
             return null;
         }
 
@@ -212,7 +214,15 @@ public class VersionModel(IApiClient apiClient) : PageModel
             PublishedRanks.Count,
             PublishedEntries.Count);
 
+        BuildVisualTree();
         return null;
+    }
+
+    private void BuildVisualTree()
+    {
+        VisualTree = Draft is not null
+            ? VisualTreeMapper.FromDraft(Draft, Vehicles)
+            : VisualTreeMapper.FromPublic(PublishedRanks, PublishedEntries);
     }
 
     private async Task<IActionResult?> EnsureEditableAsync(CancellationToken cancellationToken)

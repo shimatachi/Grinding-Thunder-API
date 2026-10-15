@@ -300,9 +300,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   category conflict feedback, and single-role authorization regressions.
   Dependency: Batch 23.
 
-## Next
-
-- **Batch 25 — Shared visual research-tree viewer** (status: Planned)
+- **Batch 25 — Shared visual research-tree viewer** (status: Completed)
   Goal: introduce a visual research-tree renderer that represents one
   ResearchTreeVersion using the same structure administrators will eventually edit
   and players will eventually view.
@@ -363,8 +361,24 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - public/player frontend implementation;
   - replacing existing import workflows.
 
+  Result: added a shared, presentation-only visual-tree model that maps either
+  secured Draft detail DTOs or public exact-version projections without database
+  access. `/Trees/Version/{versionId}` now opens on a read-only Visual Tree tab
+  while retaining the complete Table / Details editor as a fallback. Dynamic rank
+  bands preserve sparse/non-contiguous rank numbers and show each configured quota;
+  vehicle cards use persisted row/column coordinates and show image, costs,
+  acquisition type, and folder state. Lightweight local JavaScript draws explicit
+  prerequisite and distinct folder SVG paths and provides scroll, button/Ctrl-wheel
+  zoom, fit, reset, and pointer panning. Drafts render for Editor/Admin and through
+  Publisher-safe public projections; Published snapshots remain read-only for every
+  role. No API, schema, migration, package, Node, Blazor, or SPA changes were made.
+  Verification: solution build with zero warnings and errors; all 343 API and 173
+  Admin tests pass (516 total), including Draft/Published mapping, sparse ranks,
+  rank quotas, coordinate and edge mapping, exact-version filtering, and Publisher
+  read-only behavior.
   Dependency: Batch 24.
 
+## Next
 
 - **Batch 26 — Visual vehicle-entry editor** (status: Planned)
   Goal: turn the visual research-tree viewer into an administrator editing workspace

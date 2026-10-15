@@ -21,6 +21,8 @@ public class TestMockApiHandler : HttpMessageHandler
     public static readonly Guid PublishedVersionId = Guid.Parse("77777777-7777-7777-7777-777777777777");
     public static readonly Guid RankId = Guid.Parse("88888888-8888-8888-8888-888888888888");
     public static readonly Guid Rank2Id = Guid.Parse("88888889-8888-8889-8889-888888888889");
+    public static readonly Guid SparseDraftRankId = Guid.Parse("8888888a-8888-888a-888a-88888888888a");
+    public static readonly Guid SparsePublishedRankId = Guid.Parse("8888888b-8888-888b-888b-88888888888b");
     public static readonly Guid EntryId = Guid.Parse("99999999-9999-9999-9999-999999999999");
     public static readonly Guid EntryId2 = Guid.Parse("9999999a-9999-999a-999a-99999999999a");
     public static readonly Guid AdminAccountId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
@@ -131,8 +133,8 @@ public class TestMockApiHandler : HttpMessageHandler
                             vehicleTypeName = "Aviation",
                             versions = new object[]
                             {
-                                new { id = DraftVersionId, status = DraftPublished ? 1 : 0, updateVersion = "2.50", treeRanks = new object[] { new { id = RankId, rankNumber = 1, requiredVehiclesUnlocked = 5 } } },
-                                new { id = PublishedVersionId, status = 1, updateVersion = "2.49", treeRanks = new object[] { new { id = Rank2Id, rankNumber = 1, requiredVehiclesUnlocked = 4 } } }
+                                new { id = DraftVersionId, status = DraftPublished ? 1 : 0, updateVersion = "2.50", treeRanks = new object[] { new { id = RankId, rankNumber = 1, requiredVehiclesUnlocked = 5 }, new { id = SparseDraftRankId, rankNumber = 4, requiredVehiclesUnlocked = 2 } } },
+                                new { id = PublishedVersionId, status = 1, updateVersion = "2.49", treeRanks = new object[] { new { id = Rank2Id, rankNumber = 1, requiredVehiclesUnlocked = 4 }, new { id = SparsePublishedRankId, rankNumber = 6, requiredVehiclesUnlocked = 3 } } }
                             }
                         }
                     }
@@ -357,12 +359,12 @@ public class TestMockApiHandler : HttpMessageHandler
             {
                 if (versionId == DraftVersionId)
                 {
-                    return JsonResponse(HttpStatusCode.OK, new { id = DraftVersionId, researchTreeId = ResearchTreeId, gameUpdateId = GameUpdateId, gameUpdateVersion = "2.50", status = DraftPublished ? "Published" : "Draft", rankCount = 1, entryCount = 2 });
+                    return JsonResponse(HttpStatusCode.OK, new { id = DraftVersionId, researchTreeId = ResearchTreeId, gameUpdateId = GameUpdateId, gameUpdateVersion = "2.50", status = DraftPublished ? "Published" : "Draft", rankCount = 2, entryCount = 2 });
                 }
 
                 if (versionId == PublishedVersionId)
                 {
-                    return JsonResponse(HttpStatusCode.OK, new { id = PublishedVersionId, researchTreeId = ResearchTreeId, gameUpdateId = GameUpdate2Id, gameUpdateVersion = "2.49", status = "Published", rankCount = 1, entryCount = 2 });
+                    return JsonResponse(HttpStatusCode.OK, new { id = PublishedVersionId, researchTreeId = ResearchTreeId, gameUpdateId = GameUpdate2Id, gameUpdateVersion = "2.49", status = "Published", rankCount = 2, entryCount = 2 });
                 }
 
                 return TextResponse(HttpStatusCode.NotFound, $"Research tree version '{versionId}' was not found.");
@@ -564,7 +566,8 @@ public class TestMockApiHandler : HttpMessageHandler
         status = "Draft",
         treeRanks = new object[]
         {
-            new { id = RankId, researchTreeVersionId = DraftVersionId, rankNumber = 1, requiredVehiclesUnlocked = 5 }
+            new { id = RankId, researchTreeVersionId = DraftVersionId, rankNumber = 1, requiredVehiclesUnlocked = 5 },
+            new { id = SparseDraftRankId, researchTreeVersionId = DraftVersionId, rankNumber = 4, requiredVehiclesUnlocked = 2 }
         },
         entries = new object[]
         {

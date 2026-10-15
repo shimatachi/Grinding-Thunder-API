@@ -42,6 +42,19 @@
 }
 @if (Model.Summary is not null && !Model.IsDraft) { <div class="alert alert-warning mt-3">This version is published and immutable. Modification controls are disabled.</div> }
 
+<ul class="nav nav-tabs mt-3" id="version-view-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="visual-tree-tab" data-bs-toggle="tab" data-bs-target="#visual-tree-pane" type="button" role="tab" aria-controls="visual-tree-pane" aria-selected="true">Visual Tree</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="table-details-tab" data-bs-toggle="tab" data-bs-target="#table-details-pane" type="button" role="tab" aria-controls="table-details-pane" aria-selected="false">Table / Details</button>
+    </li>
+</ul>
+<div class="tab-content" id="version-view-content">
+<div class="tab-pane fade show active pt-3" id="visual-tree-pane" role="tabpanel" aria-labelledby="visual-tree-tab" tabindex="0">
+    <partial name="/Pages/Trees/_VisualTree.cshtml" model="Model.VisualTree" />
+</div>
+<div class="tab-pane fade" id="table-details-pane" role="tabpanel" aria-labelledby="table-details-tab" tabindex="0">
 <div class="card mt-3">
     <div class="card-header"><h3 class="card-title">Tree ranks</h3></div>
     <div class="table-responsive">
@@ -275,4 +288,10 @@
     }
 </div>
 
+</div>
+</div>
+
+@section Scripts {
+    <script src="~/js/visual-tree.js"></script>
+}
 

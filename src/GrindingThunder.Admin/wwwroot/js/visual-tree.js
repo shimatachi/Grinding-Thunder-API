@@ -1,10 +1,12 @@
 (() => {
     const svgNamespace = "http://www.w3.org/2000/svg";
-    const columnStep = 240;
-    const rowStep = 176;
+    const defaultColumnStep = 280;
+    const defaultRowStep = 204;
 
     document.querySelectorAll("[data-visual-tree]").forEach(tree => {
         const canEdit = tree.dataset.canEdit === "true";
+        const columnStep = Number.parseInt(tree.dataset.treeColumnStep || defaultColumnStep.toString(), 10);
+        const rowStep = Number.parseInt(tree.dataset.treeRowStep || defaultRowStep.toString(), 10);
         const editToggle = tree.querySelector("[data-tree-edit-toggle]");
         const edgeToggle = tree.querySelector("[data-tree-edge-toggle]");
         const edgeModeIndicator = tree.querySelector("[data-tree-edge-mode-indicator]");
@@ -22,6 +24,7 @@
             sl: tree.querySelector("[data-inspector-sl]"),
             column: tree.querySelector("[data-inspector-column]"),
             row: tree.querySelector("[data-inspector-row]"),
+            coordinate: tree.querySelector("[data-inspector-coordinate]"),
             acquisition: tree.querySelector("[data-inspector-acquisition]"),
             folder: tree.querySelector("[data-inspector-folder]")
         };
@@ -65,35 +68,44 @@
         const nodeById = id => id ? tree.querySelector(`[data-tree-node="${id}"]`) : null;
         const nodeName = node => node?.dataset.vehicleName || "Unknown vehicle";
 
-        const nodePoint = (node, edge, isFrom) => {
+        const nodeGeometry = node => {
             const nodeRect = node.getBoundingClientRect();
             const stageRect = stage.getBoundingClientRect();
-            const left = (nodeRect.left - stageRect.left) / scale;
-            const top = (nodeRect.top - stageRect.top) / scale;
-            const width = nodeRect.width / scale;
-            const height = nodeRect.height / scale;
-
-            if (edge === "folder") {
-                return isFrom
-                    ? { x: left + width, y: top + (height / 2) }
-                    : { x: left, y: top + (height / 2) };
-            }
-
-            return isFrom
-                ? { x: left + (width / 2), y: top + height }
-                : { x: left + (width / 2), y: top };
+            return {
+                left: (nodeRect.left - stageRect.left) / scale,
+                top: (nodeRect.top - stageRect.top) / scale,
+                width: nodeRect.width / scale,
+                height: nodeRect.height / scale
+            };
         };
 
         const connectorPath = (from, to, kind) => {
-            const start = nodePoint(from, kind, true);
-            const end = nodePoint(to, kind, false);
-            if (kind === "folder" || Math.abs(end.y - start.y) < 48) {
-                const middleX = start.x + ((end.x - start.x) / 2);
-                return `M ${start.x} ${start.y} C ${middleX} ${start.y}, ${middleX} ${end.y}, ${end.x} ${end.y}`;
+            const source = nodeGeometry(from);
+            const target = nodeGeometry(to);
+            const sourceCenter = { x: source.left + (source.width / 2), y: source.top + (source.height / 2) };
+            const targetCenter = { x: target.left + (target.width / 2), y: target.top + (target.height / 2) };
+            const dx = targetCenter.x - sourceCenter.x;
+            const dy = targetCenter.y - sourceCenter.y;
+            const gutter = 30;
+
+            if (kind === "folder" || Math.abs(dy) < rowStep * .55) {
+                const direction = dx >= 0 ? 1 : -1;
+                const start = { x: direction > 0 ? source.left + source.width : source.left, y: sourceCenter.y };
+                const end = { x: direction > 0 ? target.left : target.left + target.width, y: targetCenter.y };
+                const exit = { x: start.x + (direction * gutter), y: start.y };
+                const enter = { x: end.x - (direction * gutter), y: end.y };
+                const middleX = exit.x + ((enter.x - exit.x) / 2);
+                return `M ${start.x} ${start.y} L ${exit.x} ${exit.y} C ${middleX} ${exit.y}, ${middleX} ${enter.y}, ${enter.x} ${enter.y} L ${end.x} ${end.y}`;
             }
 
-            const middleY = start.y + ((end.y - start.y) / 2);
-            return `M ${start.x} ${start.y} C ${start.x} ${middleY}, ${end.x} ${middleY}, ${end.x} ${end.y}`;
+            const direction = dy >= 0 ? 1 : -1;
+            const anchorShift = Math.max(-source.width * .28, Math.min(source.width * .28, dx * .12));
+            const start = { x: sourceCenter.x + anchorShift, y: direction > 0 ? source.top + source.height : source.top };
+            const end = { x: targetCenter.x - anchorShift, y: direction > 0 ? target.top : target.top + target.height };
+            const exit = { x: start.x, y: start.y + (direction * gutter) };
+            const enter = { x: end.x, y: end.y - (direction * gutter) };
+            const middleY = exit.y + ((enter.y - exit.y) / 2);
+            return `M ${start.x} ${start.y} L ${exit.x} ${exit.y} C ${exit.x} ${middleY}, ${enter.x} ${middleY}, ${enter.x} ${enter.y} L ${end.x} ${end.y}`;
         };
 
         const appendVisiblePath = (from, to, kind, extraClass = "") => {
@@ -167,17 +179,18 @@
                 const row = Number.parseInt(node.dataset.treeRow || "0", 10);
                 node.style.setProperty("--tree-row", row - minimumRow);
             });
-            rank.style.minHeight = `${((maximumRow - minimumRow + 1) * rowStep) + 36}px`;
+            rank.style.minHeight = `${((maximumRow - minimumRow + 1) * rowStep) + 48}px`;
         };
 
         const ensureStageBounds = column => {
             if (!stage) return;
-            const requiredWidth = ((column + 1) * columnStep) + 220;
+            const requiredWidth = ((column + 1) * columnStep) + 240;
             if (stage.offsetWidth < requiredWidth) stage.style.width = `${requiredWidth}px`;
         };
 
         const setCoordinates = (column, row) => {
             if (!selectedNode || !inspector.column || !inspector.row) return;
+            if (!Number.isFinite(column) || !Number.isFinite(row)) return;
             column = Math.max(0, Math.round(column));
             row = Math.max(0, Math.round(row));
             const rank = selectedNode.closest("[data-tree-rank]");
@@ -187,6 +200,13 @@
             selectedNode.style.setProperty("--tree-stack", 0);
             inspector.column.value = column.toString();
             inspector.row.value = row.toString();
+            const coordinateText = `Column ${column} · Row ${row}`;
+            if (inspector.coordinate) inspector.coordinate.textContent = coordinateText;
+            const nodeCoordinate = selectedNode.querySelector("[data-tree-coordinate]");
+            if (nodeCoordinate) {
+                nodeCoordinate.textContent = coordinateText;
+                nodeCoordinate.setAttribute("aria-label", `Tree position: column ${column}, row ${row}`);
+            }
             layoutRank(rank);
             ensureStageBounds(column);
             applyScale(scale);
@@ -220,6 +240,7 @@
             if (inspector.sl) inspector.sl.value = node.dataset.slCost || "0";
             if (inspector.column) inspector.column.value = node.dataset.treeColumn || "0";
             if (inspector.row) inspector.row.value = node.dataset.treeRow || "0";
+            if (inspector.coordinate) inspector.coordinate.textContent = `Column ${node.dataset.treeColumn || "0"} · Row ${node.dataset.treeRow || "0"}`;
             if (inspector.acquisition) inspector.acquisition.value = node.dataset.acquisitionType || "0";
             if (inspector.folder) {
                 inspector.folder.querySelectorAll("option").forEach(option => {
@@ -326,7 +347,7 @@
             if (isEditing()) deactivateEdgeMode();
             tree.classList.toggle("is-editing", isEditing());
             if (help) help.textContent = isEditing()
-                ? "Select a node, then drag it or use the inspector arrows"
+                ? "Select a node, then drag it or use the arrow keys or inspector buttons"
                 : "Drag empty space to pan · enable Move entries to reposition nodes";
             if (!isEditing()) clearEntrySelection();
             requestAnimationFrame(() => applyScale(scale));
@@ -457,7 +478,25 @@
         viewport?.addEventListener("pointercancel", stopPanning);
 
         document.addEventListener("keydown", event => {
-            if (event.key === "Escape" && isEdgeMode()) deactivateEdgeMode();
+            if (event.key === "Escape" && isEdgeMode()) {
+                deactivateEdgeMode();
+                return;
+            }
+            if (event.key === "Escape" && isEditing() && selectedNode) {
+                clearEntrySelection();
+                return;
+            }
+            if (!isEditing() || !selectedNode || event.altKey || event.ctrlKey || event.metaKey || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+            const target = event.target;
+            if (target instanceof HTMLElement && (target.isContentEditable || target.matches("input, select, textarea, button"))) return;
+            event.preventDefault();
+            let column = Number.parseInt(selectedNode.dataset.treeColumn || "0", 10);
+            let row = Number.parseInt(selectedNode.dataset.treeRow || "0", 10);
+            if (event.key === "ArrowLeft") column--;
+            if (event.key === "ArrowRight") column++;
+            if (event.key === "ArrowUp") row--;
+            if (event.key === "ArrowDown") row++;
+            setCoordinates(column, row);
         });
 
         if (stage && typeof ResizeObserver !== "undefined") {

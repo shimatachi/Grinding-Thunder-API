@@ -614,18 +614,283 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   status transition.
 
 
+## Next
+
+- **Batch 29 — Visual tree layout and editor polish** (status: Completed)
+  Goal: improve readability and precision of the existing visual tree editor while
+  preserving integer TreeColumn / TreeRow as the canonical layout model.
+
+  Product direction:
+  - make the visual tree comfortable enough to become the primary research-tree
+    editing workflow;
+  - improve prerequisite-line readability through better spacing and routing;
+  - make node placement obvious and precise without introducing arbitrary pixel
+    coordinates;
+  - keep admin and future public rendering visually consistent.
+
+  Scope:
+  - increase and normalize horizontal/vertical spacing between logical grid cells;
+  - review the current fixed visual column/row spacing and tune it for large trees;
+  - ensure prerequisite connectors have sufficient gutter space between cards;
+  - improve connector anchor points so lines enter/leave nodes predictably;
+  - reduce connector overlap with vehicle cards where practical;
+  - preserve TreeColumn / TreeRow as integer persisted coordinates;
+  - add an optional edit-mode grid or cell guides;
+  - visually indicate the selected node's current grid position;
+  - preserve drag-to-grid behavior;
+  - add keyboard or button-based node nudging:
+    - column -1 / +1;
+    - row -1 / +1;
+  - make coordinate changes visible immediately before save;
+  - preserve zoom, pan, fit, and reset behavior;
+  - keep table/detail editing available as fallback.
+
+  Do not:
+  - persist raw browser pixel coordinates;
+  - infer prerequisites from node proximity;
+  - change graph/domain semantics;
+  - modify Published snapshots;
+  - introduce a new SPA framework.
+
+  Layout rule:
+  - `TreeColumn` and `TreeRow` remain semantic layout coordinates;
+  - CSS/renderer spacing converts those logical coordinates into screen positions;
+  - changing renderer spacing must not mutate domain data.
+
+  Dependency: Batch 28.
+
+  Result: normalized the presentation grid to 280 px columns and 204 px rows while
+  retaining integer `TreeColumn` / `TreeRow` persistence; added edit-only logical
+  cell guides, live card and inspector coordinates, guarded arrow-key nudging, and
+  synchronized drag/button/input previews. Prerequisite and folder connectors now
+  use direction-aware card anchors, gutter stubs, and cubic Bézier routing so paths
+  enter and leave cards cleanly. Published snapshots and Publisher-only sessions
+  remain read-only, and no API, domain, schema, migration, dependency, or persisted
+  coordinate changes were made.
+  Verification: Release solution build with zero warnings and errors; all 344 API
+  and 199 Admin tests pass (543 total), including new renderer synchronization and
+  keyboard/routing asset coverage plus existing draft inspector, prerequisite, and
+  read-only regressions.
+
+
+- **Batch 30 — Vehicle node inspector and direct editing UX** (status: Planned)
+  Goal: make clicking a vehicle card the primary way to inspect and edit its
+  version-specific information.
+
+  Intended interaction:
+
+  `click vehicle card -> inspector opens -> edit -> save -> canvas updates`
+
+  Scope:
+  - selecting a visual node opens/focuses the existing inspector immediately;
+  - clearly display stable vehicle identity separately from version-specific data;
+  - allow Draft Editor/Admin users to edit:
+    - rank;
+    - RP cost;
+    - SL cost;
+    - acquisition type;
+    - TreeColumn;
+    - TreeRow;
+    - folder parent;
+  - make TreeColumn and TreeRow especially easy to modify;
+  - add coordinate nudge controls in addition to direct numeric input;
+  - synchronize inspector changes and visual node position after successful save;
+  - clearly indicate unsaved changes;
+  - protect against accidental selection loss when changes are unsaved;
+  - provide convenient previous/next selected-node navigation where useful;
+  - preserve API validation and ownership rules as authoritative;
+  - Published versions remain read-only;
+  - Publisher-only sessions remain read-only.
+
+  Optional UX if it remains bounded:
+  - arrow-key node nudging while edit mode is active;
+  - Enter or double-click to focus the inspector;
+  - Escape to clear selection;
+  - visible selected-node highlight.
+
+  Do not:
+  - auto-save every field keystroke;
+  - bypass antiforgery/API validation;
+  - move stable identity fields into VehicleTreeEntry;
+  - introduce arbitrary pixel coordinates.
+
+  Dependency: Batch 29.
+
+
+- **Batch 31 — Rank-band and research-tree visual styling** (status: Planned)
+  Goal: make the shared tree renderer visually closer to an actual War Thunder
+  research tree while preserving Grinding Thunder's own presentation and data model.
+
+  Reference direction:
+  - strong horizontal Rank IV / V / VI / ... boundaries;
+  - clear rank labels;
+  - readable separation between progression areas;
+  - visually obvious vehicle cards and progression paths.
+
+  Scope:
+  - render each TreeRank as a clear horizontal visual band;
+  - show rank label prominently at the left edge;
+  - show `RequiredVehiclesUnlocked` alongside the rank metadata where appropriate;
+  - allow sparse ranks without generating missing bands;
+  - add full-width separators between adjacent persisted ranks;
+  - improve vertical padding at rank boundaries;
+  - optionally use subtle alternating rank-band backgrounds for readability;
+  - keep rank headers visible while horizontally navigating a large tree where
+    practical;
+  - improve card density without making vehicle names/costs unreadable;
+  - visually distinguish acquisition types consistently;
+  - ensure Premium/Squadron/Event/etc. vehicles remain visually understandable
+    without changing progression semantics;
+  - improve prerequisite and folder-edge contrast against rank backgrounds;
+  - maintain dark-theme compatibility;
+  - preserve responsive behavior.
+
+  Important rules:
+  - rank numbers are version-defined and may be sparse;
+  - no renderer may assume Rank I exists;
+  - `RequiredVehiclesUnlocked` remains persisted per TreeRank;
+  - visual rank boundaries must derive from TreeRank data;
+  - visual styling must never imply a prerequisite that is not explicitly stored.
+
+  Dependency: Batch 30.
+
+
+- **Batch 32 — Visual layout assistance tools** (status: Planned)
+  Goal: make building and maintaining large trees faster without replacing explicit
+  administrator control.
+
+  Scope:
+  - add optional grid snapping controls;
+  - add alignment helpers for selected nodes;
+  - support bounded multi-selection if the existing editor architecture can do so
+    cleanly;
+  - provide actions such as:
+    - align column;
+    - align row;
+    - move selection left/right/up/down;
+    - distribute selected nodes vertically;
+  - highlight coordinate collisions before save;
+  - show occupied logical cells in edit mode;
+  - show potential placement cells while dragging;
+  - improve visual feedback for folder/group placement;
+  - preserve deterministic integer TreeColumn / TreeRow positions.
+
+  Optional:
+  - compact / comfortable layout-density preview;
+  - temporary line-visibility modes such as:
+    - all prerequisites;
+    - selected-node prerequisites only;
+    - folder relationships only.
+
+  Layout-density settings should be presentation settings unless a concrete product
+  requirement proves they must become persisted ResearchTreeVersion data.
+
+  Out of scope:
+  - automatic graph layout replacing administrator-authored positions;
+  - arbitrary free-form coordinates;
+  - collaborative editing;
+  - automatic prerequisite inference.
+
+  Dependency: Batch 31.
+
+
+- **Batch 33 — Shared public research-tree experience** (status: Planned)
+  Goal: expose the same canonical visual research-tree representation to players so
+  what administrators author is what users see.
+
+  Product rule:
+
+  `Admin visual tree == Public visual tree`
+
+  with the difference that the public version is read-only.
+
+  Scope:
+  - reuse the visual-tree data contract and rendering rules established in
+    Batches 25-32;
+  - allow players to choose:
+    - Nation;
+    - category / ResearchTree;
+    - Published ResearchTreeVersion;
+  - default public browsing only to appropriate Published snapshots;
+  - render the same:
+    - ranks;
+    - cards;
+    - coordinates;
+    - folders;
+    - prerequisites;
+    - acquisition presentation;
+  - support zoom, pan, fit, and vehicle selection;
+  - expose vehicle details without mutation controls;
+  - ensure Draft versions are not accidentally exposed as ordinary public data;
+  - keep the future player-facing application decoupled from Admin authentication.
+
+  Architectural direction:
+  - API remains the source of truth;
+  - do not duplicate tree-layout business rules independently in Admin and public
+    clients;
+  - prefer a reusable rendering/data-contract strategy so both views stay
+    consistent.
+
+  Dependency: Batches 29-32.
+
+
+- **Batch 34 — Player progression overlay on visual tree** (status: Planned)
+  Goal: connect the existing persistent player progress from Batch 22 to the shared
+  visual research tree.
+
+  Scope:
+  - show unlocked/owned vehicles directly on the visual tree;
+  - visually distinguish:
+    - owned;
+    - remaining;
+    - target;
+    - required prerequisite;
+    - rank-gate filler;
+  - allow a signed-in player to toggle ownership from the tree where appropriate;
+  - synchronize through the existing player progress API;
+  - preserve stable `VehicleId` ownership semantics;
+  - intersect player-owned Vehicles with the explicitly selected
+    ResearchTreeVersion;
+  - do not treat absence from one version as deletion of stable player ownership;
+  - integrate calculator results visually where useful.
+
+  Possible progression visualization:
+  - owned nodes;
+  - planned route;
+  - automatically selected filler vehicles;
+  - remaining RP / SL;
+  - estimated matches.
+
+  Dependency: Batch 33 and existing Batch 22 player progress.
+
+
+- **Batch 35 — Visual editor productivity and safety** (status: Planned)
+  Goal: add advanced editing conveniences only after the core WYSIWYG workflow has
+  proven stable through real content maintenance.
+
+  Candidate scope:
+  - undo/redo for visual Draft mutations;
+  - bulk selection improvements;
+  - copy/paste or duplicate layout operations where domain-safe;
+  - stronger validation overlays on nodes/edges;
+  - navigation directly from validation errors to the offending visual node;
+  - optional change highlighting against the previous Published version;
+  - keyboard shortcuts;
+  - improved accessibility;
+  - large-tree rendering/performance improvements based on measurements.
+
+  Requirements:
+  - undo/redo must not undermine backend validation;
+  - Published versions remain immutable;
+  - no speculative complexity unless supported by real admin usage.
+
+  Dependency: Batches 29-34.
+
+
 ## Later
 
-- Public/player web frontend using the same visual research-tree representation
-- Visual editor polish:
-  - better keyboard controls;
-  - selection/multi-selection;
-  - undo/redo if justified;
-  - alignment helpers;
-  - optional snapping;
-  - improved large-tree navigation
 - Vehicle modification progression
 - Advanced War Thunder economy/RP mechanics
 - Assisted scraping/data-conversion tooling
 - Audit/history improvements for admin operations
-- Performance/caching only when measurements justify it
+- Performance/caching beyond the visual-tree work only when measurements justify it

@@ -8,6 +8,24 @@ namespace GrindingThunder.Admin.Tests;
 public class VisualTreeIntegrationTests
 {
     [Fact]
+    public async Task VisualTreeAssets_KeepGridStepsSynchronizedAndProvideKeyboardNudging()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+
+        var css = await client.GetStringAsync("/css/admin.css");
+        var javascript = await client.GetStringAsync("/js/visual-tree.js");
+
+        Assert.Contains("--visual-tree-column-step: 280px", css);
+        Assert.Contains("--visual-tree-row-step: 204px", css);
+        Assert.Contains("background-size: var(--visual-tree-column-step) var(--visual-tree-row-step)", css);
+        Assert.Contains("const defaultColumnStep = 280", javascript);
+        Assert.Contains("const defaultRowStep = 204", javascript);
+        Assert.Contains("[\"ArrowLeft\", \"ArrowRight\", \"ArrowUp\", \"ArrowDown\"]", javascript);
+        Assert.Contains("L ${exit.x} ${exit.y} C", javascript);
+    }
+
+    [Fact]
     public async Task DraftVersion_RendersVisualTreeWithSparseRanksQuotasLayoutAndRelationships()
     {
         using var factory = new AdminWebApplicationFactory();
@@ -28,6 +46,8 @@ public class VisualTreeIntegrationTests
         Assert.Contains($"data-tree-node=\"{TestMockApiHandler.EntryId}\"", html);
         Assert.Contains("data-tree-column=\"1\"", html);
         Assert.Contains("data-tree-row=\"0\"", html);
+        Assert.Contains("data-tree-column-step=\"280\"", html);
+        Assert.Contains("data-tree-row-step=\"204\"", html);
         Assert.Contains("https://example.test/f16.png", html);
         Assert.Contains("data-edge-kind=\"prerequisite\"", html);
         Assert.Contains("data-edge-kind=\"folder\"", html);
@@ -54,6 +74,11 @@ public class VisualTreeIntegrationTests
         Assert.Contains("name=\"VisualEntry.TreeRankId\"", html);
         Assert.Contains("name=\"VisualEntry.RpCost\"", html);
         Assert.Contains("name=\"VisualEntry.TreeColumn\"", html);
+        Assert.Contains("data-tree-grid-guide", html);
+        Assert.Contains("data-inspector-coordinate", html);
+        Assert.Contains("data-tree-coordinate", html);
+        Assert.Contains("Column 1 · Row 0", html);
+        Assert.Contains("press an arrow key", html);
         Assert.Contains("name=\"VisualEntry.FolderParentEntryId\"", html);
         Assert.Contains("Save Changes", html);
         Assert.Contains("Remove from Draft", html);

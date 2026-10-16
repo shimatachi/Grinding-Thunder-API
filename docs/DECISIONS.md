@@ -245,5 +245,11 @@ Append new entries at the end. Keep each entry to the decisions and tradeoffs th
 - Added `GameUpdateId` to the backward-compatible public nation/version projection. Matching by stable ID avoids coupling coordination to formatted update-version text. Clone and default diff baselines are selected only from Published versions already nested under the same ResearchTree; posted IDs are checked against that reconstructed relationship before an API mutation.
 - Granted Publisher the narrow read needed for one Game Update's metadata while retaining Editor/Admin catalog listing and mutation boundaries. The workspace hides Editor actions from Publisher and publish actions from Editor, but the API remains authoritative for all role, validation, Draft-state, and immutability rules.
 
+## 2026 — Batch 29: visual tree layout and editor polish
+
+- Kept `TreeColumn` and `TreeRow` as the only layout values submitted to the server. The shared renderer now maps each logical cell to a roomier 280 by 204 pixel presentation grid, with the same values emitted by Razor, declared as CSS defaults, and consumed from workspace metadata by JavaScript. This intentionally makes large trees wider and taller in exchange for clearer card gutters and connector lanes; zoom, fit, and scrolling remain the density controls.
+- Kept placement guides and live coordinate badges as edit-mode presentation state. Dragging, buttons, manual inputs, and keyboard arrows update the same integer preview and existing inspector form, but none auto-save or bypass antiforgery/API validation. Keyboard handling ignores form controls and browser modifier shortcuts; Published and Publisher-only renderings still omit all editing controls.
+- Replaced center-to-center connector curves with direction-aware edge anchors, short straight gutter stubs, and cubic Bézier transitions. This improves predictable card entry/exit without adding obstacle-routing state or a graph library. The renderer reduces common card crossings but does not promise globally optimal routing when many explicit relationships share a lane.
+
 
 

@@ -1,7 +1,9 @@
 @model VisualTreeWorkspaceViewModel
 @{
     var tree = Model.Tree;
-    var stageWidth = Math.Max(960, ((tree.MaximumTreeColumn + 1) * 240) + 220);
+    const int columnStep = 280;
+    const int rowStep = 204;
+    var stageWidth = Math.Max(960, ((tree.MaximumTreeColumn + 1) * columnStep) + 240);
 }
 
 <div class="visual-tree-workspace"
@@ -10,7 +12,10 @@
      data-start-edge-mode="@Model.StartInEdgeMode.ToString().ToLowerInvariant()"
      data-start-selected-edge="@Model.StartWithSelectedEdge.ToString().ToLowerInvariant()"
      data-pending-dependent="@Model.PendingDependentEntryId"
-     data-pending-prerequisite="@Model.PendingPrerequisiteEntryId">
+     data-pending-prerequisite="@Model.PendingPrerequisiteEntryId"
+     data-tree-column-step="@columnStep"
+     data-tree-row-step="@rowStep"
+     style="--visual-tree-column-step: @(columnStep)px; --visual-tree-row-step: @(rowStep)px">
     <div class="visual-tree-main">
         <div class="card visual-tree-card">
             <div class="card-header flex-wrap gap-3">
@@ -85,11 +90,12 @@
                             @foreach (var rank in tree.Ranks)
                             {
                                 var rowCount = Math.Max(1, rank.MaximumTreeRow - rank.MinimumTreeRow + 1);
-                                var rankHeight = (rowCount * 176) + 36;
+                                var rankHeight = (rowCount * rowStep) + 48;
                                 <section class="visual-tree-rank"
                                          data-tree-rank="@rank.RankNumber"
                                          data-tree-rank-id="@rank.Id"
                                          data-tree-min-row="@rank.MinimumTreeRow"
+                                         data-tree-grid-guide
                                          style="min-height: @(rankHeight)px">
                                     <header class="visual-tree-rank-header">
                                         <span class="visual-tree-rank-number">Rank @rank.RankNumber</span>
@@ -157,6 +163,7 @@
                                                         }
                                                     </div>
                                                 </div>
+                                                <span class="visual-tree-node-coordinate" data-tree-coordinate aria-label="Tree position: column @node.TreeColumn, row @node.TreeRow">Column @node.TreeColumn · Row @node.TreeRow</span>
                                             </article>
                                         }
                                     </div>
@@ -245,6 +252,7 @@
                             <div class="col-6"><label class="form-label" for="VisualEntry_TreeColumn">Tree column</label><input class="form-control" id="VisualEntry_TreeColumn" name="VisualEntry.TreeColumn" type="number" min="0" required data-inspector-column /></div>
                             <div class="col-6"><label class="form-label" for="VisualEntry_TreeRow">Tree row</label><input class="form-control" id="VisualEntry_TreeRow" name="VisualEntry.TreeRow" type="number" min="0" required data-inspector-row /></div>
                         </div>
+                        <div class="visual-tree-coordinate-indicator mb-2" data-inspector-coordinate aria-live="polite">Column — · Row —</div>
                         <div class="btn-list mb-3" aria-label="Move selected vehicle">
                             <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-nudge="left" aria-label="Move left">←</button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-nudge="right" aria-label="Move right">→</button>
@@ -261,7 +269,7 @@
                                 }
                             </select>
                         </div>
-                        <div class="form-hint">Drag the selected card or use the arrow buttons. Movement snaps to integer tree coordinates and is persisted only when saved.</div>
+                        <div class="form-hint">Drag the selected card, use the arrow buttons, or press an arrow key. Movement snaps to integer tree coordinates and is persisted only when saved.</div>
                     </div>
                     <div class="card-footer"><button type="submit" class="btn btn-primary w-100">Save Changes</button></div>
                 </form>

@@ -239,5 +239,11 @@ Append new entries at the end. Keep each entry to the decisions and tradeoffs th
 - Reused the existing SVG connector geometry and added a wide transparent hit path for each prerequisite connector. This makes a thin visible path practical to select without changing the visual graph, while folder connectors remain non-interactive. Selection and pending state are transient CSS/JavaScript state; persisted endpoints always use the rendered Draft `VehicleTreeEntryId` values.
 - Kept the API as the authoritative validation boundary and the server-rendered redirect/reload workflow as the persistence model. Failed mutations return a workspace banner and restore prerequisite mode plus its endpoints, while successful mutations reload canonical server data. This avoids duplicating graph, rank, acquisition, Draft-status, or version-isolation rules in JavaScript and adds no graph library, SPA state layer, API endpoint, or dependency.
 
+## 2026 — Batch 28: Game Update release workspace
+
+- Built the release view as a Razor Page orchestration workspace over existing lifecycle endpoints. Aggregate status and per-tree actions are derived read models, not new persisted release state, so independently published immutable snapshots remain the source of truth and there is no bulk-publish transaction.
+- Added `GameUpdateId` to the backward-compatible public nation/version projection. Matching by stable ID avoids coupling coordination to formatted update-version text. Clone and default diff baselines are selected only from Published versions already nested under the same ResearchTree; posted IDs are checked against that reconstructed relationship before an API mutation.
+- Granted Publisher the narrow read needed for one Game Update's metadata while retaining Editor/Admin catalog listing and mutation boundaries. The workspace hides Editor actions from Publisher and publish actions from Editor, but the API remains authoritative for all role, validation, Draft-state, and immutability rules.
+
 
 

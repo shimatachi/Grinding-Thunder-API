@@ -21,6 +21,7 @@ public class TestMockApiHandler : HttpMessageHandler
     public static readonly Guid ResearchTreeId = Guid.Parse("55555555-5555-5555-5555-555555555555");
     public static readonly Guid DraftVersionId = Guid.Parse("66666666-6666-6666-6666-666666666666");
     public static readonly Guid PublishedVersionId = Guid.Parse("77777777-7777-7777-7777-777777777777");
+    public static readonly Guid OtherPublishedVersionId = Guid.Parse("77777778-7777-7778-7778-777777777778");
     public static readonly Guid RankId = Guid.Parse("88888888-8888-8888-8888-888888888888");
     public static readonly Guid Rank2Id = Guid.Parse("88888889-8888-8889-8889-888888888889");
     public static readonly Guid SparseDraftRankId = Guid.Parse("8888888a-8888-888a-888a-88888888888a");
@@ -136,8 +137,8 @@ public class TestMockApiHandler : HttpMessageHandler
                             vehicleTypeName = "Aviation",
                             versions = new object[]
                             {
-                                new { id = DraftVersionId, status = DraftPublished ? 1 : 0, updateVersion = "2.50", treeRanks = new object[] { new { id = RankId, rankNumber = 1, requiredVehiclesUnlocked = 5 }, new { id = SparseDraftRankId, rankNumber = 4, requiredVehiclesUnlocked = 2 } } },
-                                new { id = PublishedVersionId, status = 1, updateVersion = "2.49", treeRanks = new object[] { new { id = Rank2Id, rankNumber = 1, requiredVehiclesUnlocked = 4 }, new { id = SparsePublishedRankId, rankNumber = 6, requiredVehiclesUnlocked = 3 } } }
+                                new { id = DraftVersionId, gameUpdateId = GameUpdateId, status = DraftPublished ? 1 : 0, updateVersion = "2.50", treeRanks = new object[] { new { id = RankId, rankNumber = 1, requiredVehiclesUnlocked = 5 }, new { id = SparseDraftRankId, rankNumber = 4, requiredVehiclesUnlocked = 2 } } },
+                                new { id = PublishedVersionId, gameUpdateId = GameUpdate2Id, status = 1, updateVersion = "2.49", treeRanks = new object[] { new { id = Rank2Id, rankNumber = 1, requiredVehiclesUnlocked = 4 }, new { id = SparsePublishedRankId, rankNumber = 6, requiredVehiclesUnlocked = 3 } } }
                             }
                         }
                     }
@@ -145,7 +146,7 @@ public class TestMockApiHandler : HttpMessageHandler
                 new
                 {
                     id = OtherNationId, name = "Germany",
-                    researchTrees = new object[] { new { id = OtherTreeId, vehicleTypeId = GroundTypeId, vehicleTypeName = "Ground", versions = Array.Empty<object>() } }
+                    researchTrees = new object[] { new { id = OtherTreeId, vehicleTypeId = GroundTypeId, vehicleTypeName = "Ground", versions = new object[] { new { id = OtherPublishedVersionId, gameUpdateId = GameUpdate2Id, status = 1, updateVersion = "2.49", treeRanks = Array.Empty<object>() } } } }
                 }
             });
         }
@@ -702,6 +703,8 @@ public class TestMockApiHandler : HttpMessageHandler
 
     private static string GetRequiredPolicy(HttpRequestMessage request, string path)
     {
+        if (request.Method == HttpMethod.Get && path.StartsWith("/api/admin/game-updates/", StringComparison.OrdinalIgnoreCase))
+            return "AdminRead";
         if (request.Method == HttpMethod.Get && path.StartsWith("/api/admin/vehicles/tree/", StringComparison.OrdinalIgnoreCase))
             return "AdminRead";
         if (path.StartsWith("/api/admin/accounts", StringComparison.OrdinalIgnoreCase))

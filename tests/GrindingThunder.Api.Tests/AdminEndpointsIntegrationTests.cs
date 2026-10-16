@@ -396,6 +396,32 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         Assert.Equal(HttpStatusCode.Conflict, deleteInUseResp.StatusCode);
     }
 
+    [Fact]
+    public async Task GameUpdateWorkspaceReads_PublisherCanReadMetadataButCannotMutateCatalog()
+    {
+        var publisherToken = await GetPublisherTokenAsync();
+        using var db = CreateDbContext();
+        var update = await db.GameUpdates.AsNoTracking().OrderBy(gameUpdate => gameUpdate.Id).FirstAsync();
+
+        using var readRequest = CreateAuthorizedRequest(HttpMethod.Get, $"/api/admin/game-updates/{update.Id}", publisherToken);
+        var readResponse = await _client.SendAsync(readRequest);
+        Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
+        var result = await readResponse.Content.ReadFromJsonAsync<GameUpdateDto>();
+        Assert.Equal(update.Id, result?.Id);
+
+        using var updateRequest = CreateAuthorizedRequest(HttpMethod.Put, $"/api/admin/game-updates/{update.Id}", publisherToken,
+            new UpdateGameUpdateRequest(update.Version, update.Name, update.ReleaseDate));
+        Assert.Equal(HttpStatusCode.Forbidden, (await _client.SendAsync(updateRequest)).StatusCode);
+
+        var nations = await _client.GetFromJsonAsync<List<NationReleaseProjection>>("/api/nations");
+        Assert.Contains(nations!.SelectMany(nation => nation.ResearchTrees).SelectMany(tree => tree.Versions),
+            version => version.GameUpdateId != Guid.Empty);
+    }
+
+    private sealed record NationReleaseProjection(List<TreeReleaseProjection> ResearchTrees);
+    private sealed record TreeReleaseProjection(List<VersionReleaseProjection> Versions);
+    private sealed record VersionReleaseProjection(Guid GameUpdateId);
+
     #endregion
 
     #region Draft Tree Editing Tests

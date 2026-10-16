@@ -15,6 +15,7 @@ public class NationsController(ApplicationDbContext context) : ControllerBase
     {
         var nations = await _context.Nations
             .AsNoTracking()
+            .AsSplitQuery()
             .OrderBy(n => n.Name)
             .Select(n => new
             {
@@ -32,6 +33,7 @@ public class NationsController(ApplicationDbContext context) : ControllerBase
                             .Select(v => new
                             {
                                 v.Id,
+                                v.GameUpdateId,
                                 v.Status,
                                 UpdateVersion = v.GameUpdate.Version,
                                 TreeRanks = v.TreeRanks

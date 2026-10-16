@@ -1,0 +1,55 @@
+@page "/Catalog/Game-Updates/{id:guid}/Workspace"
+@model GrindingThunder.Admin.Pages.Catalog.GameUpdates.WorkspaceModel
+@{ ViewData["Title"] = "Release Workspace"; }
+<partial name="/Pages/Catalog/_CatalogNav.cshtml" />
+<div class="page-header"><div class="row align-items-center"><div class="col">
+    <div class="page-pretitle">Game Update release workspace</div>
+    <h1 class="page-title">@(Model.GameUpdate is null ? "Release Workspace" : $"{Model.GameUpdate.Version} — {Model.GameUpdate.Name ?? "Unnamed update"}")</h1>
+    @if (Model.GameUpdate is not null) { <div class="text-secondary">Release date: @(Model.GameUpdate.ReleaseDate?.ToString("yyyy-MM-dd") ?? "Not set")</div> }
+</div><div class="col-auto ms-auto">@if (Model.CanEdit) { <a class="btn btn-outline-secondary" asp-page="Index">Back to Game Updates</a> } else { <a class="btn btn-outline-secondary" asp-page="/Trees">Back to Tech Trees</a> }</div></div></div>
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success mt-3">@success</div> }
+@if (TempData["WorkspaceErrorMessage"] is string workspaceError) { <div class="alert alert-danger mt-3">@workspaceError</div> }
+@if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
+
+@if (Model.GameUpdate is not null && Model.ErrorMessage is null)
+{
+    <div class="row row-cards mt-3" aria-label="Release progress">
+        <div class="col-6 col-md"><div class="card"><div class="card-body"><div class="subheader">Total trees</div><div class="h1 mb-0" data-progress="total">@Model.TotalTrees</div></div></div></div>
+        <div class="col-6 col-md"><div class="card"><div class="card-body"><div class="subheader">Published</div><div class="h1 mb-0 text-success" data-progress="published">@Model.PublishedCount</div></div></div></div>
+        <div class="col-6 col-md"><div class="card"><div class="card-body"><div class="subheader">Valid drafts</div><div class="h1 mb-0 text-primary" data-progress="valid-draft">@Model.ValidDraftCount</div></div></div></div>
+        <div class="col-6 col-md"><div class="card"><div class="card-body"><div class="subheader">Draft errors</div><div class="h1 mb-0 text-danger" data-progress="draft-errors">@Model.DraftWithErrorsCount</div></div></div></div>
+        <div class="col-6 col-md"><div class="card"><div class="card-body"><div class="subheader">No version</div><div class="h1 mb-0 text-secondary" data-progress="missing">@Model.MissingCount</div></div></div></div>
+    </div>
+    @foreach (var nation in Model.Nations)
+    {
+        <div class="card mt-3" data-nation="@nation.Name"><div class="card-header"><h2 class="card-title">@nation.Name</h2></div><div class="table-responsive">
+        <table class="table table-vcenter card-table"><thead><tr><th>Category</th><th>Release status</th><th>Validation</th><th class="catalog-actions">Actions</th></tr></thead><tbody>
+        @foreach (var tree in nation.Trees)
+        {
+            <tr data-tree-id="@tree.ResearchTreeId"><td><strong>@tree.VehicleTypeName</strong></td><td>
+                @if (tree.IsPublished) { <span class="badge bg-green-lt">Published</span> <span class="text-secondary">Immutable</span> }
+                else if (tree.IsDraft) { <span class="badge bg-blue-lt">Draft</span> }
+                else { <span class="badge bg-secondary-lt">No Version</span> }
+            </td><td>
+                @if (tree.IsDraft && tree.Validation?.IsValid == true) { <span class="badge bg-green-lt">Valid draft</span> }
+                else if (tree.IsDraft && tree.Validation?.IsValid == false) { <span class="badge bg-red-lt">@tree.Validation.Errors.Count validation error@(tree.Validation.Errors.Count == 1 ? "" : "s")</span><div class="small text-danger mt-1">@string.Join(" ", tree.Validation.Errors)</div> }
+                else if (tree.ValidationError is not null) { <span class="badge bg-yellow-lt">Validation unavailable</span><div class="small text-danger mt-1">@tree.ValidationError</div> }
+                else { <span class="text-secondary">—</span> }
+            </td><td class="catalog-actions">
+                @if (tree.Version is null && Model.CanEdit)
+                {
+                    <form method="post" asp-page-handler="CreateDraft" class="d-inline"><input type="hidden" name="researchTreeId" value="@tree.ResearchTreeId" /><button class="btn btn-sm btn-primary" type="submit">Create blank draft</button></form>
+                    @if (tree.CloneSource is not null) { <form method="post" asp-page-handler="Clone" class="d-inline"><input type="hidden" name="researchTreeId" value="@tree.ResearchTreeId" /><input type="hidden" name="sourceVersionId" value="@tree.CloneSource.Id" /><button class="btn btn-sm btn-outline-primary" type="submit">Clone published @tree.CloneSource.UpdateVersion</button></form> }
+                }
+                @if (tree.Version is not null)
+                {
+                    <a class="btn btn-sm btn-outline-primary" asp-page="/Trees/Version" asp-route-versionId="@tree.Version.Id">@(tree.IsDraft ? "Open visual editor" : "Inspect tree")</a>
+                    @if (tree.IsDraft && Model.CanEdit) { <a class="btn btn-sm btn-outline-secondary" asp-page="/Import" asp-route-versionId="@tree.Version.Id">Import</a> }
+                    @if (tree.IsDraft) { <a class="btn btn-sm btn-outline-secondary" asp-page="/Trees/Diff" asp-route-researchTreeId="@tree.ResearchTreeId" asp-route-sourceVersionId="@tree.CloneSource?.Id" asp-route-targetVersionId="@tree.Version.Id">Version diff</a> }
+                    @if (tree.IsDraft && Model.CanPublish) { <form method="post" asp-page-handler="Publish" class="d-inline" onsubmit="return confirm('Publish this valid draft as an immutable historical snapshot?');"><input type="hidden" name="researchTreeId" value="@tree.ResearchTreeId" /><input type="hidden" name="versionId" value="@tree.Version.Id" /><input type="hidden" name="confirmImmutable" value="true" /><button class="btn btn-sm btn-success" type="submit" @(tree.Validation?.IsValid == true ? null : "disabled")>Publish</button></form> }
+                }
+            </td></tr>
+        }
+        </tbody></table></div></div>
+    }
+}

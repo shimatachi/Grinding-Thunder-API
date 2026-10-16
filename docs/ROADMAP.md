@@ -523,9 +523,9 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batch 26.
 
 
-## Next
+## Most recently completed
 
-- **Batch 28 — Game Update release workspace** (status: Planned)
+- **Batch 28 — Game Update release workspace** (status: Completed)
   Goal: turn Game Updates from primarily catalog records into a release-oriented
   workspace for coordinating ResearchTreeVersion changes across nations and
   categories.
@@ -595,6 +595,23 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - redesigning core domain versioning.
 
   Dependency: Batches 25–27.
+
+  Result: added `/Catalog/Game-Updates/{id}/Workspace` and direct links from the
+  Game Updates catalog. The workspace displays update metadata, nation/category
+  grouping, exact per-update tree status, validation diagnostics, and aggregate
+  Published/valid-Draft/invalid-Draft/missing counts. Editor/Admin users can create
+  blank drafts or clone the latest Published version belonging to the same tree;
+  Draft rows link to the visual editor, import, and preselected diff, while
+  Published rows remain inspect-only. Publisher/Admin users can confirm and publish
+  one valid Draft at a time. Exact update matching is supported by an additive
+  `GameUpdateId` field on the public nation/version projection, and Publisher has
+  narrowly scoped read access to individual Game Update metadata. POST handlers
+  re-check tree/update/version/source relationships before API calls. No database,
+  migration, project-boundary, dependency, or atomic publish changes were made.
+  Verification: solution build with zero warnings and errors; all 344 API and 198
+  Admin tests pass (542 total), including aggregate calculations, validation error
+  feedback, role-specific controls, cross-tree clone rejection, and publication
+  status transition.
 
 
 ## Later

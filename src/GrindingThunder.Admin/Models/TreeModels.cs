@@ -57,7 +57,7 @@ public record ResearchTreeVersionSummaryDto(
 // the draft and published version snapshots of each research tree.
 public record NationVersionsDto(Guid Id, string Name, List<TreeWithVersionsDto> ResearchTrees);
 public record TreeWithVersionsDto(Guid Id, Guid VehicleTypeId, string VehicleTypeName, List<TreeVersionListItemDto> Versions);
-public record TreeVersionListItemDto(Guid Id, int Status, string UpdateVersion, List<TreeRankSummaryDto> TreeRanks);
+public record TreeVersionListItemDto(Guid Id, Guid GameUpdateId, int Status, string UpdateVersion, List<TreeRankSummaryDto> TreeRanks);
 public record TreeRankSummaryDto(Guid Id, int RankNumber, int RequiredVehiclesUnlocked);
 
 // Draft editing DTOs (AdminDraftsController).

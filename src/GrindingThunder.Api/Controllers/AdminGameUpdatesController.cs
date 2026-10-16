@@ -29,7 +29,7 @@ public class AdminGameUpdatesController(ApplicationDbContext context) : Controll
     }
 
     [HttpGet("{id:guid}")]
-    [Authorize(Policy = AuthPolicies.RequireEditorRole)]
+    [Authorize(Roles = "Admin,Editor,Publisher")]
     public async Task<IActionResult> GetById(
         [FromRoute] Guid id,
         CancellationToken cancellationToken)

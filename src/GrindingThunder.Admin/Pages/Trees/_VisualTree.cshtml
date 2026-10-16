@@ -4,7 +4,13 @@
     var stageWidth = Math.Max(960, ((tree.MaximumTreeColumn + 1) * 240) + 220);
 }
 
-<div class="visual-tree-workspace" data-visual-tree data-can-edit="@Model.CanEdit.ToString().ToLowerInvariant()">
+<div class="visual-tree-workspace"
+     data-visual-tree
+     data-can-edit="@Model.CanEdit.ToString().ToLowerInvariant()"
+     data-start-edge-mode="@Model.StartInEdgeMode.ToString().ToLowerInvariant()"
+     data-start-selected-edge="@Model.StartWithSelectedEdge.ToString().ToLowerInvariant()"
+     data-pending-dependent="@Model.PendingDependentEntryId"
+     data-pending-prerequisite="@Model.PendingPrerequisiteEntryId">
     <div class="visual-tree-main">
         <div class="card visual-tree-card">
             <div class="card-header flex-wrap gap-3">
@@ -21,8 +27,12 @@
                     {
                         <label class="form-check form-switch mb-0 visual-tree-edit-toggle">
                             <input class="form-check-input" type="checkbox" role="switch" data-tree-edit-toggle />
-                            <span class="form-check-label fw-semibold">Edit Mode</span>
+                            <span class="form-check-label fw-semibold">Move entries</span>
                         </label>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-tree-edge-toggle aria-pressed="false">
+                            Edit prerequisites
+                        </button>
+                        <span class="badge bg-blue-lt d-none" data-tree-edge-mode-indicator>Prerequisite mode</span>
                     }
                     <div class="btn-list visual-tree-controls" aria-label="Tree viewport controls">
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-zoom-out aria-label="Zoom out">−</button>
@@ -42,6 +52,10 @@
                         : "Drag empty space to pan · use controls or Ctrl + wheel to zoom")
                 </span>
             </div>
+            @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+            {
+                <div class="alert alert-danger m-3 mb-0" role="alert" data-tree-workspace-alert>@Model.ErrorMessage</div>
+            }
             @if (tree.IsEmpty)
             {
                 <div class="empty-message">This version has no vehicle entries to display.</div>
@@ -51,7 +65,7 @@
                 <div class="visual-tree-viewport" data-tree-viewport tabindex="0" aria-label="Scrollable visual research tree">
                     <div class="visual-tree-surface" data-tree-surface>
                         <div class="visual-tree-stage" data-tree-stage style="width: @(stageWidth)px">
-                            <svg class="visual-tree-connectors" data-tree-connectors aria-hidden="true">
+                            <svg class="visual-tree-connectors" data-tree-connectors aria-hidden="@(!Model.CanEdit).ToString().ToLowerInvariant()">
                                 <defs>
                                     <marker id="visual-tree-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
                                         <path d="M 0 0 L 8 4 L 0 8 z" class="visual-tree-arrowhead"></path>
@@ -158,7 +172,40 @@
     @if (Model.CanEdit)
     {
         <aside class="visual-tree-sidebar" data-tree-sidebar aria-label="Visual tree editor">
-            <div class="card">
+            <div class="card d-none" data-tree-edge-panel>
+                <div class="card-header"><h3 class="card-title">Prerequisite editor</h3></div>
+                <div class="card-body" data-tree-edge-empty>
+                    <p class="mb-2">Select the dependent vehicle first, then select the prerequisite it requires.</p>
+                    <div class="text-secondary small">Existing blue prerequisite edges can also be selected for removal. Press Esc to leave this mode.</div>
+                </div>
+                <div class="card-body d-none" data-tree-edge-pending>
+                    <div class="mb-2"><span class="text-secondary">Dependent:</span> <strong data-tree-edge-dependent-name></strong></div>
+                    <div><span class="text-secondary">Requires:</span> <strong data-tree-edge-prerequisite-name>select a prerequisite</strong></div>
+                    <div class="form-hint mt-3">The dashed preview is not persisted until you save it.</div>
+                </div>
+                <form method="post" asp-page-handler="AddPrerequisite" class="card-footer d-none" data-tree-edge-create-form>
+                    <input type="hidden" name="AddPrerequisite.VehicleTreeEntryId" data-tree-edge-dependent-input />
+                    <input type="hidden" name="AddPrerequisite.PrerequisiteVehicleTreeEntryId" data-tree-edge-prerequisite-input />
+                    <input type="hidden" name="VisualEdgeMode" value="true" />
+                    <input type="hidden" name="VisualEdgeSelection" value="false" />
+                    <button type="submit" class="btn btn-primary w-100">Create prerequisite</button>
+                </form>
+                <div class="card-body d-none" data-tree-edge-selected>
+                    <div class="mb-2"><span class="text-secondary">Dependent:</span> <strong data-tree-selected-dependent-name></strong></div>
+                    <div><span class="text-secondary">Requires:</span> <strong data-tree-selected-prerequisite-name></strong></div>
+                </div>
+                <form method="post" asp-page-handler="RemovePrerequisite" class="card-footer d-none" data-tree-edge-remove-form onsubmit="return confirm('Remove this prerequisite edge?');">
+                    <input type="hidden" name="entryId" data-tree-edge-remove-dependent />
+                    <input type="hidden" name="prerequisiteEntryId" data-tree-edge-remove-prerequisite />
+                    <input type="hidden" name="AddPrerequisite.VehicleTreeEntryId" data-tree-edge-selected-dependent-input />
+                    <input type="hidden" name="AddPrerequisite.PrerequisiteVehicleTreeEntryId" data-tree-edge-selected-prerequisite-input />
+                    <input type="hidden" name="VisualEdgeMode" value="true" />
+                    <input type="hidden" name="VisualEdgeSelection" value="true" />
+                    <button type="submit" class="btn btn-outline-danger w-100">Remove prerequisite</button>
+                </form>
+            </div>
+
+            <div class="card" data-tree-entry-editor>
                 <div class="card-header"><h3 class="card-title">Entry inspector</h3></div>
                 <div class="card-body text-secondary" data-tree-selection-empty>Select a vehicle node to inspect and edit it.</div>
                 <form method="post" asp-page-handler="UpdateVisualEntry" class="d-none" data-tree-inspector-form>
@@ -224,7 +271,7 @@
                 </form>
             </div>
 
-            <div class="card mt-3">
+            <div class="card mt-3" data-tree-entry-editor>
                 <div class="card-header"><h3 class="card-title">Add vehicle</h3></div>
                 <div class="card-body">
                     <form method="post" asp-page-handler="AddEntry" data-tree-add-existing>

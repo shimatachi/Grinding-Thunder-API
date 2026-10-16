@@ -26,7 +26,12 @@ public sealed record VisualTreeWorkspaceViewModel(
     string ResearchTreeLabel,
     Guid? ResearchTreeId,
     DraftVersionDetailDto? Draft,
-    IReadOnlyList<VehicleDto> AvailableVehicles)
+    IReadOnlyList<VehicleDto> AvailableVehicles,
+    string? ErrorMessage,
+    bool StartInEdgeMode,
+    bool StartWithSelectedEdge,
+    Guid? PendingDependentEntryId,
+    Guid? PendingPrerequisiteEntryId)
 {
     public IReadOnlyList<TreeRankDto> Ranks => Draft?.TreeRanks ?? [];
     public IReadOnlyList<VehicleTreeEntryDto> Entries => Draft?.Entries ?? [];

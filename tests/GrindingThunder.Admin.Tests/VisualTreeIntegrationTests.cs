@@ -57,6 +57,12 @@ public class VisualTreeIntegrationTests
         Assert.Contains("name=\"VisualEntry.FolderParentEntryId\"", html);
         Assert.Contains("Save Changes", html);
         Assert.Contains("Remove from Draft", html);
+        Assert.Contains("data-tree-edge-toggle", html);
+        Assert.Contains("data-tree-edge-panel", html);
+        Assert.Contains("data-tree-edge-create-form", html);
+        Assert.Contains("data-tree-edge-remove-form", html);
+        Assert.Contains("name=\"AddPrerequisite.VehicleTreeEntryId\"", html);
+        Assert.Contains("name=\"AddPrerequisite.PrerequisiteVehicleTreeEntryId\"", html);
         Assert.Contains("data-vehicle-name=\"F-16A\"", html);
         Assert.Contains($"Tree ID: <code>{TestMockApiHandler.ResearchTreeId}</code>", html);
         Assert.Contains($"value=\"{TestMockApiHandler.AvailableVehicleId}\">F-15C", html);
@@ -194,6 +200,98 @@ public class VisualTreeIntegrationTests
         Assert.Contains("data-tree-edit-toggle", html);
     }
 
+    [Theory]
+    [InlineData("admin")]
+    [InlineData("editor")]
+    public async Task VisualPrerequisiteForm_CreatesEdgeThroughExistingHandler(string username)
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, username);
+        var page = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(page);
+
+        var response = await client.PostAsync(
+            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}?handler=AddPrerequisite",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["AddPrerequisite.VehicleTreeEntryId"] = TestMockApiHandler.EntryId.ToString(),
+                ["AddPrerequisite.PrerequisiteVehicleTreeEntryId"] = TestMockApiHandler.EntryId2.ToString(),
+                ["VisualEdgeMode"] = "true",
+                ["VisualEdgeSelection"] = "false",
+                ["__RequestVerificationToken"] = token
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var request = factory.MockApiHandler.RecordedJsonRequests.Single(recorded =>
+            recorded.Path == $"/api/admin/drafts/{TestMockApiHandler.DraftVersionId}/prerequisites");
+        using var payload = JsonDocument.Parse(request.Body);
+        Assert.Equal(TestMockApiHandler.EntryId, payload.RootElement.GetProperty("VehicleTreeEntryId").GetGuid());
+        Assert.Equal(TestMockApiHandler.EntryId2, payload.RootElement.GetProperty("PrerequisiteVehicleTreeEntryId").GetGuid());
+    }
+
+    [Fact]
+    public async Task VisualPrerequisiteForm_RemovesSelectedEdgeThroughExistingHandler()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+        var page = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(page);
+
+        var response = await client.PostAsync(
+            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}?handler=RemovePrerequisite",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["entryId"] = TestMockApiHandler.EntryId2.ToString(),
+                ["prerequisiteEntryId"] = TestMockApiHandler.EntryId.ToString(),
+                ["AddPrerequisite.VehicleTreeEntryId"] = TestMockApiHandler.EntryId2.ToString(),
+                ["AddPrerequisite.PrerequisiteVehicleTreeEntryId"] = TestMockApiHandler.EntryId.ToString(),
+                ["VisualEdgeMode"] = "true",
+                ["VisualEdgeSelection"] = "true",
+                ["__RequestVerificationToken"] = token
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains(factory.MockApiHandler.RecordedRequests, request =>
+            request.Method == HttpMethod.Delete &&
+            request.RequestUri?.AbsolutePath ==
+                $"/api/admin/drafts/{TestMockApiHandler.DraftVersionId}/prerequisites/{TestMockApiHandler.EntryId2}/{TestMockApiHandler.EntryId}");
+    }
+
+    [Theory]
+    [InlineData(false, "An entry cannot be a prerequisite of itself.")]
+    [InlineData(true, "Prerequisite edge already exists in this draft version.")]
+    public async Task VisualPrerequisiteForm_ApiErrorIsDisplayedInsideWorkspaceAndPreservesEdgeMode(
+        bool duplicate,
+        string expectedError)
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+        var page = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(page);
+        var dependentId = duplicate ? TestMockApiHandler.EntryId2 : TestMockApiHandler.EntryId;
+
+        var response = await client.PostAsync(
+            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}?handler=AddPrerequisite",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["AddPrerequisite.VehicleTreeEntryId"] = dependentId.ToString(),
+                ["AddPrerequisite.PrerequisiteVehicleTreeEntryId"] = TestMockApiHandler.EntryId.ToString(),
+                ["VisualEdgeMode"] = "true",
+                ["__RequestVerificationToken"] = token
+            }));
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("data-tree-workspace-alert", html);
+        Assert.Contains(expectedError, html);
+        Assert.Contains("data-start-edge-mode=\"true\"", html);
+        Assert.Contains($"data-pending-dependent=\"{dependentId}\"", html);
+        Assert.Contains($"data-pending-prerequisite=\"{TestMockApiHandler.EntryId}\"", html);
+    }
+
     [Fact]
     public async Task PublishedVersion_RendersExactPublishedSnapshotAndSparseRanks()
     {
@@ -238,6 +336,8 @@ public class VisualTreeIntegrationTests
         Assert.DoesNotContain("handler=DeleteRank", html);
         Assert.DoesNotContain("handler=DeleteEntry", html);
         Assert.DoesNotContain("data-tree-edit-toggle", html);
+        Assert.DoesNotContain("data-tree-edge-toggle", html);
+        Assert.DoesNotContain("data-tree-edge-remove-form", html);
         Assert.DoesNotContain("Entry inspector", html);
         Assert.DoesNotContain("Save Changes", html);
         Assert.DoesNotContain("Create and Add", html);
@@ -263,6 +363,8 @@ public class VisualTreeIntegrationTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("data-visual-tree", html);
         Assert.DoesNotContain("data-tree-edit-toggle", html);
+        Assert.DoesNotContain("data-tree-edge-toggle", html);
+        Assert.DoesNotContain("data-tree-edge-remove-form", html);
         Assert.DoesNotContain("Entry inspector", html);
         Assert.DoesNotContain(factory.MockApiHandler.RecordedRequests, request =>
             request.RequestUri?.AbsolutePath.StartsWith("/api/admin/", StringComparison.OrdinalIgnoreCase) == true);

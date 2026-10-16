@@ -33,7 +33,14 @@ public class VersionModel(IApiClient apiClient) : PageModel
         Vehicles
             .Where(vehicle => Draft?.Entries.All(entry => entry.VehicleId != vehicle.Id) == true)
             .OrderBy(vehicle => vehicle.Name)
-            .ToList());
+            .ToList(),
+        ModelState.Values.SelectMany(value => value.Errors)
+            .Select(error => error.ErrorMessage)
+            .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message)) ?? ErrorMessage,
+        VisualEdgeMode,
+        VisualEdgeSelection,
+        AddPrerequisite.VehicleTreeEntryId == Guid.Empty ? null : AddPrerequisite.VehicleTreeEntryId,
+        AddPrerequisite.PrerequisiteVehicleTreeEntryId == Guid.Empty ? null : AddPrerequisite.PrerequisiteVehicleTreeEntryId);
 
     public bool IsDraft => Summary?.Status.Equals("Draft", StringComparison.OrdinalIgnoreCase) == true;
     public bool CanEdit => User.IsInRole("Editor") || User.IsInRole("Admin");
@@ -49,6 +56,8 @@ public class VersionModel(IApiClient apiClient) : PageModel
     [BindProperty] public AddPrerequisiteInputModel AddPrerequisite { get; set; } = new();
     [BindProperty] public VisualEntryInputModel VisualEntry { get; set; } = new();
     [BindProperty] public CreateVehicleEntryInputModel CreateEntry { get; set; } = new();
+    [BindProperty] public bool VisualEdgeMode { get; set; }
+    [BindProperty] public bool VisualEdgeSelection { get; set; }
 
     public async Task<IActionResult> OnGetAsync(Guid versionId, CancellationToken cancellationToken)
     {

@@ -454,9 +454,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batch 25.
 
 
-## Next
-
-- **Batch 27 — Visual progression and prerequisite editor** (status: Planned)
+- **Batch 27 — Visual progression and prerequisite editor** (status: Completed)
   Goal: allow administrators to create, inspect, and remove progression
   relationships directly from the visual research-tree editor.
 
@@ -507,8 +505,25 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - real-time collaborative editing;
   - automatic prerequisite inference from layout.
 
+  Result: added a Draft-only prerequisite mode for Editor/Admin users alongside
+  the existing entry-movement mode. Administrators select the dependent first and
+  its prerequisite second, inspect a dashed pending connector, and explicitly save
+  through the existing antiforgery-protected `AddPrerequisite` Razor handler.
+  Existing prerequisite paths have accessible enlarged hit targets and a selected
+  state feeding the existing removal handler. API validation remains authoritative;
+  rejected self-references, duplicates, and other returned API errors render inside
+  the workspace while preserving edge mode and endpoints; whole-version validation
+  remains responsible for cycle, rank, and acquisition progression diagnostics.
+  Published versions and Publisher-only sessions render no mutation controls, and
+  Table / Details remains the fallback. No API, schema, migration, dependency, npm,
+  graph-library, calculator, account, import, validation, or diff changes were made.
+  Verification: solution build with zero warnings and errors; all 343 API and 190
+  Admin tests pass (533 total).
+
   Dependency: Batch 26.
 
+
+## Next
 
 - **Batch 28 — Game Update release workspace** (status: Planned)
   Goal: turn Game Updates from primarily catalog records into a release-oriented

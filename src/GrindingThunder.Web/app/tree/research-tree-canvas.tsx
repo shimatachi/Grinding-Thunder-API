@@ -31,12 +31,12 @@ const MIN_SCALE = 0.12;
 const MAX_SCALE = 1.75;
 
 const acquisitionPresentation: Record<number, { label: string; color: string }> = {
-  [VehicleAcquisitionType.Researchable]: { label: "Researchable", color: "#63b3ed" },
-  [VehicleAcquisitionType.Premium]: { label: "Premium", color: "#f3c34d" },
-  [VehicleAcquisitionType.Squadron]: { label: "Squadron", color: "#5ed184" },
-  [VehicleAcquisitionType.Event]: { label: "Event", color: "#4dabf7" },
-  [VehicleAcquisitionType.Pack]: { label: "Pack", color: "#cf72e8" },
-  [VehicleAcquisitionType.Hidden]: { label: "Hidden", color: "#8c98a6" },
+  [VehicleAcquisitionType.Researchable]: { label: "Researchable", color: "var(--acquisition-researchable, #63b3ed)" },
+  [VehicleAcquisitionType.Premium]: { label: "Premium", color: "var(--acquisition-premium, #f3c34d)" },
+  [VehicleAcquisitionType.Squadron]: { label: "Squadron", color: "var(--acquisition-squadron, #5ed184)" },
+  [VehicleAcquisitionType.Event]: { label: "Event", color: "var(--acquisition-event, #4dabf7)" },
+  [VehicleAcquisitionType.Pack]: { label: "Pack", color: "var(--acquisition-pack, #cf72e8)" },
+  [VehicleAcquisitionType.Hidden]: { label: "Hidden", color: "var(--acquisition-hidden, #8c98a6)" },
 };
 
 interface ResearchTreeCanvasProps {
@@ -94,10 +94,13 @@ interface TreeNodeCardProps {
   targetNode: boolean;
   requiredVehicle: boolean;
   fillerNode: boolean;
+  isFolderExpanded: boolean;
   onSetRef: (id: string, el: HTMLButtonElement | null) => void;
   onSelect: (id: string) => void;
   onNavigate: (event: ReactKeyboardEvent<HTMLButtonElement>, node: TreeLayoutNode) => void;
   onSelectTarget: (id: string) => void;
+  onToggleOwned: (id: string) => void;
+  onToggleFolder: (folderParentId: string, event?: React.MouseEvent) => void;
 }
 
 const TreeNodeCard = memo(function TreeNodeCard({
@@ -108,10 +111,13 @@ const TreeNodeCard = memo(function TreeNodeCard({
   targetNode,
   requiredVehicle,
   fillerNode,
+  isFolderExpanded,
   onSetRef,
   onSelect,
   onNavigate,
   onSelectTarget,
+  onToggleOwned,
+  onToggleFolder,
 }: TreeNodeCardProps) {
   const acquisition = acquisitionPresentation[node.acquisitionType] ?? {
     label: "Unknown",
@@ -126,12 +132,21 @@ const TreeNodeCard = memo(function TreeNodeCard({
     "--acquisition-accent": acquisition.color,
   } as CSSProperties;
 
+  const folderClass = node.isFolderParent
+    ? isFolderExpanded
+      ? "tree-node-folder-parent tree-node-folder-expanded"
+      : "tree-node-folder-parent tree-node-folder-collapsed"
+    : node.folderParentId
+      ? "tree-node-folder-child"
+      : "";
+
   return (
     <button
       ref={(element) => onSetRef(node.id, element)}
       type="button"
       data-tree-node
-      className={`tree-node ${selectedNode ? "tree-node-selected" : ""} ${relatedNode ? "tree-node-related" : ""} ${ownedNode ? "tree-node-owned" : ""} ${targetNode ? "tree-node-target" : ""} ${requiredVehicle ? "tree-node-required" : ""} ${fillerNode ? "tree-node-filler" : ""} ${node.folderParentId ? "tree-node-folder-child" : ""} ${node.acquisitionType === VehicleAcquisitionType.Hidden ? "tree-node-hidden" : ""}`}
+      data-tree-node-id={node.id}
+      className={`tree-node ${selectedNode ? "tree-node-selected" : ""} ${relatedNode ? "tree-node-related" : ""} ${ownedNode ? "tree-node-owned" : ""} ${targetNode ? "tree-node-target" : ""} ${requiredVehicle ? "tree-node-required" : ""} ${fillerNode ? "tree-node-filler" : ""} ${folderClass} ${node.acquisitionType === VehicleAcquisitionType.Hidden ? "tree-node-hidden" : ""}`}
       style={nodeStyle}
       onClick={() => onSelect(node.id)}
       onKeyDown={(event) => onNavigate(event, node)}
@@ -139,8 +154,37 @@ const TreeNodeCard = memo(function TreeNodeCard({
         if (node.acquisitionType === VehicleAcquisitionType.Researchable) onSelectTarget(node.id);
       }}
       aria-pressed={selectedNode}
-      aria-label={`${node.name}, Rank ${node.rankLabel}, ${acquisition.label}, ${formatNumber(node.rpCost)} RP, ${formatNumber(node.slCost)} SL${node.acquisitionType === VehicleAcquisitionType.Researchable ? ", double-click to set as calculator target" : ""}`}
+      aria-label={`${node.name}, Rank ${node.rankLabel}, ${acquisition.label}, ${formatNumber(node.rpCost)} RP, ${formatNumber(node.slCost)} SL${node.acquisitionType === VehicleAcquisitionType.Researchable ? ", double-click or press T to set as calculator target, press O to toggle owned" : ""}`}
     >
+      <div className="tree-node-quick-actions" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className={`tree-node-quick-btn tree-node-quick-owned ${ownedNode ? "is-active" : ""}`}
+          title={ownedNode ? "Mark as unowned" : "Mark as owned (researched)"}
+          aria-label={`${ownedNode ? "Unmark" : "Mark"} ${node.name} as owned`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleOwned(node.id);
+          }}
+        >
+          ✓
+        </button>
+        {node.acquisitionType === VehicleAcquisitionType.Researchable && (
+          <button
+            type="button"
+            className={`tree-node-quick-btn tree-node-quick-target ${targetNode ? "is-active" : ""}`}
+            title={targetNode ? "Clear target" : "Set as target vehicle"}
+            aria-label={`${targetNode ? "Clear" : "Set"} ${node.name} as target`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectTarget(node.id);
+            }}
+          >
+            🎯
+          </button>
+        )}
+      </div>
+
       <span className="tree-node-image"><VehicleImage src={node.imageUrl} name={node.name} compact /></span>
       <span className="tree-node-content">
         <span className="tree-node-name" title={node.name}>{node.name}</span>
@@ -152,9 +196,23 @@ const TreeNodeCard = memo(function TreeNodeCard({
           <span><small>RP</small>{formatNumber(node.rpCost)}</span>
           <span><small>SL</small>{formatNumber(node.slCost)}</span>
         </span>
-        {(node.isFolderParent || node.folderParentId) && (
-          <span className="tree-folder-badge">{node.isFolderParent ? "Folder" : "Folder member"}</span>
-        )}
+        {node.isFolderParent ? (
+          <button
+            type="button"
+            className="tree-folder-toggle"
+            aria-expanded={isFolderExpanded}
+            aria-label={isFolderExpanded ? `Collapse folder (${node.folderMemberCount} vehicles)` : `Expand folder (${node.folderMemberCount} vehicles)`}
+            title={`Toggle folder (${node.folderMemberCount} vehicles)`}
+            onClick={(e) => onToggleFolder(node.id, e)}
+          >
+            <span className="tree-folder-toggle-icon" aria-hidden="true">📁</span>
+            <span className="tree-folder-badge">Folder</span>
+            <span className="tree-folder-toggle-count">{node.folderMemberCount}</span>
+            <span className="tree-folder-toggle-chevron" aria-hidden="true">{isFolderExpanded ? "▴" : "▾"}</span>
+          </button>
+        ) : node.folderParentId ? (
+          <span className="tree-folder-badge">Folder member</span>
+        ) : null}
         {(targetNode || fillerNode || requiredVehicle || ownedNode) && (
           <span className={`tree-progression-badge ${targetNode ? "tree-progression-target" : fillerNode ? "tree-progression-filler" : requiredVehicle ? "tree-progression-required" : "tree-progression-owned"}`}>
             {targetNode ? "Target" : fillerNode ? "Filler" : requiredVehicle ? "Required" : "✓ Owned"}
@@ -185,6 +243,31 @@ function CloseIcon() {
   return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>;
 }
 
+function FocusIcon({ isFullscreen }: { isFullscreen: boolean }) {
+  if (isFullscreen) {
+    return (
+      <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <path d="M4 8V4h4M12 4h4v4M16 12v4h-4M8 16H4v-4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M7 3H3v4M13 3h4v4M7 17H3v-4M13 17h4v-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+import {
+  isEditableElement,
+  shouldSuppressShortcut,
+} from "./tree-shortcuts";
+
+export {
+  isEditableElement,
+  shouldSuppressShortcut,
+};
+
 export function ResearchTreeCanvas({
   ranks,
   entries,
@@ -198,6 +281,10 @@ export function ResearchTreeCanvas({
   const layout = useMemo(() => createTreeLayout(ranks, entries), [ranks, entries]);
   const [scale, setScale] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
+
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -209,6 +296,109 @@ export function ResearchTreeCanvas({
     scrollLeft: number;
     scrollTop: number;
   } | null>(null);
+
+  // Automatically expand folder if target vehicle is a folder child
+  useEffect(() => {
+    if (targetVehicleId) {
+      const targetNode = layout.nodesById.get(targetVehicleId);
+      if (targetNode?.folderParentId) {
+        setExpandedFolderIds((prev) => {
+          if (prev.has(targetNode.folderParentId!)) return prev;
+          const next = new Set(prev);
+          next.add(targetNode.folderParentId!);
+          return next;
+        });
+      }
+    }
+  }, [targetVehicleId, layout.nodesById]);
+
+  // Automatically expand folder if inspected vehicle is a folder child
+  useEffect(() => {
+    if (selectedId) {
+      const selectedNode = layout.nodesById.get(selectedId);
+      if (selectedNode?.folderParentId) {
+        setExpandedFolderIds((prev) => {
+          if (prev.has(selectedNode.folderParentId!)) return prev;
+          const next = new Set(prev);
+          next.add(selectedNode.folderParentId!);
+          return next;
+        });
+      }
+    }
+  }, [selectedId, layout.nodesById]);
+
+  const handleToggleFolder = useCallback((folderParentId: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    setExpandedFolderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderParentId)) {
+        next.delete(folderParentId);
+      } else {
+        next.add(folderParentId);
+      }
+      return next;
+    });
+  }, []);
+
+  const visibleNodes = useMemo(() => {
+    return layout.nodes.filter(
+      (node) => !node.folderParentId || expandedFolderIds.has(node.folderParentId),
+    );
+  }, [layout.nodes, expandedFolderIds]);
+
+  const visibleNodeIds = useMemo(() => {
+    return new Set(visibleNodes.map((n) => n.id));
+  }, [visibleNodes]);
+
+  const visibleEdges = useMemo(() => {
+    return layout.edges.filter(
+      (edge) => visibleNodeIds.has(edge.fromId) && visibleNodeIds.has(edge.toId),
+    );
+  }, [layout.edges, visibleNodeIds]);
+
+  const toggleFullscreen = useCallback(async () => {
+    const container = workspaceRef.current;
+    if (!container) return;
+
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        setIsFullscreen(false);
+      }
+    } else if (container.requestFullscreen) {
+      try {
+        await container.requestFullscreen();
+      } catch {
+        setIsFullscreen((prev) => !prev);
+      }
+    } else {
+      setIsFullscreen((prev) => !prev);
+    }
+  }, []);
+
+  const exitFullscreen = useCallback(async () => {
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        setIsFullscreen(false);
+      }
+    } else {
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
 
   const selected = selectedId ? layout.nodesById.get(selectedId) ?? null : null;
   const selectedPrerequisites = selected
@@ -284,12 +474,73 @@ export function ResearchTreeCanvas({
     });
   }
 
+  const getActiveVehicleId = useCallback((): string | null => {
+    if (selectedId) return selectedId;
+    const activeEl = document.activeElement;
+    if (activeEl instanceof HTMLElement) {
+      const nodeId = activeEl.getAttribute("data-tree-node-id");
+      if (nodeId) return nodeId;
+      const closestNode = activeEl.closest<HTMLElement>("[data-tree-node-id]");
+      if (closestNode) return closestNode.getAttribute("data-tree-node-id");
+    }
+    return null;
+  }, [selectedId]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (shouldSuppressShortcut(event)) return;
+
+      const key = event.key.toUpperCase();
+
+      if (event.key === "Escape") {
+        if (selectedId) {
+          event.preventDefault();
+          closeDrawer();
+        } else if (isFullscreen) {
+          event.preventDefault();
+          void exitFullscreen();
+        }
+        return;
+      }
+
+      if (key === "F") {
+        event.preventDefault();
+        void toggleFullscreen();
+        return;
+      }
+
+      if (key === "O") {
+        const activeId = getActiveVehicleId();
+        if (activeId) {
+          event.preventDefault();
+          onToggleOwned(activeId);
+        }
+        return;
+      }
+
+      if (key === "T") {
+        const activeId = getActiveVehicleId();
+        if (activeId) {
+          const candidate = layout.nodesById.get(activeId);
+          if (candidate?.acquisitionType === VehicleAcquisitionType.Researchable) {
+            event.preventDefault();
+            onSelectTarget(activeId);
+          }
+        }
+        return;
+      }
+    };
+
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    return () => document.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [selectedId, isFullscreen, exitFullscreen, toggleFullscreen, getActiveVehicleId, onToggleOwned, onSelectTarget, layout.nodesById]);
+
   const navigateNodes = useCallback((event: ReactKeyboardEvent<HTMLButtonElement>, node: TreeLayoutNode) => {
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
     event.preventDefault();
     const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
     const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
-    const candidates = layout.nodes.filter((candidate) => {
+    const candidates = visibleNodes.filter((candidate) => {
       if (candidate.id === node.id) return false;
       const delta = horizontal ? candidate.x - node.x : candidate.y - node.y;
       return Math.sign(delta) === direction;
@@ -303,7 +554,7 @@ export function ResearchTreeCanvas({
     });
     const next = candidates[0];
     if (next) nodeRefs.current.get(next.id)?.focus();
-  }, [layout.nodes]);
+  }, [visibleNodes]);
 
   const handleSetRef = useCallback((id: string, el: HTMLButtonElement | null) => {
     if (el) nodeRefs.current.set(id, el);
@@ -389,7 +640,10 @@ export function ResearchTreeCanvas({
   }, [layout.nodes, selected]);
 
   return (
-    <div className="tree-workspace">
+    <div
+      ref={workspaceRef}
+      className={`tree-workspace ${isFullscreen ? "tree-workspace-fullscreen" : ""}`}
+    >
       <div className="tree-toolbar">
         <div className="tree-legend" aria-label="Tree relationship legend">
           <span><i className="tree-legend-line tree-legend-prerequisite" />Prerequisite</span>
@@ -402,6 +656,16 @@ export function ResearchTreeCanvas({
           <button type="button" onClick={() => zoomTo(scale + 0.1)} aria-label="Zoom in"><ZoomInIcon /></button>
           <button type="button" onClick={fitToView} aria-label="Fit the entire research tree in the viewport"><FitIcon /><span>Fit</span></button>
           <button type="button" onClick={resetView} aria-label="Reset research tree zoom and position"><ResetIcon /><span>Reset</span></button>
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-pressed={isFullscreen}
+            aria-label={isFullscreen ? "Exit fullscreen focus mode (F)" : "Enter fullscreen focus mode (F)"}
+            title={isFullscreen ? "Exit focus (F)" : "Focus mode (F)"}
+          >
+            <FocusIcon isFullscreen={isFullscreen} />
+            <span>{isFullscreen ? "Exit" : "Focus"}</span>
+          </button>
         </div>
       </div>
 
@@ -464,7 +728,7 @@ export function ResearchTreeCanvas({
                   <path d="M 0 0 L 8 4 L 0 8 z" fill="#f4c14f" />
                 </marker>
               </defs>
-              {layout.edges.map((edge) => {
+              {visibleEdges.map((edge) => {
                 const touchesSelection = selectedId === edge.fromId || selectedId === edge.toId;
                 const connectsCalculatedPath = edge.kind === "prerequisite" &&
                   activePathIds.has(edge.toId) &&
@@ -479,13 +743,14 @@ export function ResearchTreeCanvas({
               })}
             </svg>
 
-            {layout.nodes.map((node) => {
+            {visibleNodes.map((node) => {
               const selectedNode = selectedId === node.id;
               const relatedNode = selectedRelatedIds.has(node.id);
               const ownedNode = ownedVehicleIds.has(node.id);
               const targetNode = targetVehicleId === node.id;
               const requiredVehicle = requiredVehicles.get(node.id);
               const fillerNode = requiredVehicle?.isRankGateFiller === true;
+              const isFolderExpanded = expandedFolderIds.has(node.id);
 
               return (
                 <TreeNodeCard
@@ -497,10 +762,13 @@ export function ResearchTreeCanvas({
                   targetNode={targetNode}
                   requiredVehicle={Boolean(requiredVehicle)}
                   fillerNode={Boolean(fillerNode)}
+                  isFolderExpanded={isFolderExpanded}
                   onSetRef={handleSetRef}
                   onSelect={handleSelect}
                   onNavigate={navigateNodes}
                   onSelectTarget={handleSelectTarget}
+                  onToggleOwned={onToggleOwned}
+                  onToggleFolder={handleToggleFolder}
                 />
               );
             })}
@@ -508,7 +776,7 @@ export function ResearchTreeCanvas({
         </div>
       </div>
 
-      <p className="tree-viewport-help">Drag empty space to pan · Ctrl/⌘ + wheel to zoom · Select for details · Double-click a Researchable vehicle to set the target</p>
+      <p className="tree-viewport-help">Drag empty space to pan · Ctrl/⌘ + wheel to zoom · Click to inspect · Double-click or T to set target · O to toggle owned · F to toggle focus</p>
 
       {selected && (
         <>

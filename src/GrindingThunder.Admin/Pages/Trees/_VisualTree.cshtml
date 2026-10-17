@@ -241,7 +241,19 @@
                                                         <span class="badge d-none visual-tree-progression-badge" data-progression-badge></span>
                                                         @if (node.IsFolderParent)
                                                         {
-                                                            <span class="badge bg-azure-lt">Folder</span>
+                                                            var folderChildCount = tree.Nodes.Count(n => n.FolderParentId == node.Id);
+                                                            var totalFolderCount = 1 + folderChildCount;
+                                                            <button type="button"
+                                                                    class="visual-tree-folder-toggle"
+                                                                    data-tree-folder-toggle="@node.Id"
+                                                                    aria-expanded="false"
+                                                                    aria-label="Expand folder (@totalFolderCount vehicles)"
+                                                                    title="Toggle folder (@totalFolderCount vehicles)">
+                                                                <span class="visual-tree-folder-icon" aria-hidden="true">📁</span>
+                                                                <span class="badge bg-azure-lt">Folder</span>
+                                                                <span class="visual-tree-folder-count">@totalFolderCount</span>
+                                                                <span class="visual-tree-folder-chevron" aria-hidden="true">▾</span>
+                                                            </button>
                                                         }
                                                         @if (node.FolderParentId.HasValue)
                                                         {

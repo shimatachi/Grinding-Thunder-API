@@ -8,14 +8,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        canvas: "#070b10",
-        panel: "#101720",
-        line: "#26313d",
-        steel: "#91a2b6",
-        signal: "#e7a629",
+        canvas: "rgb(var(--color-canvas) / <alpha-value>)",
+        panel: "rgb(var(--color-panel) / <alpha-value>)",
+        line: "rgb(var(--color-line) / <alpha-value>)",
+        steel: "rgb(var(--color-steel) / <alpha-value>)",
+        signal: "rgb(var(--color-signal) / <alpha-value>)",
       },
       boxShadow: {
-        panel: "0 24px 70px rgba(0, 0, 0, 0.32)",
+        panel: "var(--shadow-panel)",
       },
     },
   },

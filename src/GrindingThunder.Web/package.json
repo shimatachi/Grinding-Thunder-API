@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "lint": "next typegen && tsc --noEmit",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "node --test tests/tree-ergonomics.test.ts"
   },
   "dependencies": {
     "next": "16.4.2",

@@ -81,6 +81,43 @@ body { min-height: 100vh; }
 .visual-tree-node.is-dragging { cursor: grabbing; opacity: .9; }
 .visual-tree-node-folder-parent { border-top-color: #f59f00; }
 .visual-tree-node-folder-child { border-style: dashed; border-color: #f59f00; background: color-mix(in srgb, var(--tblr-bg-surface) 92%, #f59f00 8%); }
+.visual-tree-node.is-folder-hidden { display: none !important; }
+.visual-tree-node.is-folder-collapsed {
+    box-shadow:
+        inset 4px 0 var(--visual-tree-acquisition-accent),
+        3px -3px 0 -1px color-mix(in srgb, var(--tblr-bg-surface) 85%, #000),
+        3px -3px 0 0 color-mix(in srgb, var(--visual-tree-acquisition-accent) 40%, var(--tblr-border-color)),
+        6px -6px 0 -2px color-mix(in srgb, var(--tblr-bg-surface) 75%, #000),
+        6px -6px 0 -1px color-mix(in srgb, var(--visual-tree-acquisition-accent) 30%, var(--tblr-border-color)),
+        0 .35rem 1rem rgba(0, 0, 0, .32);
+}
+.visual-tree-folder-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .15rem .45rem;
+    font-size: .68rem;
+    font-weight: 700;
+    border-radius: var(--tblr-border-radius);
+    border: 1px solid color-mix(in srgb, #f59f00 45%, var(--tblr-border-color));
+    background: color-mix(in srgb, #f59f00 12%, var(--tblr-bg-surface));
+    color: #f59f00;
+    cursor: pointer;
+    line-height: 1.2;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+    user-select: none;
+}
+.visual-tree-folder-toggle:hover,
+.visual-tree-folder-toggle:focus-visible {
+    background: color-mix(in srgb, #f59f00 24%, var(--tblr-bg-surface));
+    border-color: #f59f00;
+    color: #d97706;
+    outline: none;
+}
+.visual-tree-folder-toggle .visual-tree-folder-chevron {
+    font-size: .65rem;
+    transition: transform .2s ease;
+}
 .visual-tree-node-image { display: flex; align-items: center; justify-content: center; height: 4rem; overflow: hidden; color: var(--tblr-secondary); font-size: .75rem; background: var(--tblr-bg-surface-secondary); }
 .visual-tree-node-image img { width: 100%; height: 100%; object-fit: contain; }
 .visual-tree-node-body { padding: .55rem .7rem .65rem .8rem; }

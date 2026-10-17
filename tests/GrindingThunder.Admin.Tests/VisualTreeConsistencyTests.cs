@@ -245,4 +245,108 @@ public class VisualTreeConsistencyTests
         Assert.Equal(5, tree.MaximumTreeColumn);
         Assert.NotEmpty(tree.Edges);
     }
+
+    [Fact]
+    public void FolderPresentationState_PreservesCanonicalCoordinatesForParentAndChildren()
+    {
+        var versionId = Guid.NewGuid();
+        var rankId = Guid.NewGuid();
+        var parentId = Guid.NewGuid();
+        var child1Id = Guid.NewGuid();
+        var child2Id = Guid.NewGuid();
+
+        var ranks = new[] { new TreeRankSummaryDto(rankId, 5, 3) };
+        var entries = new[]
+        {
+            // Parent at Column 2, Row 3
+            new PublicVehicleTreeEntryDto(parentId, rankId, versionId, "Vautour IIA", "https://example.test/vautour2a.png", 100_000, 250_000, VehicleAcquisitionType.Researchable, false, null, 2, 3, []),
+            // Child 1 sharing cell (Column 2, Row 3)
+            new PublicVehicleTreeEntryDto(child1Id, rankId, versionId, "Vautour IIN", "https://example.test/vautour2n.png", 110_000, 270_000, VehicleAcquisitionType.Researchable, false, parentId, 2, 3, []),
+            // Child 2 placed at Column 2, Row 4
+            new PublicVehicleTreeEntryDto(child2Id, rankId, versionId, "Vautour IIN(C)", "https://example.test/vautour2nc.png", 120_000, 300_000, VehicleAcquisitionType.Premium, false, parentId, 2, 4, [])
+        };
+
+        var tree = VisualTreeMapper.FromPublic(ranks, entries);
+
+        var parentNode = Assert.Single(tree.Nodes, n => n.Id == parentId);
+        var child1Node = Assert.Single(tree.Nodes, n => n.Id == child1Id);
+        var child2Node = Assert.Single(tree.Nodes, n => n.Id == child2Id);
+
+        // Canonical coordinates must remain EXACTLY as authored
+        Assert.Equal(2, parentNode.TreeColumn);
+        Assert.Equal(3, parentNode.TreeRow);
+        Assert.True(parentNode.IsFolderParent);
+        Assert.Null(parentNode.FolderParentId);
+
+        Assert.Equal(2, child1Node.TreeColumn);
+        Assert.Equal(3, child1Node.TreeRow);
+        Assert.False(child1Node.IsFolderParent);
+        Assert.Equal(parentId, child1Node.FolderParentId);
+
+        Assert.Equal(2, child2Node.TreeColumn);
+        Assert.Equal(4, child2Node.TreeRow);
+        Assert.False(child2Node.IsFolderParent);
+        Assert.Equal(parentId, child2Node.FolderParentId);
+
+        // Stack disambiguation indexes without mutating canonical row/col
+        Assert.Equal(0, parentNode.CoordinateStackIndex);
+        Assert.Equal(1, child1Node.CoordinateStackIndex);
+        Assert.Equal(0, child2Node.CoordinateStackIndex);
+
+        // Folder edges must connect parent to each child
+        var folderEdges = tree.Edges.Where(e => e.Kind == VisualTreeEdgeKind.Folder).ToList();
+        Assert.Equal(2, folderEdges.Count);
+        Assert.Contains(folderEdges, e => e.FromNodeId == parentId && e.ToNodeId == child1Id);
+        Assert.Contains(folderEdges, e => e.FromNodeId == parentId && e.ToNodeId == child2Id);
+
+        // Folder relationships must NOT create synthetic prerequisite edges
+        var prerequisiteEdges = tree.Edges.Where(e => e.Kind == VisualTreeEdgeKind.Prerequisite).ToList();
+        Assert.Empty(prerequisiteEdges);
+    }
+
+    [Fact]
+    public void Draft_FolderPresentation_NeverMutatesPersistedCoordinatesOrPrerequisites()
+    {
+        var versionId = Guid.NewGuid();
+        var rankId = Guid.NewGuid();
+        var parentEntryId = Guid.NewGuid();
+        var childEntryId = Guid.NewGuid();
+        var parentVehicleId = Guid.NewGuid();
+        var childVehicleId = Guid.NewGuid();
+
+        var draft = new DraftVersionDetailDto(
+            versionId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Draft",
+            [new TreeRankDto(rankId, versionId, 3, 2)],
+            [
+                new VehicleTreeEntryDto(parentEntryId, versionId, parentVehicleId, rankId, 45_000, 120_000, 1, 2, VehicleAcquisitionType.Researchable, null, "Parent Tank"),
+                new VehicleTreeEntryDto(childEntryId, versionId, childVehicleId, rankId, 48_000, 130_000, 1, 2, VehicleAcquisitionType.Researchable, parentEntryId, "Child Tank")
+            ],
+            []);
+
+        var vehicles = new[]
+        {
+            new VehicleDto(parentVehicleId, "Parent Tank", null, Guid.NewGuid(), Guid.NewGuid(), "Nation", Guid.NewGuid(), "Army", null),
+            new VehicleDto(childVehicleId, "Child Tank", null, Guid.NewGuid(), Guid.NewGuid(), "Nation", Guid.NewGuid(), "Army", null)
+        };
+
+        var tree = VisualTreeMapper.FromDraft(draft, vehicles);
+
+        var parent = tree.Nodes.Single(n => n.Id == parentEntryId);
+        var child = tree.Nodes.Single(n => n.Id == childEntryId);
+
+        // Verifying coordinates remain unchanged
+        Assert.Equal((1, 2), (parent.TreeColumn, parent.TreeRow));
+        Assert.Equal((1, 2), (child.TreeColumn, child.TreeRow));
+        Assert.True(parent.IsFolderParent);
+        Assert.Equal(parentEntryId, child.FolderParentId);
+
+        // Ensure edge kinds are correctly separated
+        Assert.DoesNotContain(tree.Edges, e => e.Kind == VisualTreeEdgeKind.Prerequisite);
+        var folderEdge = Assert.Single(tree.Edges, e => e.Kind == VisualTreeEdgeKind.Folder);
+        Assert.Equal(parentEntryId, folderEdge.FromNodeId);
+        Assert.Equal(childEntryId, folderEdge.ToNodeId);
+    }
 }

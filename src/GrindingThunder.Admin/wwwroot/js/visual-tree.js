@@ -33,6 +33,7 @@
         const undoStack = [];
         const redoStack = [];
         const maxHistorySize = 50;
+        const expandedFolderParentIds = new Set();
         const readonlyPanel = tree.querySelector("[data-tree-readonly-inspector]");
         const readonlyEmpty = tree.querySelector("[data-tree-readonly-empty]");
         const readonlyDetails = tree.querySelector("[data-tree-readonly-details]");
@@ -344,6 +345,7 @@
                     const from = nodeById(edgeData.dataset.fromNode);
                     const to = nodeById(edgeData.dataset.toNode);
                     if (!from || !to) return;
+                    if (from.classList.contains("is-folder-hidden") || to.classList.contains("is-folder-hidden")) return;
 
                     const kind = edgeData.dataset.edgeKind;
                     if (kind === "folder" && to === selectedNode &&
@@ -362,12 +364,17 @@
                 });
 
                 if (selectedNode?.dataset.folderParentId &&
+                    !selectedNode.classList.contains("is-folder-hidden") &&
                     !renderedFolderTargets.has(selectedNode.dataset.treeNode || "")) {
                     const folderParent = nodeById(selectedNode.dataset.folderParentId);
-                    if (folderParent) appendVisiblePath(folderParent, selectedNode, "folder", "is-pending");
+                    if (folderParent && !folderParent.classList.contains("is-folder-hidden")) {
+                        appendVisiblePath(folderParent, selectedNode, "folder", "is-pending");
+                    }
                 }
 
-                if (pendingDependent && pendingPrerequisite) {
+                if (pendingDependent && pendingPrerequisite &&
+                    !pendingDependent.classList.contains("is-folder-hidden") &&
+                    !pendingPrerequisite.classList.contains("is-folder-hidden")) {
                     appendVisiblePath(pendingPrerequisite, pendingDependent, "prerequisite", "is-pending");
                 }
             } finally {
@@ -875,6 +882,84 @@
             node.classList.toggle("visual-tree-node-folder-child", Boolean(state.folderParentId));
         };
 
+        const refreshFolderVisibility = () => {
+            tree.querySelectorAll("[data-tree-node]").forEach(node => {
+                const nodeId = node.dataset.treeNode;
+                if (!nodeId) return;
+                const isParent = node.dataset.isFolderParent === "true";
+                if (isParent) {
+                    const children = Array.from(tree.querySelectorAll(`[data-folder-parent-id="${nodeId}"]`));
+                    const totalCount = 1 + children.length;
+                    const isExpanded = expandedFolderParentIds.has(nodeId);
+
+                    node.classList.toggle("is-folder-expanded", isExpanded);
+                    node.classList.toggle("is-folder-collapsed", !isExpanded);
+
+                    let toggleBtn = node.querySelector("[data-tree-folder-toggle]");
+                    if (!toggleBtn) {
+                        const badges = node.querySelector(".visual-tree-node-badges");
+                        if (badges) {
+                            toggleBtn = document.createElement("button");
+                            toggleBtn.type = "button";
+                            toggleBtn.className = "visual-tree-folder-toggle";
+                            toggleBtn.dataset.treeFolderToggle = nodeId;
+                            toggleBtn.innerHTML = `
+                                <span class="visual-tree-folder-icon" aria-hidden="true">📁</span>
+                                <span class="visual-tree-folder-count">${totalCount}</span>
+                                <span class="visual-tree-folder-chevron" aria-hidden="true">${isExpanded ? "▴" : "▾"}</span>
+                            `;
+                            badges.appendChild(toggleBtn);
+                        }
+                    }
+                    if (toggleBtn) {
+                        toggleBtn.setAttribute("aria-expanded", isExpanded.toString());
+                        toggleBtn.setAttribute("aria-label", `${isExpanded ? "Collapse" : "Expand"} folder (${totalCount} vehicles)`);
+                        toggleBtn.title = `Toggle folder (${totalCount} vehicles)`;
+                        const countEl = toggleBtn.querySelector(".visual-tree-folder-count");
+                        if (countEl) countEl.textContent = totalCount.toString();
+                        const chevronEl = toggleBtn.querySelector(".visual-tree-folder-chevron");
+                        if (chevronEl) chevronEl.textContent = isExpanded ? "▴" : "▾";
+                    }
+                } else {
+                    node.classList.remove("is-folder-expanded", "is-folder-collapsed");
+                    node.querySelector("[data-tree-folder-toggle]")?.remove();
+                }
+            });
+
+            tree.querySelectorAll("[data-tree-node]").forEach(node => {
+                const parentId = node.dataset.folderParentId;
+                if (parentId) {
+                    const isParentExpanded = expandedFolderParentIds.has(parentId);
+                    const isHidden = !isParentExpanded;
+                    node.classList.toggle("is-folder-hidden", isHidden);
+                    if (isHidden) {
+                        node.setAttribute("aria-hidden", "true");
+                        node.style.display = "none";
+                        if (selectedNode === node) {
+                            const parentNode = nodeById(parentId);
+                            if (parentNode) {
+                                if (canEdit) selectNode(parentNode);
+                                else selectReadonlyNode(parentNode);
+                            } else {
+                                if (canEdit) clearEntrySelection();
+                                else clearReadonlySelection();
+                            }
+                        }
+                        if (typeof multiSelectedNodes !== "undefined" && multiSelectedNodes?.has(node)) {
+                            multiSelectedNodes.delete(node);
+                            node.classList.remove("is-multi-selected");
+                            updateSelectionCount?.();
+                        }
+                    } else {
+                        node.removeAttribute("aria-hidden");
+                        node.style.removeProperty("display");
+                    }
+                }
+            });
+
+            drawConnectors();
+        };
+
         const rebuildFolderState = () => {
             const edgeData = tree.querySelector("[data-tree-edge-data]");
             edgeData?.querySelectorAll('[data-tree-edge][data-edge-kind="folder"]').forEach(edge => edge.remove());
@@ -896,6 +981,7 @@
                 node.dataset.isFolderParent = isParent.toString();
                 node.classList.toggle("visual-tree-node-folder-parent", isParent);
             });
+            refreshFolderVisibility();
         };
 
         const addPrerequisiteEdge = (prerequisiteId, dependentId) => {
@@ -980,6 +1066,10 @@
 
         const selectReadonlyNode = node => {
             if (canEdit || !node || !readonlyPanel) return;
+            if (node.dataset.folderParentId && !expandedFolderParentIds.has(node.dataset.folderParentId)) {
+                expandedFolderParentIds.add(node.dataset.folderParentId);
+                refreshFolderVisibility();
+            }
             selectedNode?.classList.remove("is-selected");
             selectedNode = node;
             selectedNode.classList.add("is-selected");
@@ -1516,6 +1606,10 @@
 
         const selectNode = (node, shouldFocus = true) => {
             if (!isEditing() || !node) return false;
+            if (node.dataset.folderParentId && !expandedFolderParentIds.has(node.dataset.folderParentId)) {
+                expandedFolderParentIds.add(node.dataset.folderParentId);
+                refreshFolderVisibility();
+            }
             if (node === selectedNode && selectedNodes.size === 1) {
                 if (shouldFocus) focusInspector();
                 return true;
@@ -1857,6 +1951,21 @@
                     event.preventDefault();
                     return;
                 }
+                const folderToggle = event.target.closest("[data-tree-folder-toggle]");
+                if (folderToggle) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const parentId = folderToggle.dataset.treeFolderToggle;
+                    if (parentId) {
+                        if (expandedFolderParentIds.has(parentId)) {
+                            expandedFolderParentIds.delete(parentId);
+                        } else {
+                            expandedFolderParentIds.add(parentId);
+                        }
+                        refreshFolderVisibility();
+                    }
+                    return;
+                }
                 const ownedToggle = event.target.closest("[data-node-owned-toggle]");
                 if (ownedToggle) {
                     event.preventDefault();
@@ -1889,6 +1998,7 @@
                 selectNode(node, true);
             });
             node.addEventListener("keydown", event => {
+                if (event.target.closest("[data-tree-folder-toggle]")) return;
                 if (event.key !== "Enter" && event.key !== " ") return;
                 if (isEdgeMode()) {
                     event.preventDefault();
@@ -2362,6 +2472,15 @@
             new ResizeObserver(() => applyScale(scale)).observe(stage);
         }
         document.addEventListener("shown.bs.tab", drawConnectors);
+        if (tree.dataset.pendingDependent) {
+            const depNode = nodeById(tree.dataset.pendingDependent);
+            if (depNode?.dataset.folderParentId) expandedFolderParentIds.add(depNode.dataset.folderParentId);
+        }
+        if (tree.dataset.pendingPrerequisite) {
+            const prereqNode = nodeById(tree.dataset.pendingPrerequisite);
+            if (prereqNode?.dataset.folderParentId) expandedFolderParentIds.add(prereqNode.dataset.folderParentId);
+        }
+        refreshFolderVisibility();
         refreshOccupiedCells();
         refreshLayoutTools();
         updateUndoRedoControls();

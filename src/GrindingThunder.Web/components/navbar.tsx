@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "@/components/session-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navigation = [
   { href: "/", label: "Overview" },
@@ -66,6 +67,8 @@ export function Navbar() {
           })}
 
           <span className="mx-2 hidden h-6 w-px bg-line md:block" />
+
+          <ThemeToggle />
 
           {status === "loading" ? (
             <span className="px-3 text-sm text-steel" role="status">Checking session…</span>

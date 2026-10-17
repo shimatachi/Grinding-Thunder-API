@@ -30,6 +30,8 @@ export interface TreeLayoutNode extends VehicleTreeEntry {
   stackIndex: number;
   rankNumber: number;
   rankLabel: string;
+  folderChildIds: string[];
+  folderMemberCount: number;
 }
 
 export type TreeEdgeKind = "prerequisite" | "folder";
@@ -80,6 +82,14 @@ export function createTreeLayout(
   const folderParentIds = new Set(
     validEntries.filter((e) => e.folderParentId).map((e) => e.folderParentId!),
   );
+  const folderChildIdsByParent = new Map<string, string[]>();
+  for (const entry of validEntries) {
+    if (entry.folderParentId) {
+      const children = folderChildIdsByParent.get(entry.folderParentId) ?? [];
+      children.push(entry.id);
+      folderChildIdsByParent.set(entry.folderParentId, children);
+    }
+  }
 
   const stackIndexById = new Map<string, number>();
   const coordinateGroups = new Map<string, VehicleTreeEntry[]>();
@@ -136,9 +146,14 @@ export function createTreeLayout(
       const stackIndex = stackIndexById.get(entry.id) ?? 0;
       const minRow = minRowByRankId.get(entry.treeRankId) ?? 0;
       const rowOffset = entry.treeRow - minRow;
+      const isParent = Boolean(entry.isFolderParent || folderParentIds.has(entry.id));
+      const folderChildIds = folderChildIdsByParent.get(entry.id) ?? [];
+      const folderMemberCount = isParent ? 1 + folderChildIds.length : (entry.folderParentId ? 1 : 1);
       return {
         ...entry,
-        isFolderParent: Boolean(entry.isFolderParent || folderParentIds.has(entry.id)),
+        isFolderParent: isParent,
+        folderChildIds,
+        folderMemberCount,
         x: GRID_ORIGIN_X + (entry.treeColumn * COLUMN_STEP) + (stackIndex * STACK_X_OFFSET),
         y: rank.top + BAND_NODE_TOP + (rowOffset * ROW_STEP) + (stackIndex * STACK_Y_OFFSET),
         rowOffset,

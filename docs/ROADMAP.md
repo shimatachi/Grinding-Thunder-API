@@ -1458,10 +1458,24 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Verification: `dotnet build GrindingThunder.sln --no-restore` succeeds with 0 warnings/errors; `dotnet test GrindingThunder.sln --no-build` passes all 595 tests (357 API + 238 Admin); `npm --prefix src/GrindingThunder.Web run typecheck` passes; `npm --prefix src/GrindingThunder.Web run build` passes and emits `.next/standalone/server.js`; `docker compose --env-file .env.example -f docker-compose.prod.yml config --quiet` validates successfully.
 
 
-- **Batch 45 — Folder interaction, Web tree ergonomics, and theming** (status: Planned)
+- **Batch 45 — Folder interaction, Web tree ergonomics, and theming** (status: Completed)
   Goal: make foldered vehicles behave like War Thunder research-tree folders in both
   Admin and Web, bring the player tree's interaction ergonomics closer to the Admin
   visual tree, and add first-class Light/Dark/System theming to GrindingThunder.Web.
+  Result: implemented War Thunder-style compact stacked folder presentation and in-place
+  expand/collapse interaction across both Admin and Web frontends without shared frontend
+  code or coordinate mutations; added dedicated accessible folder toggle affordances with
+  `aria-expanded` and member count badges; derived visible nodes and SVG bezier connectors
+  so collapsed children omit broken edge lines without recalculating paths at runtime;
+  added tree workspace Fullscreen/Focus mode with browser Fullscreen API and responsive CSS
+  fallback; added per-node quick action buttons on vehicle cards for "Toggle Owned" and "Set
+  as Target" (restricted to Researchable vehicles); added keyboard shortcuts (`O`, `T`, `F`,
+  `Escape`) with strict suppression guards against editable elements (`input`, `textarea`,
+  `select`, `contenteditable`) and modifier keys (`Ctrl`, `Meta`, `Alt`); implemented complete
+  Web Light, Dark, and System theming using semantic CSS custom properties in `globals.css`,
+  persisted in `localStorage` and responsive to `prefers-color-scheme`, with synchronous inline
+  anti-flash script in `app/layout.tsx` preventing initial render flash; verified with 240 Admin
+  tests, 357 API tests, 14 Web unit tests, and Next.js static build.
 
   Folder UX reference:
   - use the War Thunder Wiki research-tree presentation as the visual/interaction

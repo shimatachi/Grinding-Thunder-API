@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
@@ -117,6 +118,9 @@ export function ResearchTreeCanvas({
   const [scale, setScale] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const nodeRefs = useRef(new Map<string, HTMLButtonElement>());
   const panRef = useRef<{
     pointerId: number;
     startX: number;
@@ -140,6 +144,11 @@ export function ResearchTreeCanvas({
         .filter((node) => node.folderParentId === selected.id)
         .sort((left, right) => left.name.localeCompare(right.name))
     : [];
+  const selectedUnlocks = selected
+    ? layout.nodes
+        .filter((node) => node.prerequisiteIds.includes(selected.id))
+        .sort((left, right) => left.rankNumber - right.rankNumber || left.name.localeCompare(right.name))
+    : [];
   const selectedWikiUrl = externalHttpUrl(selected?.wikiUrl);
   const requiredVehicles = useMemo(
     () => new Map(calculationResult?.requiredVehicles.map((vehicle) => [vehicle.vehicleId, vehicle]) ?? []),
@@ -159,12 +168,61 @@ export function ResearchTreeCanvas({
 
   useEffect(() => {
     if (!selected) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelectedId(null);
+      if (event.key === "Escape") closeDrawer();
+      if (event.key !== "Tab" || !drawerRef.current) return;
+      const focusable = [...drawerRef.current.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      )];
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [selected]);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [selected?.id]);
+
+  function closeDrawer() {
+    const previousId = selectedId;
+    setSelectedId(null);
+    requestAnimationFrame(() => {
+      if (previousId) nodeRefs.current.get(previousId)?.focus();
+    });
+  }
+
+  function navigateNodes(event: ReactKeyboardEvent<HTMLButtonElement>, node: TreeLayoutNode) {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
+    const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+    const candidates = layout.nodes.filter((candidate) => {
+      if (candidate.id === node.id) return false;
+      const delta = horizontal ? candidate.x - node.x : candidate.y - node.y;
+      return Math.sign(delta) === direction;
+    });
+    candidates.sort((left, right) => {
+      const leftPrimary = Math.abs((horizontal ? left.x : left.y) - (horizontal ? node.x : node.y));
+      const rightPrimary = Math.abs((horizontal ? right.x : right.y) - (horizontal ? node.x : node.y));
+      const leftSecondary = Math.abs((horizontal ? left.y : left.x) - (horizontal ? node.y : node.x));
+      const rightSecondary = Math.abs((horizontal ? right.y : right.x) - (horizontal ? node.y : node.x));
+      return leftPrimary - rightPrimary || leftSecondary - rightSecondary || left.name.localeCompare(right.name);
+    });
+    const next = candidates[0];
+    if (next) nodeRefs.current.get(next.id)?.focus();
+  }
 
   function zoomTo(value: number) {
     const viewport = viewportRef.current;
@@ -254,8 +312,8 @@ export function ResearchTreeCanvas({
           <button type="button" onClick={() => zoomTo(scale - 0.1)} aria-label="Zoom out"><ZoomOutIcon /></button>
           <output aria-live="polite">{Math.round(scale * 100)}%</output>
           <button type="button" onClick={() => zoomTo(scale + 0.1)} aria-label="Zoom in"><ZoomInIcon /></button>
-          <button type="button" onClick={fitToView}><FitIcon /><span>Fit</span></button>
-          <button type="button" onClick={resetView}><ResetIcon /><span>Reset</span></button>
+          <button type="button" onClick={fitToView} aria-label="Fit the entire research tree in the viewport"><FitIcon /><span>Fit</span></button>
+          <button type="button" onClick={resetView} aria-label="Reset research tree zoom and position"><ResetIcon /><span>Reset</span></button>
         </div>
       </div>
 
@@ -356,11 +414,16 @@ export function ResearchTreeCanvas({
               return (
                 <button
                   key={node.id}
+                  ref={(element) => {
+                    if (element) nodeRefs.current.set(node.id, element);
+                    else nodeRefs.current.delete(node.id);
+                  }}
                   type="button"
                   data-tree-node
                   className={`tree-node ${selectedNode ? "tree-node-selected" : ""} ${relatedNode ? "tree-node-related" : ""} ${ownedNode ? "tree-node-owned" : ""} ${targetNode ? "tree-node-target" : ""} ${requiredVehicle ? "tree-node-required" : ""} ${fillerNode ? "tree-node-filler" : ""} ${node.folderParentId ? "tree-node-folder-child" : ""} ${node.acquisitionType === VehicleAcquisitionType.Hidden ? "tree-node-hidden" : ""}`}
                   style={nodeStyle}
                   onClick={() => setSelectedId(node.id)}
+                  onKeyDown={(event) => navigateNodes(event, node)}
                   onDoubleClick={() => {
                     if (node.acquisitionType === VehicleAcquisitionType.Researchable) onSelectTarget(node.id);
                   }}
@@ -397,16 +460,19 @@ export function ResearchTreeCanvas({
       <p className="tree-viewport-help">Drag empty space to pan · Ctrl/⌘ + wheel to zoom · Select for details · Double-click a Researchable vehicle to set the target</p>
 
       {selected && (
-        <aside className="tree-detail-drawer" role="dialog" aria-modal="false" aria-labelledby="tree-detail-title">
+        <>
+        <button type="button" className="tree-detail-backdrop" onClick={closeDrawer} aria-label="Close vehicle details" />
+        <aside ref={drawerRef} className="tree-detail-drawer" role="dialog" aria-modal="true" aria-labelledby="tree-detail-title" aria-describedby="tree-detail-description">
           <div className="tree-detail-hero">
             <VehicleImage src={selected.imageUrl} name={selected.name} />
-            <button type="button" className="tree-detail-close" onClick={() => setSelectedId(null)} aria-label="Close vehicle details">
+            <button ref={closeButtonRef} type="button" className="tree-detail-close" onClick={closeDrawer} aria-label="Close vehicle details">
               <CloseIcon />
             </button>
           </div>
           <div className="tree-detail-body">
             <p className="eyebrow">Rank {selected.rankLabel} vehicle</p>
             <h3 id="tree-detail-title">{selected.name}</h3>
+            <p id="tree-detail-description" className="sr-only">Vehicle costs, ownership actions, prerequisites, folder grouping, and Wiki link.</p>
             <div className="tree-detail-badges">
               <span style={{ borderColor: acquisitionPresentation[selected.acquisitionType]?.color }}>
                 {acquisitionPresentation[selected.acquisitionType]?.label ?? "Unknown"}
@@ -443,7 +509,7 @@ export function ResearchTreeCanvas({
             </div>
 
             <section className="tree-detail-section">
-              <h4>Prerequisites</h4>
+              <h4>Direct prerequisites</h4>
               {selectedPrerequisites.length > 0 ? (
                 <div className="tree-detail-links">
                   {selectedPrerequisites.map((node) => (
@@ -454,6 +520,19 @@ export function ResearchTreeCanvas({
                 </div>
               ) : <p>No prerequisite vehicles.</p>}
             </section>
+
+            {selectedUnlocks.length > 0 && (
+              <section className="tree-detail-section">
+                <h4>Unlocks next</h4>
+                <div className="tree-detail-links">
+                  {selectedUnlocks.map((node) => (
+                    <button type="button" key={node.id} onClick={() => setSelectedId(node.id)}>
+                      <span>{node.name}</span><small>Rank {node.rankLabel}</small>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {(selectedFolderParent || selectedFolderChildren.length > 0) && (
               <section className="tree-detail-section">
@@ -474,7 +553,7 @@ export function ResearchTreeCanvas({
             )}
 
             {selectedWikiUrl ? (
-              <a className="button-primary mt-6 w-full" href={selectedWikiUrl} target="_blank" rel="noreferrer">
+              <a className="button-primary mt-6 w-full" href={selectedWikiUrl} target="_blank" rel="noopener noreferrer">
                 Open War Thunder Wiki ↗
               </a>
             ) : (
@@ -482,6 +561,7 @@ export function ResearchTreeCanvas({
             )}
           </div>
         </aside>
+        </>
       )}
     </div>
   );

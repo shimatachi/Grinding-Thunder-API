@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { Footer } from "@/components/footer";
 import { Navbar } from "@/components/navbar";
 import { SessionProvider } from "@/components/session-provider";
@@ -19,7 +19,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <body>
         <SessionProvider>
           <div className="flex min-h-screen flex-col">
-            <Navbar />
+            <Suspense fallback={<div className="h-16 border-b border-white/10 bg-canvas" aria-hidden="true" />}>
+              <Navbar />
+            </Suspense>
             <main className="flex-1">{children}</main>
             <Footer />
           </div>

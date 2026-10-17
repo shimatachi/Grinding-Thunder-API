@@ -38,12 +38,16 @@ async function parseError(response: Response): Promise<ApiError> {
   let details: ApiProblemDetails | undefined;
 
   if (contentType.includes("application/json")) {
-    details = (await response.json()) as ApiProblemDetails;
-    const validationMessage = details.errors
-      ? Object.values(details.errors).flat().join(" ")
-      : undefined;
-    message =
-      validationMessage || details.message || details.detail || details.title || message;
+    try {
+      details = (await response.json()) as ApiProblemDetails;
+      const validationMessage = details.errors
+        ? Object.values(details.errors).flat().join(" ")
+        : undefined;
+      message =
+        validationMessage || details.message || details.detail || details.title || message;
+    } catch {
+      message = `The server returned an unreadable error response (${response.status}).`;
+    }
   } else {
     const text = await response.text();
     if (text.trim()) message = text;
@@ -64,15 +68,25 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers.set("Authorization", `Bearer ${options.token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    throw new ApiError(0, "The Grinding Thunder API could not be reached. Check your connection and try again.");
+  }
 
   if (!response.ok) throw await parseError(response);
   if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  try {
+    return (await response.json()) as T;
+  } catch {
+    throw new ApiError(response.status, "The server returned an unreadable response. Please try again.");
+  }
 }
 
 export const api = {

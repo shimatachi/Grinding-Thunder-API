@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "@/components/session-provider";
 
@@ -12,12 +12,21 @@ const navigation = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { status, player, logout } = useSession();
+  const { status, player, notice, logout, dismissNotice } = useSession();
+  const currentQuery = searchParams.toString();
+  const requestedReturnTo = searchParams.get("returnTo");
+  const returnTo = (pathname === "/login" || pathname === "/register") && requestedReturnTo?.startsWith("/") && !requestedReturnTo.startsWith("//")
+    ? requestedReturnTo
+    : `${pathname}${currentQuery ? `?${currentQuery}` : ""}`;
+  const loginHref = `/login?returnTo=${encodeURIComponent(returnTo)}`;
+  const registerHref = `/register?returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-canvas/85 backdrop-blur-xl">
-      <div className="page-shell flex h-16 items-center justify-between gap-5">
+    <>
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-canvas/85 backdrop-blur-xl">
+        <div className="page-shell flex h-16 items-center justify-between gap-5">
         <Link href="/" className="group flex items-center gap-3" onClick={() => setMenuOpen(false)}>
           <span className="grid h-9 w-9 place-items-center border border-signal/60 bg-signal/10 text-sm font-black text-signal transition group-hover:bg-signal/20">
             GT
@@ -48,6 +57,7 @@ export function Navbar() {
                 key={item.href}
                 href={item.href}
                 className={`nav-link ${active ? "nav-link-active" : ""}`}
+                aria-current={active ? "page" : undefined}
                 onClick={() => setMenuOpen(false)}
               >
                 {item.label}
@@ -58,11 +68,12 @@ export function Navbar() {
           <span className="mx-2 hidden h-6 w-px bg-line md:block" />
 
           {status === "loading" ? (
-            <span className="px-3 text-sm text-steel">Checking session…</span>
+            <span className="px-3 text-sm text-steel" role="status">Checking session…</span>
           ) : player ? (
-            <div className="flex items-center gap-2">
-              <Link href="/profile" className="button-ghost" onClick={() => setMenuOpen(false)}>
-                {player.username}
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <Link href="/profile" className="account-chip" onClick={() => setMenuOpen(false)}>
+                <span className="account-chip-avatar" aria-hidden="true">{player.username.slice(0, 1).toUpperCase()}</span>
+                <span><small>Signed in</small>{player.username}</span>
               </Link>
               <button
                 type="button"
@@ -76,17 +87,27 @@ export function Navbar() {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Link href="/login" className="button-ghost" onClick={() => setMenuOpen(false)}>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <span className="guest-chip"><span aria-hidden="true" />Guest mode</span>
+              <Link href={loginHref} className="button-ghost" onClick={() => setMenuOpen(false)}>
                 Log in
               </Link>
-              <Link href="/register" className="button-primary" onClick={() => setMenuOpen(false)}>
+              <Link href={registerHref} className="button-primary" onClick={() => setMenuOpen(false)}>
                 Create account
               </Link>
             </div>
           )}
         </nav>
-      </div>
-    </header>
+        </div>
+      </header>
+      {notice && (
+        <div className={`session-notice session-notice-${notice.tone}`} role={notice.tone === "warning" ? "alert" : "status"}>
+          <div className="page-shell flex items-start justify-between gap-4 py-3">
+            <p>{notice.message}</p>
+            <button type="button" onClick={dismissNotice} aria-label="Dismiss account message">Dismiss</button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

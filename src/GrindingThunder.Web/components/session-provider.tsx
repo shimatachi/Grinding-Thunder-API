@@ -16,19 +16,33 @@ import type {
   PlayerRegisterRequest,
   PlayerTokenResponse,
 } from "@/lib/api/types";
+import {
+  clearAnonymousProgress,
+  hasAnonymousProgress,
+  loadAnonymousOwnedIds,
+  loadAnonymousPreferences,
+  recordProgressSync,
+} from "@/lib/player-storage";
 
 const PLAYER_TOKEN_KEY = "grinding-thunder.player-token";
 
 type SessionStatus = "loading" | "authenticated" | "anonymous";
 
+export interface SessionNotice {
+  tone: "success" | "warning";
+  message: string;
+}
+
 interface SessionContextValue {
   status: SessionStatus;
   token: string | null;
   player: PlayerProfile | null;
+  notice: SessionNotice | null;
   login: (request: PlayerLoginRequest) => Promise<void>;
   register: (request: PlayerRegisterRequest) => Promise<void>;
   logout: () => void;
   refresh: () => Promise<void>;
+  dismissNotice: () => void;
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -45,12 +59,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<SessionStatus>("loading");
   const [token, setToken] = useState<string | null>(null);
   const [player, setPlayer] = useState<PlayerProfile | null>(null);
+  const [notice, setNotice] = useState<SessionNotice | null>(null);
 
   const clearSession = useCallback(() => {
     localStorage.removeItem(PLAYER_TOKEN_KEY);
     setToken(null);
     setPlayer(null);
     setStatus("anonymous");
+    setNotice(null);
   }, []);
 
   const validate = useCallback(
@@ -64,7 +80,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (error instanceof ApiError && error.status === 401) clearSession();
         else {
           setToken(candidate);
+          setPlayer(null);
           setStatus("anonymous");
+          setNotice({
+            tone: "warning",
+            message: "Your saved session could not be verified. Check the API connection and try again.",
+          });
         }
       }
     },
@@ -93,14 +114,44 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setStatus("authenticated");
   }, []);
 
+  const acceptAndMerge = useCallback(async (response: PlayerTokenResponse) => {
+    acceptToken(response);
+    setNotice(null);
+    if (!hasAnonymousProgress()) return;
+
+    try {
+      const current = await api.getPlayerProgress(response.token);
+      const mergedIds = new Set(current.unlockedVehicleIds.map((id) => id.toLowerCase()));
+      loadAnonymousOwnedIds().forEach((id) => mergedIds.add(id));
+      const localPreferences = loadAnonymousPreferences();
+      await api.updatePlayerProgress(response.token, {
+        unlockedVehicleIds: [...mergedIds].sort(),
+        preferences: localPreferences ?? current.preferences,
+      });
+      clearAnonymousProgress();
+      recordProgressSync("synced");
+      setNotice({
+        tone: "success",
+        message: "Signed in and merged this browser's saved ownership into your account.",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The progress service could not be reached.";
+      recordProgressSync("error", message);
+      setNotice({
+        tone: "warning",
+        message: `You are signed in, but local progress could not be merged (${message}). It remains safely stored in this browser.`,
+      });
+    }
+  }, [acceptToken]);
+
   const login = useCallback(
-    async (request: PlayerLoginRequest) => acceptToken(await api.login(request)),
-    [acceptToken],
+    async (request: PlayerLoginRequest) => acceptAndMerge(await api.login(request)),
+    [acceptAndMerge],
   );
 
   const register = useCallback(
-    async (request: PlayerRegisterRequest) => acceptToken(await api.register(request)),
-    [acceptToken],
+    async (request: PlayerRegisterRequest) => acceptAndMerge(await api.register(request)),
+    [acceptAndMerge],
   );
 
   const refresh = useCallback(async () => {
@@ -109,8 +160,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [token, validate]);
 
   const value = useMemo(
-    () => ({ status, token, player, login, register, logout: clearSession, refresh }),
-    [status, token, player, login, register, clearSession, refresh],
+    () => ({
+      status,
+      token,
+      player,
+      notice,
+      login,
+      register,
+      logout: clearSession,
+      refresh,
+      dismissNotice: () => setNotice(null),
+    }),
+    [status, token, player, notice, login, register, clearSession, refresh],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

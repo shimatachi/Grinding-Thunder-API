@@ -5,6 +5,13 @@ import { useSession } from "@/components/session-provider";
 import { api } from "@/lib/api/client";
 import { formatNumber, formatOptimizationMode } from "@/lib/format";
 import {
+  loadAnonymousOwnedIds,
+  loadAnonymousPreferences,
+  recordProgressSync,
+  saveAnonymousOwnedIds,
+  saveAnonymousPreferences,
+} from "@/lib/player-storage";
+import {
   VehicleAcquisitionType,
   type PlayerCalculatorPreferences,
   type ResearchCalculationResult,
@@ -14,7 +21,6 @@ import {
 } from "@/lib/api/types";
 import { ResearchTreeCanvas } from "./research-tree-canvas";
 
-const LOCAL_OWNED_KEY = "grinding-thunder.anonymous-owned-vehicles";
 const DEFAULT_RP_PER_MATCH = "5000";
 const DEFAULT_SL_PER_MATCH = "20000";
 
@@ -31,6 +37,8 @@ interface ResearchPlannerProps {
   snapshotKey: string;
   nationName: string;
   categoryName: string;
+  targetVehicleId: string | null;
+  onTargetVehicleChange: (vehicleId: string | null) => void;
 }
 
 function messageFrom(error: unknown): string {
@@ -39,17 +47,6 @@ function messageFrom(error: unknown): string {
 
 function normalizedIds(ids: string[]): Set<string> {
   return new Set(ids.map((id) => id.toLowerCase()));
-}
-
-function loadAnonymousOwnedIds(): Set<string> {
-  try {
-    const value = JSON.parse(localStorage.getItem(LOCAL_OWNED_KEY) ?? "[]") as unknown;
-    return Array.isArray(value)
-      ? normalizedIds(value.filter((id): id is string => typeof id === "string"))
-      : new Set<string>();
-  } catch {
-    return new Set<string>();
-  }
 }
 
 function positiveInteger(value: string): number | null {
@@ -65,12 +62,14 @@ export function ResearchPlanner({
   snapshotKey,
   nationName,
   categoryName,
+  targetVehicleId,
+  onTargetVehicleChange,
 }: ResearchPlannerProps) {
   const { status, token, player } = useSession();
   const [allOwnedVehicleIds, setAllOwnedVehicleIds] = useState<Set<string>>(new Set());
   const [ownershipLoaded, setOwnershipLoaded] = useState(false);
+  const [ownershipMode, setOwnershipMode] = useState<"none" | "anonymous" | "authenticated">("none");
   const [serverProgressLoaded, setServerProgressLoaded] = useState(false);
-  const [targetVehicleId, setTargetVehicleId] = useState<string | null>(null);
   const [averageRpPerMatch, setAverageRpPerMatch] = useState(DEFAULT_RP_PER_MATCH);
   const [averageNetSlPerMatch, setAverageNetSlPerMatch] = useState(DEFAULT_SL_PER_MATCH);
   const [optimizationMode, setOptimizationMode] = useState<ResearchOptimizationMode>("LeastRp");
@@ -80,6 +79,7 @@ export function ResearchPlanner({
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
   const [calculating, setCalculating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [progressRetry, setProgressRetry] = useState(0);
   const calculationSequence = useRef(0);
 
   const entryIds = useMemo(
@@ -111,6 +111,7 @@ export function ResearchPlanner({
 
     const controller = new AbortController();
     setOwnershipLoaded(false);
+    setOwnershipMode("none");
     setServerProgressLoaded(false);
     setProgressError(null);
     setProgressMessage(null);
@@ -127,32 +128,39 @@ export function ResearchPlanner({
             progress.preferences.averageNetSlPerMatch?.toString() ?? DEFAULT_SL_PER_MATCH,
           );
           setServerProgressLoaded(true);
+          setOwnershipMode("authenticated");
+          recordProgressSync("synced");
         })
         .catch((error) => {
-          if (!controller.signal.aborted) setProgressError(messageFrom(error));
+          if (!controller.signal.aborted) {
+            const message = messageFrom(error);
+            setProgressError(message);
+            recordProgressSync("error", message);
+          }
         })
         .finally(() => {
           if (!controller.signal.aborted) setOwnershipLoaded(true);
         });
     } else {
       setAllOwnedVehicleIds(loadAnonymousOwnedIds());
-      setOptimizationMode("LeastRp");
-      setAverageRpPerMatch(DEFAULT_RP_PER_MATCH);
-      setAverageNetSlPerMatch(DEFAULT_SL_PER_MATCH);
+      const preferences = loadAnonymousPreferences();
+      setOptimizationMode(preferences?.optimizationMode ?? "LeastRp");
+      setAverageRpPerMatch(preferences?.averageRpPerMatch?.toString() ?? DEFAULT_RP_PER_MATCH);
+      setAverageNetSlPerMatch(preferences?.averageNetSlPerMatch?.toString() ?? DEFAULT_SL_PER_MATCH);
+      setOwnershipMode("anonymous");
       setOwnershipLoaded(true);
     }
 
     return () => controller.abort();
-  }, [status, token]);
+  }, [progressRetry, status, token]);
 
   useEffect(() => {
-    if (status !== "anonymous" || !ownershipLoaded) return;
-    localStorage.setItem(LOCAL_OWNED_KEY, JSON.stringify([...allOwnedVehicleIds].sort()));
-  }, [allOwnedVehicleIds, ownershipLoaded, status]);
+    if (status !== "anonymous" || !ownershipLoaded || ownershipMode !== "anonymous") return;
+    saveAnonymousOwnedIds(allOwnedVehicleIds);
+  }, [allOwnedVehicleIds, ownershipLoaded, ownershipMode, status]);
 
   useEffect(() => {
     calculationSequence.current += 1;
-    setTargetVehicleId(null);
     setCalculationResult(null);
     setCalculationError(null);
     setCalculating(false);
@@ -161,7 +169,7 @@ export function ResearchPlanner({
   function setTarget(vehicleId: string) {
     const entry = entries.find((candidate) => candidate.id === vehicleId);
     if (!entry || entry.acquisitionType !== VehicleAcquisitionType.Researchable) return;
-    setTargetVehicleId(vehicleId);
+    onTargetVehicleChange(vehicleId);
     setCalculationResult(null);
     setCalculationError(null);
   }
@@ -178,7 +186,7 @@ export function ResearchPlanner({
     setProgressMessage(null);
     setProgressError(null);
     if (isBecomingOwned && targetVehicleId?.toLowerCase() === normalizedId) {
-      setTargetVehicleId(null);
+      onTargetVehicleChange(null);
     }
     setCalculationResult(null);
   }
@@ -195,6 +203,23 @@ export function ResearchPlanner({
       averageRpPerMatch: rp,
       averageNetSlPerMatch: sl,
     };
+  }
+
+  function persistAnonymousPreferences(
+    nextRp: string,
+    nextSl: string,
+    nextMode: ResearchOptimizationMode,
+  ) {
+    if (status !== "anonymous") return;
+    const rp = positiveInteger(nextRp);
+    const sl = positiveInteger(nextSl);
+    if (rp !== null && sl !== null) {
+      saveAnonymousPreferences({
+        optimizationMode: nextMode,
+        averageRpPerMatch: rp,
+        averageNetSlPerMatch: sl,
+      });
+    }
   }
 
   async function calculate() {
@@ -250,8 +275,11 @@ export function ResearchPlanner({
       });
       setAllOwnedVehicleIds(normalizedIds(saved.unlockedVehicleIds));
       setProgressMessage("Ownership and calculator preferences are synchronized.");
+      recordProgressSync("synced");
     } catch (error) {
-      setProgressError(messageFrom(error));
+      const message = messageFrom(error);
+      setProgressError(message);
+      recordProgressSync("error", message);
     } finally {
       setSaving(false);
     }
@@ -259,7 +287,7 @@ export function ResearchPlanner({
 
   function resetCalculator() {
     calculationSequence.current += 1;
-    setTargetVehicleId(null);
+    onTargetVehicleChange(null);
     setCalculationResult(null);
     setCalculationError(null);
     setCalculating(false);
@@ -299,15 +327,15 @@ export function ResearchPlanner({
           </label>
           <label>
             <span className="field-label">Average RP / match</span>
-            <input className="field" type="number" min="1" step="1" inputMode="numeric" value={averageRpPerMatch} onChange={(event) => { setAverageRpPerMatch(event.target.value); setProgressMessage(null); }} />
+            <input className="field" aria-label="Average Research Points earned per match" type="number" min="1" step="1" inputMode="numeric" value={averageRpPerMatch} onChange={(event) => { const value = event.target.value; setAverageRpPerMatch(value); persistAnonymousPreferences(value, averageNetSlPerMatch, optimizationMode); setProgressMessage(null); }} />
           </label>
           <label>
             <span className="field-label">Average net SL / match</span>
-            <input className="field" type="number" min="1" step="1" inputMode="numeric" value={averageNetSlPerMatch} onChange={(event) => { setAverageNetSlPerMatch(event.target.value); setProgressMessage(null); }} />
+            <input className="field" aria-label="Average net Silver Lions earned per match" type="number" min="1" step="1" inputMode="numeric" value={averageNetSlPerMatch} onChange={(event) => { const value = event.target.value; setAverageNetSlPerMatch(value); persistAnonymousPreferences(averageRpPerMatch, value, optimizationMode); setProgressMessage(null); }} />
           </label>
           <label>
             <span className="field-label">Optimize route for</span>
-            <select className="field" value={optimizationMode} onChange={(event) => { setOptimizationMode(event.target.value as ResearchOptimizationMode); setProgressMessage(null); }}>
+            <select className="field" aria-label="Research route optimization mode" value={optimizationMode} onChange={(event) => { const value = event.target.value as ResearchOptimizationMode; setOptimizationMode(value); persistAnonymousPreferences(averageRpPerMatch, averageNetSlPerMatch, value); setProgressMessage(null); }}>
               {optimizationModes.map((mode) => <option key={mode} value={mode}>{formatOptimizationMode(mode)}</option>)}
             </select>
           </label>
@@ -325,10 +353,18 @@ export function ResearchPlanner({
           )}
         </div>
 
-        {progressError && <p className="status-error mt-5" role="alert">Progress: {progressError}</p>}
+        {progressError && <div className="status-error mt-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center" role="alert"><span>Progress: {progressError}</span>{status === "authenticated" && <button type="button" className="button-secondary" onClick={() => setProgressRetry((value) => value + 1)}>Retry sync</button>}</div>}
         {calculationError && <p className="status-error mt-5" role="alert">Calculator: {calculationError}</p>}
         {progressMessage && <p className="status-success mt-5" role="status">{progressMessage}</p>}
       </section>
+
+      {calculationResult && (
+        <section className="mobile-result-summary panel mt-4 p-4" aria-label="Calculator result summary">
+          <div><span>Remaining</span><strong>{formatNumber(calculationResult.totalRpRequired)} RP</strong></div>
+          <div><span>Estimate</span><strong>{formatNumber(calculationResult.estimatedMatches)} matches</strong></div>
+          <a href="#calculation-results">View full route</a>
+        </section>
+      )}
 
       <section className="panel mt-6 overflow-hidden" aria-label="Visual research tree">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-7">
@@ -342,7 +378,7 @@ export function ResearchPlanner({
           </div>
         </div>
 
-        <ResearchTreeCanvas
+        {entries.length > 0 ? <ResearchTreeCanvas
           ranks={ranks}
           entries={entries}
           snapshotKey={snapshotKey}
@@ -351,11 +387,11 @@ export function ResearchPlanner({
           calculationResult={calculationResult}
           onToggleOwned={toggleOwned}
           onSelectTarget={setTarget}
-        />
+        /> : <div className="empty-state m-5 min-h-64 sm:m-7"><h3>This snapshot has no vehicles</h3><p>The published version contains rank metadata but no player-visible vehicle entries.</p></div>}
       </section>
 
       {calculationResult && (
-        <section className="panel mt-6 p-5 sm:p-7" aria-labelledby="results-title">
+        <section id="calculation-results" className="panel mt-6 scroll-mt-24 p-5 sm:p-7" aria-labelledby="results-title">
           <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
             <div>
               <p className="eyebrow">Calculated progression</p>

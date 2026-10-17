@@ -1305,7 +1305,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
 ## Next
 
 
-- **Batch 42 — Player account, profile, and public UX polish** (status: Planned)
+- **Batch 42 — Player account, profile, and public UX polish** (status: Completed)
   Goal: complete the player-facing product experience around the new
   GrindingThunder.Web application.
 
@@ -1338,6 +1338,27 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - new calculator algorithms.
 
   Dependency: Batch 41.
+
+  Result:
+  - polished player login and registration with field-level validation, safe
+    `returnTo` redirects, accessible signed-in/guest navigation, and non-destructive
+    anonymous ownership/preference merging into canonical account progress;
+  - expanded `/profile` with player identity/account ID, last local synchronization
+    state, saved calculator defaults, total ownership, and a latest-Published-snapshot
+    nation/category breakdown, plus explicit local-cache and logout actions;
+  - made `/tree` selection URL-driven through canonical `nation`, `category`,
+    `version`, and optional `target` parameters, including Published-only fallback
+    and invalid-target recovery;
+  - added responsive calculator/result treatment, a mobile modal vehicle sheet,
+    spatial arrow-key node navigation, focus restoration/trapping, richer direct
+    prerequisite/unlock/folder detail, and robust loading, empty, error, and retry
+    states;
+  - introduced no backend, Admin, schema, migration, dependency, state-management
+    library, or client-side progression algorithm changes.
+
+  Verification: `npm --prefix src/GrindingThunder.Web run typecheck` and
+  `npm --prefix src/GrindingThunder.Web run build` pass; all 588 C# tests pass
+  (355 API + 233 Admin).
 
 
 - **Batch 43 — Cross-frontend visual consistency and performance** (status: Planned)

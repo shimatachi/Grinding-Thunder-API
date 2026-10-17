@@ -357,3 +357,11 @@ Append new entries at the end. Keep each entry to the decisions and tradeoffs th
   - In Admin visual workspace (`Version.cshtml.cs` and `visual-tree.js`): collision detection already consistently enforces `(TreeRankId, TreeColumn, TreeRow)` and excludes folder children.
 - Preserved folder-child exclusion and database schema immutability. Folder child entries continue to be nested under their parent entry without participating in root-cell coordinate uniqueness. No database schema changes, migrations, or calculator changes were required.
 
+## 2026 — Batch 39: dedicated player frontend foundation
+
+- Added `GrindingThunder.Web` as an independent Next.js App Router application rather than expanding the project historically named `GrindingThunder.Admin`. The player frontend has no .NET project reference and no database access; both frontends consume the same API while retaining different frameworks, deployments, and authentication boundaries.
+- Kept the dependency footprint to Next.js, React 19, TypeScript, Tailwind CSS, PostCSS, Autoprefixer, and type packages. Native `fetch`, React context, and standard hooks cover the current API and session needs, avoiding a component library, query cache, state framework, or generated client before concrete complexity justifies one.
+- Mirrored the existing wire contract in explicit TypeScript DTOs, including numeric publication/acquisition enums and string optimization modes. The client exposes a clearer `category` input but translates it to the backend's existing `type` query parameter, avoiding an out-of-scope API contract change.
+- Stored the dedicated player JWT in a namespaced browser local-storage key and revalidated it through `GET /api/player/auth/me`. This gives a simple client-only session suitable for the foundation and remains strictly separate from Admin cookies, credentials, and endpoints; the tradeoff is that local storage is script-readable, so a future production hardening pass may prefer a same-site HTTP-only cookie/BFF boundary if deployment requirements justify it.
+- Kept `/tree` to cascading Published snapshot selection and a loaded manifest. This proves exact-version API integration without implementing Batch 40's SVG canvas early or duplicating backend progression rules in React.
+

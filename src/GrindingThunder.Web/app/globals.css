@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 78% -8%, rgba(231, 166, 41, 0.12), transparent 28rem),
+    radial-gradient(circle at 5% 30%, rgba(75, 103, 128, 0.12), transparent 32rem),
+    #070b10;
+  color: #f2f5f7;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+}
+
+::selection {
+  background: rgba(231, 166, 41, 0.28);
+  color: white;
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-10;
+  }
+
+  .eyebrow {
+    @apply text-xs font-bold uppercase tracking-[0.24em] text-signal;
+  }
+
+  .panel {
+    @apply border border-white/10 bg-panel/90 shadow-panel;
+  }
+
+  .button-primary {
+    @apply inline-flex min-h-10 items-center justify-center bg-signal px-4 py-2 text-sm font-bold text-black transition hover:bg-amber-300 focus:outline-none focus:ring-2 focus:ring-signal focus:ring-offset-2 focus:ring-offset-canvas;
+  }
+
+  .button-secondary {
+    @apply inline-flex min-h-10 items-center justify-center border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-steel focus:ring-offset-2 focus:ring-offset-canvas;
+  }
+
+  .button-ghost {
+    @apply inline-flex min-h-10 items-center justify-center px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-steel;
+  }
+
+  .nav-link {
+    @apply px-3 py-2 text-sm font-semibold text-steel transition hover:bg-white/5 hover:text-white;
+  }
+
+  .nav-link-active {
+    @apply text-white underline decoration-signal decoration-2 underline-offset-8;
+  }
+
+  .field-label {
+    @apply mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-steel;
+  }
+
+  .field {
+    @apply min-h-11 w-full border border-white/15 bg-black/25 px-3 py-2 text-white outline-none transition placeholder:text-slate-600 focus:border-signal focus:ring-1 focus:ring-signal disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .status-error {
+    @apply border border-red-400/30 bg-red-950/30 px-4 py-3 text-sm text-red-200;
+  }
+}

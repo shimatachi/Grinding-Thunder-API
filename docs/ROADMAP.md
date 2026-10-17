@@ -1067,9 +1067,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Verification: 0 warnings, 0 errors, all 588 C# tests pass across the solution (355 API + 233 Admin).
 
 
-## Next
-
-- **Batch 39 — Player frontend foundation (`GrindingThunder.Web`)** (status: Planned)
+- **Batch 39 — Player frontend foundation (`GrindingThunder.Web`)** (status: Completed)
   Goal: create a dedicated player-facing frontend separate from
   `GrindingThunder.Admin`.
 
@@ -1134,6 +1132,24 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - replace GrindingThunder.Admin.
 
   Dependency: Batch 38.
+
+  Result:
+  - added a standalone Next.js App Router application using React 19,
+    TypeScript, and Tailwind CSS under `src/GrindingThunder.Web`;
+  - added environment-driven API configuration (defaulting to
+    `http://localhost:5034`), typed public/player DTOs, and a native-fetch API
+    client with structured errors and optional player Bearer authentication;
+  - added isolated browser-side player session handling plus responsive landing,
+    published tree-selection, login, registration, and profile routes;
+  - kept the tree route at the data-loading/manifest stage so Batch 40 remains
+    responsible for the React SVG canvas and visual interaction;
+  - introduced no backend, Admin, persistence, or migration changes.
+
+  Verification: `npm run build` and `npm run typecheck` pass with zero errors;
+  the solution continues to build and all 588 C# tests pass.
+
+
+## Next
 
 
 - **Batch 40 — Public visual research-tree browser** (status: Planned)

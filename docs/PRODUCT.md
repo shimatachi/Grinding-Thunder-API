@@ -24,11 +24,19 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
 - Persistent player accounts and progression synchronization:
   - Player accounts stored in `PlayerAccounts` with PBKDF2 password hashes, case-insensitive normalized username and email uniqueness, and dedicated JWT tokens with distinct player audience (`GrindingThunder.Player`).
   - Progress persistence (`PlayerUnlockedVehicles`) saves owned vehicles by stable `VehicleId` alongside calculator preferences (`OptimizationMode`, `AverageRpPerMatch`, `AverageNetSlPerMatch`).
-  - Full-set ownership replacement (`PUT /api/player/progress`) with optimistic concurrency control via `progressStamp` (UUID).
+  - Full-set ownership replacement (`PUT /api/player/progress`) with an internal optimistic concurrency stamp; clients replace the complete set and preferences but do not submit the stamp.
   - Explicit calculator contract decoupling: the calculator API (`POST /api/research/calculate`) remains completely anonymous and decoupled from persistence. Saved player inventories are not automatically injected into calculations; clients pass explicit `unlockedVehicleIds` (intersected with the selected version's vehicle entries).
-- An anonymous, player-facing research-tree browser is available at `/Tree` in the Razor Pages web project. It defaults to the latest Published snapshot for the selected nation/category and never exposes Drafts or tree structure mutations. Player authentication, persistent ownership synchronization, and visual research calculator overlays are integrated directly on this canvas.
+- The existing anonymous, player-facing research-tree browser remains available at `/Tree` in the Razor Pages project. It defaults to the latest Published snapshot for the selected nation/category and never exposes Drafts or tree structure mutations. Player authentication, persistent ownership synchronization, and visual research calculator overlays remain integrated on that legacy canvas while the dedicated Next.js player experience is built out.
 
-## CURRENT — public research-tree browser
+## CURRENT — dedicated player frontend foundation
+
+- `GrindingThunder.Web` is a standalone responsive Next.js App Router application under `src/GrindingThunder.Web`, using React 19, TypeScript, and Tailwind CSS. It communicates with `GrindingThunder.Api` only over HTTP and defaults to `http://localhost:5034`, configurable through `NEXT_PUBLIC_API_URL`.
+- The application provides `/`, `/tree`, `/login`, `/register`, and `/profile`. Its shared dark-themed shell includes responsive navigation, player account state, and a footer. The landing page introduces the planner and links to tree browsing and account creation.
+- `/tree` loads only the API's publication-filtered nation/category/version hierarchy, selects an exact Published version, and loads that snapshot's canonical entries. It currently presents a data manifest and selection foundation; the visual React/SVG canvas, pan/zoom, connectors, and detail drawer remain Batch 40 work.
+- Player registration, login, logout, token validation, profile identity, and progress summary use only `/api/player/*`. The player Bearer token is kept in a player-specific browser storage key and is never shared with Admin credentials, cookies, or endpoints.
+- Shared TypeScript contracts and a native-fetch client cover published nations/trees, exact-version vehicle entries, player auth/progress, and research calculation. The client centralizes JSON headers, structured API error parsing, the backend's `type` category query parameter, and optional player JWT attachment.
+
+## CURRENT — legacy Razor public research-tree browser
 
 - Anonymous users can choose a nation, category/ResearchTree, and Published version without being redirected to `/Login`. The latest Published version is selected by default.
 - The page uses the same `VisualResearchTreeViewModel`, `VisualTreeMapper.FromPublic`, `_VisualTree.cshtml`, CSS, JavaScript, and SVG connector routing as the admin visual tree. Rank bands and unlock quotas, integer coordinates, acquisition styling, folder groups, and explicit prerequisite edges therefore have one canonical renderer.

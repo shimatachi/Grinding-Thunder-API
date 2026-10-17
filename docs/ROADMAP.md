@@ -1457,6 +1457,122 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Result: added hardened multi-stage, non-root production images for API, Admin, and standalone Next.js Web; a four-service production Compose topology with localhost-only application ports, private PostgreSQL 17, persistent database and Admin data-protection volumes, dependency health checks, and externalized production configuration; forwarded-header, cookie, CORS, health, and API-client hosting configuration; an explicit one-shot `--migrate` API mode that keeps production schema changes out of normal startup; native Nginx examples for all three public hostnames; and a production runbook covering prerequisites, Certbot TLS, initial bootstrap, routine deployment, rollback, logs, `pg_dump`, and `pg_restore`. Added anonymous health endpoint integration tests for API and Admin.
   Verification: `dotnet build GrindingThunder.sln --no-restore` succeeds with 0 warnings/errors; `dotnet test GrindingThunder.sln --no-build` passes all 595 tests (357 API + 238 Admin); `npm --prefix src/GrindingThunder.Web run typecheck` passes; `npm --prefix src/GrindingThunder.Web run build` passes and emits `.next/standalone/server.js`; `docker compose --env-file .env.example -f docker-compose.prod.yml config --quiet` validates successfully.
 
+
+- **Batch 45 — Folder interaction, Web tree ergonomics, and theming** (status: Planned)
+  Goal: make foldered vehicles behave like War Thunder research-tree folders in both
+  Admin and Web, bring the player tree's interaction ergonomics closer to the Admin
+  visual tree, and add first-class Light/Dark/System theming to GrindingThunder.Web.
+
+  Folder UX reference:
+  - use the War Thunder Wiki research-tree presentation as the visual/interaction
+    reference, including foldered examples such as Vautour IIA and Vautour IIN(C)
+    in the Israel Aviation tree;
+  - a folder should read as one compact grouped stack in its collapsed state rather
+    than as unrelated permanently expanded vehicle cards;
+  - the folder parent remains a real selectable vehicle;
+  - provide a dedicated folder affordance so selecting/inspecting the parent does
+    not accidentally expand/collapse the group;
+  - activating the folder affordance expands the grouped member vehicles in place;
+  - folder members remain individually selectable/inspectable while expanded;
+  - collapse returns the group to its compact representation;
+  - use clear folder/stack styling, member count, and expand/collapse indication;
+  - support mouse, touch, and keyboard interaction with appropriate accessibility
+    state such as `aria-expanded`.
+
+  Folder data rule:
+  - folder open/closed state is presentation state only;
+  - do not mutate or reinterpret `FolderParentEntryId`, `TreeColumn`, `TreeRow`,
+    prerequisite relationships, rank membership, or progression semantics;
+  - authored coordinates remain canonical even when the UI temporarily expands a
+    folder;
+  - derive folder membership from the existing canonical tree DTO unless inspection
+    proves additional API data is genuinely required.
+
+  Admin scope:
+  - implement the compact folder stack and expand/collapse behavior in the existing
+    Razor/Tabler/Bootstrap visual editor;
+  - preserve node selection, folder-parent inspection, folder-child inspection,
+    drag-to-grid, nudge controls, multi-selection, prerequisite editing, undo/redo,
+    validation, progression overlays, fullscreen/focus mode, async mutations, and
+    one-based displayed coordinates;
+  - editing or dragging an expanded folder member continues to operate on that
+    member's real persisted coordinates;
+  - opening/closing a folder must never persist layout changes by itself.
+
+  Web tree scope:
+  - implement the same folder semantics in the React research-tree canvas without
+    sharing frontend implementation code with Admin;
+  - add Fullscreen/Focus mode to the tree workspace, using the browser Fullscreen
+    API where appropriate with a CSS focus-mode fallback;
+  - keep pan, zoom, fit, reset, detail UI, calculator interaction, and responsive
+    mobile/touch behavior usable in focus/fullscreen mode;
+  - add compact per-node quick actions for Toggle Owned and Set as Target;
+  - keep existing ownership/session synchronization and backend calculator paths;
+  - keep double-click target selection where it remains useful;
+  - add keyboard shortcuts:
+    - `O` — toggle Owned for the selected/focused vehicle;
+    - `T` — set the selected/focused Researchable vehicle as Target;
+    - `F` — toggle tree fullscreen/focus mode;
+    - `Escape` — close the active detail surface first, otherwise leave focus mode
+      where appropriate;
+  - preserve existing spatial arrow-key navigation;
+  - shortcuts must not fire from inputs, textareas, selects, contenteditable
+    elements, or when conflicting Ctrl/Command/Alt modifiers are active;
+  - all shortcut actions must also remain available through visible/touch-friendly UI.
+
+  Web theme scope:
+  - add Light, Dark, and System modes;
+  - default to System and follow `prefers-color-scheme`;
+  - persist an explicit user preference locally;
+  - add a theme control to the Web shell/navigation;
+  - minimize incorrect-theme flash during initial Next.js rendering;
+  - use semantic CSS custom properties/theme tokens rather than duplicating large
+    light/dark class sets;
+  - theme the complete player application, including navigation, pages, auth/profile
+    UI, forms, calculator/results, tree workspace, rank bands, vehicle/folder nodes,
+    connectors, drawers/modals, and loading/empty/error states;
+  - retain clear, accessible semantic distinctions for acquisition types, Owned,
+    Target, required route, rank-gate filler, selected, and related states.
+
+  Performance and consistency:
+  - preserve Batch 43 React memoization/stable-callback and connector-path
+    optimizations;
+  - derive visible nodes/edges efficiently when folders open or close;
+  - preserve Admin connector geometry caching and avoid layout-thrashing regressions;
+  - Admin-authored layout and Web player layout continue to consume the same
+    canonical rank, coordinate, folder, prerequisite, and acquisition semantics;
+  - do not introduce frontend progression algorithms or a global state library.
+
+  Testing:
+  - cover collapsed folders hiding members and expanded folders exposing them;
+  - verify folder toggling does not mutate canonical coordinates;
+  - verify connector rendering does not incorrectly target hidden folder-member DOM;
+  - cover Owned/Target quick actions and Researchable target restrictions;
+  - cover shortcut behavior and editable-control suppression;
+  - cover fullscreen/focus enter/exit behavior where practical;
+  - cover Light/Dark/System preference parsing, persistence, and invalid-value
+    fallback without brittle pixel-perfect tests.
+
+  Out of scope:
+  - changing folder persistence/domain semantics;
+  - database migrations unless implementation inspection discovers a genuine schema
+    requirement;
+  - client-side calculator/progression algorithms;
+  - rewriting Admin in React or Blazor;
+  - merging Admin and Web;
+  - Redis or unrelated deployment changes.
+
+  Dependency: Batch 44.
+
+  Verification target:
+  - `dotnet build GrindingThunder.sln`;
+  - `dotnet test GrindingThunder.sln`;
+  - `npm --prefix src/GrindingThunder.Web run typecheck`;
+  - `npm --prefix src/GrindingThunder.Web run build`;
+  - manually verify Admin and Web folder collapse/expand, folder parent/member
+    selection, Admin editing safety, Web pan/zoom/fit/reset/fullscreen, Owned/Target
+    quick actions and shortcuts, mobile/touch behavior, and Light/Dark/System themes.
+
 ## Later
 
 - Vehicle modification progression

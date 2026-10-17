@@ -1,4 +1,30 @@
 @model VisualTreeWorkspaceViewModel
+@functions {
+    private static string FormatRankLabel(int rankNumber)
+    {
+        if (rankNumber <= 0 || rankNumber > 3999)
+            return rankNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        var values = new (int Value, string Numeral)[]
+        {
+            (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"),
+            (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
+            (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")
+        };
+        var remaining = rankNumber;
+        var result = new System.Text.StringBuilder();
+        foreach (var (value, numeral) in values)
+        {
+            while (remaining >= value)
+            {
+                result.Append(numeral);
+                remaining -= value;
+            }
+        }
+
+        return result.ToString();
+    }
+}
 @{
     var tree = Model.Tree;
     const int columnStep = 280;
@@ -87,19 +113,28 @@
                                           data-edge-kind="@edge.Kind.ToString().ToLowerInvariant()"></span>
                                 }
                             </div>
-                            @foreach (var rank in tree.Ranks)
+                            @for (var rankIndex = 0; rankIndex < tree.Ranks.Count; rankIndex++)
                             {
+                                var rank = tree.Ranks[rankIndex];
+                                var rankLabel = FormatRankLabel(rank.RankNumber);
                                 var rowCount = Math.Max(1, rank.MaximumTreeRow - rank.MinimumTreeRow + 1);
-                                var rankHeight = (rowCount * rowStep) + 48;
-                                <section class="visual-tree-rank"
+                                var rankHeight = (rowCount * rowStep) + 96;
+                                <section class="visual-tree-rank visual-tree-rank-band-@(rankIndex % 2 == 0 ? "even" : "odd")"
                                          data-tree-rank="@rank.RankNumber"
+                                         data-tree-rank-label="@rankLabel"
                                          data-tree-rank-id="@rank.Id"
                                          data-tree-min-row="@rank.MinimumTreeRow"
                                          data-tree-grid-guide
                                          style="min-height: @(rankHeight)px">
                                     <header class="visual-tree-rank-header">
-                                        <span class="visual-tree-rank-number">Rank @rank.RankNumber</span>
-                                        <span class="visual-tree-rank-quota">Unlock quota: <strong>@rank.RequiredVehiclesUnlocked</strong></span>
+                                        <span class="visual-tree-rank-kicker">Research tier</span>
+                                        <span class="visual-tree-rank-number">Rank <strong>@rankLabel</strong></span>
+                                        @if (rank.RequiredVehiclesUnlocked > 0)
+                                        {
+                                            <span class="visual-tree-rank-quota">
+                                                Requires <strong>@rank.RequiredVehiclesUnlocked</strong> vehicles to unlock Rank @rankLabel
+                                            </span>
+                                        }
                                     </header>
                                     <div class="visual-tree-rank-grid">
                                         @if (rank.Nodes.Count == 0)
@@ -108,19 +143,11 @@
                                         }
                                         @foreach (var node in rank.Nodes)
                                         {
-                                            var acquisitionClass = node.AcquisitionType switch
-                                            {
-                                                VehicleAcquisitionType.Researchable => "bg-green-lt",
-                                                VehicleAcquisitionType.Premium => "bg-yellow-lt",
-                                                VehicleAcquisitionType.Squadron => "bg-purple-lt",
-                                                VehicleAcquisitionType.Event => "bg-orange-lt",
-                                                VehicleAcquisitionType.Pack => "bg-blue-lt",
-                                                _ => "bg-secondary-lt"
-                                            };
+                                            var acquisitionClass = $"visual-tree-acquisition-{node.AcquisitionType.ToString().ToLowerInvariant()}";
                                             var folderClass = node.IsFolderParent ? "visual-tree-node-folder-parent" :
                                                 node.FolderParentId.HasValue ? "visual-tree-node-folder-child" : string.Empty;
                                             <article id="@node.DomId"
-                                                     class="visual-tree-node @folderClass"
+                                                     class="visual-tree-node visual-tree-node-acquisition-@node.AcquisitionType.ToString().ToLowerInvariant() @folderClass"
                                                      data-tree-node="@node.Id"
                                                      data-vehicle-id="@node.VehicleId"
                                                      data-vehicle-name="@node.Name"
@@ -148,12 +175,15 @@
                                                 </div>
                                                 <div class="visual-tree-node-body">
                                                     <div class="visual-tree-node-name" title="@node.Name">@node.Name</div>
+                                                    <div class="visual-tree-node-meta">
+                                                        <span data-tree-rank-preview>Rank @FormatRankLabel(node.RankNumber)</span>
+                                                        <span class="visual-tree-acquisition-badge @acquisitionClass" data-tree-acquisition-preview>@node.AcquisitionType</span>
+                                                    </div>
                                                     <div class="visual-tree-node-costs">
                                                         <span title="Research Points" data-tree-rp-preview>@node.RpCost.ToString("N0") RP</span>
                                                         <span title="Silver Lions" data-tree-sl-preview>@node.SlCost.ToString("N0") SL</span>
                                                     </div>
                                                     <div class="visual-tree-node-badges">
-                                                        <span class="badge @acquisitionClass" data-tree-acquisition-preview>@node.AcquisitionType</span>
                                                         @if (node.IsFolderParent)
                                                         {
                                                             <span class="badge bg-azure-lt">Folder</span>

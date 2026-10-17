@@ -717,7 +717,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batch 29.
 
 
-- **Batch 31 — Rank-band and research-tree visual styling** (status: Planned)
+- **Batch 31 — Rank-band and research-tree visual styling** (status: Completed)
   Goal: make the shared tree renderer visually closer to an actual War Thunder
   research tree while preserving Grinding Thunder's own presentation and data model.
 
@@ -753,6 +753,19 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - visual styling must never imply a prerequisite that is not explicitly stored.
 
   Dependency: Batch 30.
+
+  Result: the shared renderer now presents each persisted `TreeRank` as a spacious,
+  alternating full-width band with a strong separator, sticky Roman-numeral header,
+  and configured unlock quota. Sparse ranks remain exact: the renderer creates no
+  synthetic tiers. Vehicle cards use theme-aware semantic accents and badges for all
+  six acquisition types, while rank, RP, and SL metadata remain compact and readable.
+  Prerequisite and folder connectors retain the Batch 29/30 geometry and hit targets
+  with brighter, shadowed strokes for contrast. Live inspector previews update rank
+  and acquisition styling without changing persistence, authorization, or progression
+  behavior. No API, domain, schema, migration, or dependency changes were made.
+  Verification: solution build with zero warnings and errors; all 344 API and 202
+  Admin tests pass (546 total), including new sparse-band, quota, acquisition styling,
+  and existing Draft/Published/Publisher read-only coverage.
 
 
 - **Batch 32 — Visual layout assistance tools** (status: Planned)

@@ -16,6 +16,10 @@ public class TestMockApiHandler : HttpMessageHandler
     public static readonly Guid VehicleId2 = Guid.Parse("33333334-3333-3334-3334-333333333334");
     public static readonly Guid AvailableVehicleId = Guid.Parse("33333336-3333-3336-3336-333333333336");
     public static readonly Guid CreatedVehicleId = Guid.Parse("33333337-3333-3337-3337-333333333337");
+    public static readonly Guid SquadronVehicleId = Guid.Parse("33333338-3333-3338-3338-333333333338");
+    public static readonly Guid EventVehicleId = Guid.Parse("33333339-3333-3339-3339-333333333339");
+    public static readonly Guid PackVehicleId = Guid.Parse("3333333a-3333-333a-333a-33333333333a");
+    public static readonly Guid HiddenVehicleId = Guid.Parse("3333333b-3333-333b-333b-33333333333b");
     public static readonly Guid GameUpdateId = Guid.Parse("44444444-4444-4444-4444-444444444444");
     public static readonly Guid GameUpdate2Id = Guid.Parse("44444445-4444-4445-4445-444444444445");
     public static readonly Guid ResearchTreeId = Guid.Parse("55555555-5555-5555-5555-555555555555");
@@ -28,6 +32,10 @@ public class TestMockApiHandler : HttpMessageHandler
     public static readonly Guid SparsePublishedRankId = Guid.Parse("8888888b-8888-888b-888b-88888888888b");
     public static readonly Guid EntryId = Guid.Parse("99999999-9999-9999-9999-999999999999");
     public static readonly Guid EntryId2 = Guid.Parse("9999999a-9999-999a-999a-99999999999a");
+    public static readonly Guid SquadronEntryId = Guid.Parse("9999999b-9999-999b-999b-99999999999b");
+    public static readonly Guid EventEntryId = Guid.Parse("9999999c-9999-999c-999c-99999999999c");
+    public static readonly Guid PackEntryId = Guid.Parse("9999999d-9999-999d-999d-99999999999d");
+    public static readonly Guid HiddenEntryId = Guid.Parse("9999999e-9999-999e-999e-99999999999e");
     public static readonly Guid AdminAccountId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     public List<(string Path, string Body)> RecordedJsonRequests { get; } = [];
@@ -282,6 +290,10 @@ public class TestMockApiHandler : HttpMessageHandler
                 new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
                 new { id = VehicleId2, name = "F-4E", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
                 new { id = AvailableVehicleId, name = "F-15C", imageUrl = "https://example.test/f15.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = SquadronVehicleId, name = "Squadron Test Vehicle", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = EventVehicleId, name = "Event Test Vehicle", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = PackVehicleId, name = "Pack Test Vehicle", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = HiddenVehicleId, name = "Hidden Test Vehicle", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
                 new { id = OtherVehicleId, name = "Other tree vehicle", imageUrl = (string?)null, researchTreeId = OtherTreeId, nationId = OtherNationId, nationName = "Germany", vehicleTypeId = GroundTypeId, vehicleTypeName = "Ground" }
             });
             if (request.Method == HttpMethod.Post)
@@ -595,7 +607,11 @@ public class TestMockApiHandler : HttpMessageHandler
         entries = new object[]
         {
             new { id = EntryId, researchTreeVersionId = DraftVersionId, vehicleId = VehicleId, treeRankId = RankId, rpCost = 220000, slCost = 350000, treeColumn = 0, treeRow = 0, acquisitionType = 0, folderParentEntryId = (Guid?)null, vehicleName = "F-16A" },
-            new { id = EntryId2, researchTreeVersionId = DraftVersionId, vehicleId = VehicleId2, treeRankId = RankId, rpCost = 180000, slCost = 290000, treeColumn = 1, treeRow = 0, acquisitionType = 1, folderParentEntryId = (Guid?)EntryId, vehicleName = "F-4E" }
+            new { id = EntryId2, researchTreeVersionId = DraftVersionId, vehicleId = VehicleId2, treeRankId = RankId, rpCost = 180000, slCost = 290000, treeColumn = 1, treeRow = 0, acquisitionType = 1, folderParentEntryId = (Guid?)EntryId, vehicleName = "F-4E" },
+            new { id = SquadronEntryId, researchTreeVersionId = DraftVersionId, vehicleId = SquadronVehicleId, treeRankId = SparseDraftRankId, rpCost = 0, slCost = 0, treeColumn = 0, treeRow = 4, acquisitionType = 2, folderParentEntryId = (Guid?)null, vehicleName = "Squadron Test Vehicle" },
+            new { id = EventEntryId, researchTreeVersionId = DraftVersionId, vehicleId = EventVehicleId, treeRankId = SparseDraftRankId, rpCost = 0, slCost = 0, treeColumn = 1, treeRow = 4, acquisitionType = 3, folderParentEntryId = (Guid?)null, vehicleName = "Event Test Vehicle" },
+            new { id = PackEntryId, researchTreeVersionId = DraftVersionId, vehicleId = PackVehicleId, treeRankId = SparseDraftRankId, rpCost = 0, slCost = 0, treeColumn = 2, treeRow = 4, acquisitionType = 4, folderParentEntryId = (Guid?)null, vehicleName = "Pack Test Vehicle" },
+            new { id = HiddenEntryId, researchTreeVersionId = DraftVersionId, vehicleId = HiddenVehicleId, treeRankId = SparseDraftRankId, rpCost = 0, slCost = 0, treeColumn = 3, treeRow = 4, acquisitionType = 5, folderParentEntryId = (Guid?)null, vehicleName = "Hidden Test Vehicle" }
         },
         prerequisites = new object[]
         {

@@ -108,13 +108,15 @@
             return Number.isFinite(parsed) ? parsed.toLocaleString() : value;
         };
         const acquisitionClasses = {
-            "0": "bg-green-lt",
-            "1": "bg-yellow-lt",
-            "2": "bg-purple-lt",
-            "3": "bg-orange-lt",
-            "4": "bg-blue-lt",
-            "5": "bg-secondary-lt"
+            "0": "visual-tree-acquisition-researchable",
+            "1": "visual-tree-acquisition-premium",
+            "2": "visual-tree-acquisition-squadron",
+            "3": "visual-tree-acquisition-event",
+            "4": "visual-tree-acquisition-pack",
+            "5": "visual-tree-acquisition-hidden"
         };
+        const acquisitionNodeClasses = Object.values(acquisitionClasses)
+            .map(className => className.replace("visual-tree-acquisition-", "visual-tree-node-acquisition-"));
 
         const nodeGeometry = node => {
             const nodeRect = node.getBoundingClientRect();
@@ -237,7 +239,7 @@
                 const row = Number.parseInt(node.dataset.treeRow || "0", 10);
                 node.style.setProperty("--tree-row", row - minimumRow);
             });
-            rank.style.minHeight = `${((maximumRow - minimumRow + 1) * rowStep) + 48}px`;
+            rank.style.minHeight = `${((maximumRow - minimumRow + 1) * rowStep) + 96}px`;
         };
 
         const ensureStageBounds = column => {
@@ -324,9 +326,16 @@
             if (slPreview) slPreview.textContent = `${formatCost(state.slCost)} SL`;
             if (acquisitionPreview) {
                 Object.values(acquisitionClasses).forEach(className => acquisitionPreview.classList.remove(className));
-                acquisitionPreview.classList.add(acquisitionClasses[state.acquisitionType] || "bg-secondary-lt");
+                acquisitionPreview.classList.add(acquisitionClasses[state.acquisitionType] || "visual-tree-acquisition-hidden");
                 acquisitionPreview.textContent = inspector.acquisition?.selectedOptions[0]?.textContent || "Unknown";
             }
+            acquisitionNodeClasses.forEach(className => selectedNode.classList.remove(className));
+            const nodeAcquisitionClass = (acquisitionClasses[state.acquisitionType] || "visual-tree-acquisition-hidden")
+                .replace("visual-tree-acquisition-", "visual-tree-node-acquisition-");
+            selectedNode.classList.add(nodeAcquisitionClass);
+            const rankPreview = selectedNode.querySelector("[data-tree-rank-preview]");
+            const currentRank = selectedNode.closest("[data-tree-rank]");
+            if (rankPreview) rankPreview.textContent = `Rank ${currentRank?.dataset.treeRankLabel || selectedNode.dataset.treeRankNumber}`;
             selectedNode.classList.toggle("visual-tree-node-folder-child", Boolean(state.folderParentId));
             selectedNode.classList.toggle("visual-tree-node-folder-parent", selectedNode.dataset.isFolderParent === "true");
 

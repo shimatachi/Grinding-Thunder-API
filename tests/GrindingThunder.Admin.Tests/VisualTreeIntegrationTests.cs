@@ -19,8 +19,12 @@ public class VisualTreeIntegrationTests
         Assert.Contains("--visual-tree-column-step: 280px", css);
         Assert.Contains("--visual-tree-row-step: 204px", css);
         Assert.Contains("background-size: var(--visual-tree-column-step) var(--visual-tree-row-step)", css);
+        Assert.Contains("visual-tree-rank-band-even", css);
+        Assert.Contains("visual-tree-rank-band-odd", css);
+        Assert.Contains("filter: drop-shadow", css);
         Assert.Contains("const defaultColumnStep = 280", javascript);
         Assert.Contains("const defaultRowStep = 204", javascript);
+        Assert.Contains("* rowStep) + 96", javascript);
         Assert.Contains("[\"ArrowLeft\", \"ArrowRight\", \"ArrowUp\", \"ArrowDown\"]", javascript);
         Assert.Contains("L ${exit.x} ${exit.y} C", javascript);
     }
@@ -41,8 +45,8 @@ public class VisualTreeIntegrationTests
         Assert.Contains("data-tree-rank=\"1\"", html);
         Assert.Contains("data-tree-rank=\"4\"", html);
         Assert.DoesNotContain("data-tree-rank=\"2\"", html);
-        Assert.Contains("Unlock quota: <strong>5</strong>", html);
-        Assert.Contains("Unlock quota: <strong>2</strong>", html);
+        Assert.Contains("Requires <strong>5</strong> vehicles to unlock Rank I", html);
+        Assert.Contains("Requires <strong>2</strong> vehicles to unlock Rank IV", html);
         Assert.Contains($"data-tree-node=\"{TestMockApiHandler.EntryId}\"", html);
         Assert.Contains("data-tree-column=\"1\"", html);
         Assert.Contains("data-tree-row=\"0\"", html);
@@ -54,6 +58,50 @@ public class VisualTreeIntegrationTests
         Assert.Contains(">Premium</span>", html);
         Assert.Contains(">Folder</span>", html);
         Assert.Contains(">Folder member</span>", html);
+    }
+
+    [Fact]
+    public async Task DraftVersion_RendersProminentSparseRankBandsWithoutSyntheticRanks()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+
+        var html = await client.GetStringAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+
+        Assert.Contains("class=\"visual-tree-rank visual-tree-rank-band-even\"", html);
+        Assert.Contains("class=\"visual-tree-rank visual-tree-rank-band-odd\"", html);
+        Assert.Contains("data-tree-rank=\"1\"", html);
+        Assert.Contains("data-tree-rank-label=\"I\"", html);
+        Assert.Contains("data-tree-rank=\"4\"", html);
+        Assert.Contains("data-tree-rank-label=\"IV\"", html);
+        Assert.Contains("<span class=\"visual-tree-rank-number\">Rank <strong>I</strong></span>", html);
+        Assert.Contains("<span class=\"visual-tree-rank-number\">Rank <strong>IV</strong></span>", html);
+        Assert.DoesNotContain("data-tree-rank=\"2\"", html);
+        Assert.DoesNotContain("data-tree-rank=\"3\"", html);
+    }
+
+    [Fact]
+    public async Task DraftVersion_RendersEveryAcquisitionTypeWithSemanticCardAndBadgeClasses()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+
+        var html = await client.GetStringAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+
+        foreach (var acquisition in new[] { "researchable", "premium", "squadron", "event", "pack", "hidden" })
+        {
+            Assert.Contains($"visual-tree-node-acquisition-{acquisition}", html);
+            Assert.Contains($"visual-tree-acquisition-{acquisition}", html);
+        }
+
+        Assert.Contains(">Researchable</span>", html);
+        Assert.Contains(">Premium</span>", html);
+        Assert.Contains(">Squadron</span>", html);
+        Assert.Contains(">Event</span>", html);
+        Assert.Contains(">Pack</span>", html);
+        Assert.Contains(">Hidden</span>", html);
     }
 
     [Theory]
@@ -359,8 +407,8 @@ public class VisualTreeIntegrationTests
         var html = await response.Content.ReadAsStringAsync();
         Assert.Contains("data-tree-rank=\"1\"", html);
         Assert.Contains("data-tree-rank=\"6\"", html);
-        Assert.Contains("Unlock quota: <strong>4</strong>", html);
-        Assert.Contains("Unlock quota: <strong>3</strong>", html);
+        Assert.Contains("Requires <strong>4</strong> vehicles to unlock Rank I", html);
+        Assert.Contains("Requires <strong>3</strong> vehicles to unlock Rank VI", html);
         Assert.Contains(">F-16A<", html);
         Assert.Contains(">F-4E<", html);
         Assert.DoesNotContain("Other snapshot entry", html);

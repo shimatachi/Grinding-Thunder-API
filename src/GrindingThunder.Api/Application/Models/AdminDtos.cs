@@ -36,9 +36,9 @@ public record UpdateVehicleTypeRequest(string Name);
 public record VehicleTypeDto(Guid Id, string Name);
 
 // Catalog DTOs - Vehicle
-public record CreateVehicleRequest(Guid ResearchTreeId, string Name, string? ImageUrl = null);
-public record UpdateVehicleRequest(string Name, string? ImageUrl = null);
-public record VehicleDto(Guid Id, string Name, string? ImageUrl,
+public record CreateVehicleRequest(Guid ResearchTreeId, string Name, string? ImageUrl = null, string? WikiUrl = null);
+public record UpdateVehicleRequest(string Name, string? ImageUrl = null, string? WikiUrl = null);
+public record VehicleDto(Guid Id, string Name, string? ImageUrl, string? WikiUrl,
     Guid ResearchTreeId, Guid NationId, string NationName, Guid VehicleTypeId, string VehicleTypeName);
 
 // Catalog DTOs - GameUpdate

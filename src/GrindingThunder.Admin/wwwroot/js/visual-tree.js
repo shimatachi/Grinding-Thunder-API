@@ -38,6 +38,8 @@
             name: tree.querySelector("[data-readonly-name]"),
             vehicleId: tree.querySelector("[data-readonly-vehicle-id]"),
             image: tree.querySelector("[data-readonly-image]"),
+            wikiContainer: tree.querySelector("[data-readonly-wiki-container]"),
+            wikiLink: tree.querySelector("[data-readonly-wiki-link]"),
             rank: tree.querySelector("[data-readonly-rank]"),
             rp: tree.querySelector("[data-readonly-rp]"),
             sl: tree.querySelector("[data-readonly-sl]"),
@@ -82,6 +84,8 @@
             name: tree.querySelector("[data-inspector-name]"),
             vehicleId: tree.querySelector("[data-inspector-vehicle-id]"),
             image: tree.querySelector("[data-inspector-image]"),
+            wikiContainer: tree.querySelector("[data-inspector-wiki-container]"),
+            wikiLink: tree.querySelector("[data-inspector-wiki-link]"),
             rank: tree.querySelector("[data-inspector-rank]"),
             rp: tree.querySelector("[data-inspector-rp]"),
             sl: tree.querySelector("[data-inspector-sl]"),
@@ -782,6 +786,16 @@
                 if (imageUrl) readonlyInspector.image.src = imageUrl;
                 else readonlyInspector.image.removeAttribute("src");
             }
+            if (readonlyInspector.wikiContainer && readonlyInspector.wikiLink) {
+                const wikiUrl = (node.dataset.wikiUrl || "").trim();
+                if (wikiUrl) {
+                    readonlyInspector.wikiLink.href = wikiUrl;
+                    readonlyInspector.wikiContainer.classList.remove("d-none");
+                } else {
+                    readonlyInspector.wikiContainer.classList.add("d-none");
+                    readonlyInspector.wikiLink.removeAttribute("href");
+                }
+            }
             updateReadonlyProgressionControls(node);
             requestAnimationFrame(() => applyScale(scale));
         };
@@ -1300,6 +1314,16 @@
                 inspector.image.toggleAttribute("hidden", !imageUrl);
                 if (imageUrl) inspector.image.src = imageUrl;
                 else inspector.image.removeAttribute("src");
+            }
+            if (inspector.wikiContainer && inspector.wikiLink) {
+                const wikiUrl = (node.dataset.wikiUrl || "").trim();
+                if (wikiUrl) {
+                    inspector.wikiLink.href = wikiUrl;
+                    inspector.wikiContainer.classList.remove("d-none");
+                } else {
+                    inspector.wikiContainer.classList.add("d-none");
+                    inspector.wikiLink.removeAttribute("href");
+                }
             }
             setInspectorState(originalEntry);
             if (inspector.coordinate) inspector.coordinate.textContent = `Column ${node.dataset.treeColumn || "0"} · Row ${node.dataset.treeRow || "0"}`;

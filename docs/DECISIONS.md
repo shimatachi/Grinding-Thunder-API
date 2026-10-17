@@ -290,4 +290,23 @@ Append new entries at the end. Keep each entry to the decisions and tradeoffs th
 - Integrated spatial visual validation and clickable jump navigation. Rather than relying solely on text-based error lists, root-cell collisions and out-of-bounds nodes are visually flagged on the canvas with distinct CSS badges (`⚠️ Overlap`, `⚠️ Out of bounds`), and invalid prerequisite edges are highlighted with dashed warning strokes. Offending entries are linked via `[data-jump-to-node]` buttons that switch view tabs, center the node in the viewport, and trigger a temporary highlight pulse, bridging tabular validation reports with spatial WYSIWYG editing.
 - Preserved strict Published snapshot immutability. All undo/redo functionality and editing shortcuts are guarded by `isEditing()`, which requires active edit mode on an editable draft. Public tree views and Published admin snapshots completely exclude undo/redo and layout mutation controls from the DOM and event listeners.
 
+## 2026 — Batch 36: War Thunder scraper integration and stable vehicle wiki metadata
 
+- Extended stable `Vehicle` identity with `string? WikiUrl` (nullable, max length 2048) rather than placing it on `VehicleTreeEntry`. Why: a vehicle's official War Thunder Wiki page URL describes the real-world historical machine and its game identity, not an update-specific balance snapshot or tech-tree progression state. This mirrors `Vehicle.ImageUrl` established in Batch 23 and keeps versioned entries (`VehicleTreeEntry`) focused strictly on mutable progression parameters (costs, ranks, layout, acquisition type, prerequisites).
+- Enforced a non-destructive metadata update policy in the tabular import engine (`TechTreeImportService`):
+  - When auto-creating a new stable `Vehicle` during import, incoming nonblank `ImageUrl` and `WikiUrl` are persisted.
+  - When importing rows for an existing `Vehicle`, nonblank incoming metadata updates the vehicle's catalog values.
+  - Incoming blank/null metadata never overwrites or erases existing nonblank `ImageUrl` or `WikiUrl`.
+  - Vehicle resolution and updates strictly respect the targeted `ResearchTree` boundary (`Vehicle.ResearchTreeId`), preventing vehicles with identical names in other nations or trees from being overwritten or reused.
+- Standardized the external scraper exchange format without tight coupling to the database:
+  - Scraper produces a canonical, multi-sheet workbook where Sheet 1 (`Import`) adheres exactly to Grinding Thunder's application-owned tabular schema (`VehicleName`, `RankNumber`, `RpCost`, `SlCost`, `TreeColumn`, `TreeRow`, `AcquisitionType`, `FolderParentVehicleName`, `PrerequisiteVehicleNames`, `RequiredVehiclesUnlocked`, `ImageUrl`, `WikiUrl`). Sheet 1 ordering is critical because the lightweight OpenXML reader (`TabularDataParser`) parses `sheet1.xml` by default.
+  - Scraper outputs supplementary sheets (`Review Notes` and `Source Reference`) to capture diagnostic warnings (e.g. unknown acquisition types, zeroed economy placeholders, placeholder coordinates) and unmapped wiki metadata (slug, battle ratings, role/class) without losing source fidelity or cluttering the canonical import schema.
+  - Scraper runs as an independent Python tool without direct database access; Grinding Thunder remains fully responsible for transactions, validation, draft mutations, and foreign key integrity.
+- Handled progression and visual tree safety deterministically:
+  - Roman rank numerals (I..X) map directly to integer ranks (1..10).
+  - Economic costs normalize commas and currency tags, with non-numeric source values mapped explicitly to `0` accompanied by review warnings rather than fabricating speculative economy numbers.
+  - Acquisition statuses map strictly into the domain enum (`Tech Tree -> Researchable`, `Store Pack / Bundle -> Pack`, `Compare -> Hidden`). Unknown statuses are flagged, exported to `Review Notes`, and mapped safely to `Hidden` rather than accidentally becoming `Researchable`.
+  - Because the scraper lacks authoritative visual layout coordinates, it generates deterministic collision-free placeholder coordinates (`TreeColumn = 0, TreeRow = index`) to satisfy root-cell uniqueness invariants, accompanied by an explicit review note instructing administrators to refine visual placement using the visual tree editor.
+- Exposed `WikiUrl` across back-office CRUD, visual tree inspectors, and public tree projections:
+  - Admin catalog forms and endpoints support creating and editing `WikiUrl` with conservative URL length validation.
+  - Public tree vehicle details display a "View on War Thunder Wiki ↗" external link opening safely in a new tab (`target="_blank" rel="noopener noreferrer"`), which is conditionally hidden when `WikiUrl` is null or empty.

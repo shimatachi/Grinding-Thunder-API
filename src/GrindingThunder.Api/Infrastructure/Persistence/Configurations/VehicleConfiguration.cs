@@ -14,6 +14,9 @@ public class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
             .IsRequired()
             .HasMaxLength(150);
 
+        builder.Property(v => v.WikiUrl)
+            .HasMaxLength(2048);
+
         builder.HasOne(v => v.ResearchTree)
             .WithMany(t => t.Vehicles)
             .HasForeignKey(v => v.ResearchTreeId)

@@ -888,8 +888,6 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Verification: 0 warnings, 0 errors, all 559 tests pass across the entire solution.
 
 
-## Next
-
 - **Batch 35 — Visual editor productivity and safety** (status: Completed)
   Goal: add advanced editing conveniences only after the core WYSIWYG workflow has
   proven stable through real content maintenance.
@@ -909,6 +907,16 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - Comprehensive unit and integration test coverage in `VisualEditorProductivityTests.cs` (CSS badges, JS history/shortcut hooks, draft toolbar buttons, published/public read-only exclusion, server validation message hooks, and Node.js state machine simulation).
   Verification: 0 warnings, 0 errors, all 567 tests pass across the entire solution (346 API + 221 Admin).
 
+- **Batch 36 — War Thunder Scraper Integration & Stable Vehicle Wiki Metadata** (status: Completed)
+  Goal: integrate the local Python War Thunder scraper with Grinding Thunder without requiring manual workbook cleanup, and extend stable vehicle identity with direct wiki metadata.
+  Delivered:
+  - Extended stable `Vehicle` identity with nullable `WikiUrl` (`character varying(2048)`), explicitly distinguishing stable vehicle documentation from transient, versioned tech-tree entry data. Generated and verified EF Core migration `20261017033110_AddVehicleWikiUrl`.
+  - Updated API DTOs and projections (`VehicleDto`, `VehicleSummaryDto`, `VehicleTreeResponse`) and administrative endpoints (`AdminVehiclesController`) to accept, validate (<= 2048 chars, absolute URL format), persist, and expose `WikiUrl`.
+  - Extended canonical tabular import schema (`TabularDataParser` and `TechTreeImportService`) with optional `ImageUrl` and `WikiUrl` columns. Defined and implemented safe non-destructive metadata update policy: auto-created vehicles persist incoming metadata; existing vehicles update nonblank incoming metadata; blank incoming metadata never erases existing nonblank metadata; same-named vehicles in other trees remain strictly isolated.
+  - Updated Admin web UI (`GrindingThunder.Admin`): added `WikiUrl` to Vehicle catalog create/edit/list views, visual tree draft creation form, draft inspector, and public `/Tree` read-only details ("View on War Thunder Wiki ↗" external link, safely hidden when null or blank).
+  - Upgraded Python scraper (`wt-scraper`): added deterministic Roman numeral rank mapping (I..X -> 1..10), RP/SL cost normalization with N/A placeholder logging, acquisition type mapping with safe fallback to `Hidden` for unknown statuses, globally collision-free placeholder coordinates, and multi-sheet Excel export (`Import` as Sheet 1, `Review Notes` as Sheet 2, `Source Reference` as Sheet 3) alongside canonical CSV.
+  - Created 10 Python unit tests in `test_scraper.py` and comprehensive C# integration tests in `Batch36ScraperIntegrationTests.cs` verifying entity storage, migration safety, CRUD operations, public projections, import auto-creation/update/preservation policies, tree scoping isolation, and full import preview validation of representative Israel Aviation fixtures.
+  Verification: 0 warnings, 0 errors, all 574 C# tests pass across the solution (353 API + 221 Admin) and all 10 Python scraper tests pass.
 
 ## Later
 

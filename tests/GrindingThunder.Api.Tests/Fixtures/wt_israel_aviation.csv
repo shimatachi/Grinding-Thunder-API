@@ -1,0 +1,50 @@
+VehicleName,RankNumber,RpCost,SlCost,TreeColumn,TreeRow,AcquisitionType,FolderParentVehicleName,PrerequisiteVehicleNames,RequiredVehiclesUnlocked,ImageUrl,WikiUrl
+A 4E Early Iaf,6,86000,480000,0,0,Researchable,,,,https://static.encyclopedia.warthunder.com/images/a_4e_early_iaf.png,https://wiki.warthunder.com/unit/a_4e_early_iaf
+A 4E Late Iaf,6,0,0,0,1,Hidden,,,,https://static.encyclopedia.warthunder.com/images/a_4e_late_iaf.png,https://wiki.warthunder.com/unit/a_4e_late_iaf
+A 4H,6,135000,380000,0,2,Researchable,,,,https://static.encyclopedia.warthunder.com/images/a_4h.png,https://wiki.warthunder.com/unit/a_4h
+A 4N,6,190000,530000,0,3,Pack,,,,https://static.encyclopedia.warthunder.com/images/a_4n.png,https://wiki.warthunder.com/unit/a_4n
+A 7E Greece,7,0,0,0,4,Hidden,,,,https://static.encyclopedia.warthunder.com/images/a_7e_greece.png,https://wiki.warthunder.com/unit/a_7e_greece
+A 7H Greece,7,230000,630000,0,5,Researchable,,,,https://static.encyclopedia.warthunder.com/images/a_7h_greece.png,https://wiki.warthunder.com/unit/a_7h_greece
+B-17G Iaf,4,63000,200000,0,6,Researchable,,,,https://static.encyclopedia.warthunder.com/images/b-17g_iaf.png,https://wiki.warthunder.com/unit/b-17g_iaf
+F-4E Iaf,7,230000,630000,0,7,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f-4e_iaf.png,https://wiki.warthunder.com/unit/f-4e_iaf
+F-4E Kurnass 2000,8,290000,780000,0,8,Pack,,,,https://static.encyclopedia.warthunder.com/images/f-4e_kurnass_2000.png,https://wiki.warthunder.com/unit/f-4e_kurnass_2000
+F-84F Israel Iaf,6,0,0,0,9,Hidden,,,,https://static.encyclopedia.warthunder.com/images/f-84f_israel_iaf.png,https://wiki.warthunder.com/unit/f-84f_israel_iaf
+F-84G Greece,5,95000,270000,0,10,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f-84g_greece.png,https://wiki.warthunder.com/unit/f-84g_greece
+F 102A Greece,6,135000,380000,0,11,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_102a_greece.png,https://wiki.warthunder.com/unit/f_102a_greece
+F 15A Iaf,8,160000,860000,0,12,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_15a_iaf.png,https://wiki.warthunder.com/unit/f_15a_iaf
+F 15C Baz Msip,8,350000,940000,0,13,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_15c_baz_msip.png,https://wiki.warthunder.com/unit/f_15c_baz_msip
+F 15I Raam,8,350000,940000,0,14,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_15i_raam.png,https://wiki.warthunder.com/unit/f_15i_raam
+F 16A Block 10 Iaf,8,290000,780000,0,15,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_16a_block_10_iaf.png,https://wiki.warthunder.com/unit/f_16a_block_10_iaf
+F 16A Block 10 Netz Mod,8,0,0,0,16,Hidden,,,,https://static.encyclopedia.warthunder.com/images/f_16a_block_10_netz_mod.png,https://wiki.warthunder.com/unit/f_16a_block_10_netz_mod
+F 16C Block 40 Barak 2,8,350000,940000,0,17,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_16c_block_40_barak_2.png,https://wiki.warthunder.com/unit/f_16c_block_40_barak_2
+F 16D Block 40 Barak 2,8,320000,860000,0,18,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_16d_block_40_barak_2.png,https://wiki.warthunder.com/unit/f_16d_block_40_barak_2
+F 16I Sufa,8,175000,940000,0,19,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_16i_sufa.png,https://wiki.warthunder.com/unit/f_16i_sufa
+F 4E Aup Greece,8,290000,780000,0,20,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_4e_aup_greece.png,https://wiki.warthunder.com/unit/f_4e_aup_greece
+F 86Em Greece,6,170000,480000,0,21,Researchable,,,,https://static.encyclopedia.warthunder.com/images/f_86em_greece.png,https://wiki.warthunder.com/unit/f_86em_greece
+Kfir C10 Colombia,8,10,860000,0,22,Researchable,,,,https://static.encyclopedia.warthunder.com/images/kfir_c10_colombia.png,https://wiki.warthunder.com/unit/kfir_c10_colombia
+Kfir C2,7,113,630000,0,23,Researchable,,,,https://static.encyclopedia.warthunder.com/images/kfir_c2.png,https://wiki.warthunder.com/unit/kfir_c2
+Kfir C7,7,260000,720000,0,24,Researchable,,,,https://static.encyclopedia.warthunder.com/images/kfir_c7.png,https://wiki.warthunder.com/unit/kfir_c7
+Kfir Canard,7,0,0,0,25,Hidden,,,,https://static.encyclopedia.warthunder.com/images/kfir_canard.png,https://wiki.warthunder.com/unit/kfir_canard
+Md 450B Ouragan Iaf,5,95000,270000,0,26,Researchable,,,,https://static.encyclopedia.warthunder.com/images/md_450b_ouragan_iaf.png,https://wiki.warthunder.com/unit/md_450b_ouragan_iaf
+Md 450B Ouragan Iaf 29,5,0,0,0,27,Hidden,,,,https://static.encyclopedia.warthunder.com/images/md_450b_ouragan_iaf_29.png,https://wiki.warthunder.com/unit/md_450b_ouragan_iaf_29
+Md 454 Mystere 4A Iaf,6,150000,420000,0,28,Researchable,,,,https://static.encyclopedia.warthunder.com/images/md_454_mystere_4a_iaf.png,https://wiki.warthunder.com/unit/md_454_mystere_4a_iaf
+Md 460 Saar,6,96000,530000,0,29,Researchable,,,,https://static.encyclopedia.warthunder.com/images/md_460_saar.png,https://wiki.warthunder.com/unit/md_460_saar
+Md 460 Sambad,6,170000,480000,0,30,Researchable,,,,https://static.encyclopedia.warthunder.com/images/md_460_sambad.png,https://wiki.warthunder.com/unit/md_460_sambad
+Meteor Fmk8 Iaf,5,105000,300000,0,31,Researchable,,,,https://static.encyclopedia.warthunder.com/images/meteor_fmk8_iaf.png,https://wiki.warthunder.com/unit/meteor_fmk8_iaf
+Meteor Frmk9 Iaf,5,77,300000,0,32,Researchable,,,,https://static.encyclopedia.warthunder.com/images/meteor_frmk9_iaf.png,https://wiki.warthunder.com/unit/meteor_frmk9_iaf
+Meteor Nfmk13,5,95000,270000,0,33,Researchable,,,,https://static.encyclopedia.warthunder.com/images/meteor_nfmk13.png,https://wiki.warthunder.com/unit/meteor_nfmk13
+Mig 21 2000 Iaf,7,550000,720000,0,34,Hidden,,,,https://static.encyclopedia.warthunder.com/images/mig_21_2000_iaf.png,https://wiki.warthunder.com/unit/mig_21_2000_iaf
+Mirage 2000 5Eg Mk2 Greece,8,350000,940000,0,35,Researchable,,,,https://static.encyclopedia.warthunder.com/images/mirage_2000_5eg_mk2_greece.png,https://wiki.warthunder.com/unit/mirage_2000_5eg_mk2_greece
+Mirage 3Cj,7,210000,580000,0,36,Researchable,,,,https://static.encyclopedia.warthunder.com/images/mirage_3cj.png,https://wiki.warthunder.com/unit/mirage_3cj
+Mirage F1Cg Greece,7,260000,720000,0,37,Researchable,,,,https://static.encyclopedia.warthunder.com/images/mirage_f1cg_greece.png,https://wiki.warthunder.com/unit/mirage_f1cg_greece
+Nesher,7,210000,580000,0,38,Researchable,,,,https://static.encyclopedia.warthunder.com/images/nesher.png,https://wiki.warthunder.com/unit/nesher
+P-51D-20-Na Iaf,4,54000,185000,0,39,Researchable,,,,https://static.encyclopedia.warthunder.com/images/p-51d-20-na_iaf.png,https://wiki.warthunder.com/unit/p-51d-20-na_iaf
+Rafale Eg Greece,9,400000,1080000,0,40,Researchable,,,,https://static.encyclopedia.warthunder.com/images/rafale_eg_greece.png,https://wiki.warthunder.com/unit/rafale_eg_greece
+S 199,4,0,155000,0,41,Researchable,,,,https://static.encyclopedia.warthunder.com/images/s_199.png,https://wiki.warthunder.com/unit/s_199
+Sb2C 5 Greece,4,54000,185000,0,42,Researchable,,,,https://static.encyclopedia.warthunder.com/images/sb2c_5_greece.png,https://wiki.warthunder.com/unit/sb2c_5_greece
+So 4050 Vautour 2A Israel Iaf,6,150000,420000,0,43,Researchable,,,,https://static.encyclopedia.warthunder.com/images/so_4050_vautour_2a_israel_iaf.png,https://wiki.warthunder.com/unit/so_4050_vautour_2a_israel_iaf
+So 4050 Vautour 2N Iaf,6,86000,480000,0,44,Researchable,,,,https://static.encyclopedia.warthunder.com/images/so_4050_vautour_2n_iaf.png,https://wiki.warthunder.com/unit/so_4050_vautour_2n_iaf
+Spitfire Lf Mk9C Cw Greece,4,0,0,0,45,Hidden,,,,https://static.encyclopedia.warthunder.com/images/spitfire_lf_mk9c_cw_greece.png,https://wiki.warthunder.com/unit/spitfire_lf_mk9c_cw_greece
+Spitfire Lf Mk9E Iaf,4,71000,210000,0,46,Researchable,,,,https://static.encyclopedia.warthunder.com/images/spitfire_lf_mk9e_iaf.png,https://wiki.warthunder.com/unit/spitfire_lf_mk9e_iaf
+Spitfire Lf Mk9E Weisman,4,0,0,0,47,Hidden,,,,https://static.encyclopedia.warthunder.com/images/spitfire_lf_mk9e_weisman.png,https://wiki.warthunder.com/unit/spitfire_lf_mk9e_weisman
+Spitfire Mk9C Iaf,4,54000,185000,0,48,Researchable,,,,https://static.encyclopedia.warthunder.com/images/spitfire_mk9c_iaf.png,https://wiki.warthunder.com/unit/spitfire_mk9c_iaf

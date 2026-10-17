@@ -127,7 +127,7 @@ public class CatalogIntegrationTests
     {
         { "/Catalog/Nations/Create", "/api/admin/nations", new() { ["Input.Name"] = "Canada" } },
         { "/Catalog/Vehicle-Types/Create", "/api/admin/vehicle-types", new() { ["Input.Name"] = "Ground" } },
-        { $"/Trees/{TestMockApiHandler.NationId}/{TestMockApiHandler.ResearchTreeId}/Vehicles/Create", "/api/admin/vehicles", new() { ["Input.Name"] = "Leopard 2A7", ["Input.ImageUrl"] = "https://example.test/leopard.png" } },
+        { $"/Trees/{TestMockApiHandler.NationId}/{TestMockApiHandler.ResearchTreeId}/Vehicles/Create", "/api/admin/vehicles", new() { ["Input.Name"] = "Leopard 2A7", ["Input.ImageUrl"] = "https://example.test/leopard.png", ["Input.WikiUrl"] = "https://wiki.warthunder.com/Leopard_2A7" } },
         { "/Catalog/Game-Updates/Create", "/api/admin/game-updates", new() { ["Input.Version"] = "2.51", ["Input.Name"] = "Next Update", ["Input.ReleaseDate"] = "2026-11-01" } },
         { "/Catalog/Research-Trees/Create", "/api/admin/research-trees", new() { ["Input.NationId"] = TestMockApiHandler.NationId.ToString(), ["Input.VehicleTypeId"] = TestMockApiHandler.VehicleTypeId.ToString() } }
     };
@@ -136,7 +136,7 @@ public class CatalogIntegrationTests
     {
         { $"/Catalog/Nations/{TestMockApiHandler.NationId}/Edit", $"/api/admin/nations/{TestMockApiHandler.NationId}", new() { ["Input.Name"] = "United States" } },
         { $"/Catalog/Vehicle-Types/{TestMockApiHandler.VehicleTypeId}/Edit", $"/api/admin/vehicle-types/{TestMockApiHandler.VehicleTypeId}", new() { ["Input.Name"] = "Military Aviation" } },
-        { $"/Trees/{TestMockApiHandler.NationId}/{TestMockApiHandler.ResearchTreeId}/Vehicles/{TestMockApiHandler.VehicleId}/Edit", $"/api/admin/vehicles/{TestMockApiHandler.VehicleId}", new() { ["Input.Name"] = "F-16A ADF", ["Input.ImageUrl"] = "https://example.test/f16-adf.png" } },
+        { $"/Trees/{TestMockApiHandler.NationId}/{TestMockApiHandler.ResearchTreeId}/Vehicles/{TestMockApiHandler.VehicleId}/Edit", $"/api/admin/vehicles/{TestMockApiHandler.VehicleId}", new() { ["Input.Name"] = "F-16A ADF", ["Input.ImageUrl"] = "https://example.test/f16-adf.png", ["Input.WikiUrl"] = "https://wiki.warthunder.com/F-16A_ADF" } },
         { $"/Catalog/Game-Updates/{TestMockApiHandler.GameUpdateId}/Edit", $"/api/admin/game-updates/{TestMockApiHandler.GameUpdateId}", new() { ["Input.Version"] = "2.50.1", ["Input.Name"] = "Test Update Revised", ["Input.ReleaseDate"] = "2026-10-13" } }
     };
 

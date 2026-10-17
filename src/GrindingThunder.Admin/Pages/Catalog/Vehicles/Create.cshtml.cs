@@ -16,7 +16,7 @@ public class CreateModel(IApiClient apiClient) : TreeContextPageModel(apiClient)
         var contextError = await LoadTreeAsync(nationId, researchTreeId, cancellationToken);
         if (contextError is not null) return contextError;
         if (!ModelState.IsValid) return Page();
-        var response = await ApiClient.CreateVehicleAsync(new CreateVehicleRequest(Tree.Id, Input.Name, Input.ImageUrl), cancellationToken);
+        var response = await ApiClient.CreateVehicleAsync(new CreateVehicleRequest(Tree.Id, Input.Name, Input.ImageUrl, Input.WikiUrl), cancellationToken);
         if (response.IsForbidden) return RedirectToPage("/AccessDenied");
         if (!response.IsSuccess) { ModelState.AddModelError(string.Empty, response.ErrorMessage ?? "Unable to create vehicle."); return Page(); }
         TempData["SuccessMessage"] = $"Vehicle '{response.Value?.Name ?? Input.Name}' was created."; return BackToVehicles();

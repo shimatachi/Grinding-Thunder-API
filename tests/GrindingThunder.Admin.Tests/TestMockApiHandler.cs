@@ -506,14 +506,14 @@ public class TestMockApiHandler : HttpMessageHandler
         if (path.Equals("/api/admin/vehicles", StringComparison.OrdinalIgnoreCase))
         {
             if (request.Method == HttpMethod.Get) return JsonResponse(HttpStatusCode.OK, new object[] {
-                new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
-                new { id = VehicleId2, name = "F-4E", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
-                new { id = AvailableVehicleId, name = "F-15C", imageUrl = "https://example.test/f15.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
-                new { id = SquadronVehicleId, name = "Squadron Test Vehicle", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
-                new { id = EventVehicleId, name = "Event Test Vehicle", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
-                new { id = PackVehicleId, name = "Pack Test Vehicle", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
-                new { id = HiddenVehicleId, name = "Hidden Test Vehicle", imageUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
-                new { id = OtherVehicleId, name = "Other tree vehicle", imageUrl = (string?)null, researchTreeId = OtherTreeId, nationId = OtherNationId, nationName = "Germany", vehicleTypeId = GroundTypeId, vehicleTypeName = "Ground" }
+                new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", wikiUrl = "https://wiki.warthunder.com/F-16A", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = VehicleId2, name = "F-4E", imageUrl = (string?)null, wikiUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = AvailableVehicleId, name = "F-15C", imageUrl = "https://example.test/f15.png", wikiUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = SquadronVehicleId, name = "Squadron Test Vehicle", imageUrl = (string?)null, wikiUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = EventVehicleId, name = "Event Test Vehicle", imageUrl = (string?)null, wikiUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = PackVehicleId, name = "Pack Test Vehicle", imageUrl = (string?)null, wikiUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = HiddenVehicleId, name = "Hidden Test Vehicle", imageUrl = (string?)null, wikiUrl = (string?)null, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" },
+                new { id = OtherVehicleId, name = "Other tree vehicle", imageUrl = (string?)null, wikiUrl = (string?)null, researchTreeId = OtherTreeId, nationId = OtherNationId, nationName = "Germany", vehicleTypeId = GroundTypeId, vehicleTypeName = "Ground" }
             });
             if (request.Method == HttpMethod.Post)
             {
@@ -526,11 +526,14 @@ public class TestMockApiHandler : HttpMessageHandler
                 var imageUrl = body.GetPropertyIgnoreCase("ImageUrl").ValueKind == JsonValueKind.Null
                     ? null
                     : body.GetPropertyIgnoreCase("ImageUrl").GetString();
-                return JsonResponse(HttpStatusCode.Created, new { id = CreatedVehicleId, name, imageUrl, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" });
+                var wikiUrl = body.GetPropertyIgnoreCase("WikiUrl").ValueKind == JsonValueKind.Null
+                    ? null
+                    : body.GetPropertyIgnoreCase("WikiUrl").GetString();
+                return JsonResponse(HttpStatusCode.Created, new { id = CreatedVehicleId, name, imageUrl, wikiUrl, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" });
             }
         }
         if (path.Equals($"/api/admin/vehicles/{VehicleId}", StringComparison.OrdinalIgnoreCase))
-            return EntityResponse(request, new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" });
+            return EntityResponse(request, new { id = VehicleId, name = "F-16A", imageUrl = "https://example.test/f16.png", wikiUrl = "https://wiki.warthunder.com/F-16A", researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation" });
 
         if (path.Equals("/api/admin/game-updates", StringComparison.OrdinalIgnoreCase))
         {

@@ -48,6 +48,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 }).ToList(),
                 v.Name,
                 v.ImageUrl,
+                v.WikiUrl,
                 PrerequisiteEntryIds = v.TreeEntries
                     .SelectMany(te => te.Prerequisites.Select(pr => pr.PrerequisiteVehicleTreeEntryId))
                     .ToList()
@@ -78,6 +79,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 RankId = singleEntry?.TreeRankId,
                 v.Name,
                 v.ImageUrl,
+                v.WikiUrl,
                 RpCost = singleEntry?.RpCost,
                 SlCost = singleEntry?.SlCost,
                 AcquisitionType = singleEntry?.AcquisitionType,
@@ -158,6 +160,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 e.TreeRank.ResearchTreeVersionId,
                 e.Vehicle.Name,
                 e.Vehicle.ImageUrl,
+                e.Vehicle.WikiUrl,
                 e.RpCost,
                 e.SlCost,
                 e.AcquisitionType,

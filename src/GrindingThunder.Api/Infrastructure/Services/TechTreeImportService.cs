@@ -26,7 +26,9 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
         VehicleAcquisitionType AcquisitionType,
         string? FolderParentVehicleName,
         List<string> PrerequisiteVehicleNames,
-        int? RequiredVehiclesUnlocked);
+        int? RequiredVehiclesUnlocked,
+        string? ImageUrl = null,
+        string? WikiUrl = null);
 
     private class ValidationContext
     {
@@ -127,6 +129,10 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
                 .Where(v => v.ResearchTreeId == version.ResearchTreeId).ToListAsync(cancellationToken);
             var catalogMap = catalogVehicles.ToDictionary(v => v.Name.Trim().ToLowerInvariant(), v => v);
 
+            var rowByName = valContext.ValidRows
+                .GroupBy(r => r.VehicleName.Trim().ToLowerInvariant())
+                .ToDictionary(g => g.Key, g => g.Last());
+
             if (autoCreateMissingVehicles && valContext.AutoCreatedVehicles.Count > 0)
             {
                 foreach (var missingName in valContext.AutoCreatedVehicles)
@@ -134,12 +140,14 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
                     var lower = missingName.Trim().ToLowerInvariant();
                     if (!catalogMap.ContainsKey(lower))
                     {
+                        var row = rowByName[lower];
                         var newVehicle = new Vehicle
                         {
                             Id = Guid.NewGuid(),
                             ResearchTreeId = version.ResearchTreeId,
                             Name = missingName.Trim(),
-                            ImageUrl = null
+                            ImageUrl = string.IsNullOrWhiteSpace(row.ImageUrl) ? null : row.ImageUrl.Trim(),
+                            WikiUrl = string.IsNullOrWhiteSpace(row.WikiUrl) ? null : row.WikiUrl.Trim()
                         };
                         _context.Vehicles.Add(newVehicle);
                         catalogMap[lower] = newVehicle;
@@ -147,6 +155,25 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
                 }
                 await _context.SaveChangesAsync(cancellationToken);
             }
+
+            // Update existing catalog vehicles with non-blank incoming metadata.
+            // Policy: Blank incoming metadata must not wipe a nonblank existing value;
+            // a nonblank incoming value may update stable Vehicle metadata.
+            foreach (var (lowerName, vehicle) in catalogMap)
+            {
+                if (rowByName.TryGetValue(lowerName, out var row))
+                {
+                    if (!string.IsNullOrWhiteSpace(row.ImageUrl))
+                    {
+                        vehicle.ImageUrl = row.ImageUrl.Trim();
+                    }
+                    if (!string.IsNullOrWhiteSpace(row.WikiUrl))
+                    {
+                        vehicle.WikiUrl = row.WikiUrl.Trim();
+                    }
+                }
+            }
+            await _context.SaveChangesAsync(cancellationToken);
 
             // 2. Ensure TreeRanks exist in the draft version
             var existingRanks = await _context.TreeRanks
@@ -442,6 +469,19 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
                 }
             }
 
+            // ImageUrl (optional)
+            var imageUrlRaw = row.Values.GetValueOrDefault("ImageUrl", string.Empty).Trim();
+            var imageUrl = string.IsNullOrWhiteSpace(imageUrlRaw) ? null : imageUrlRaw;
+
+            // WikiUrl (optional)
+            var wikiUrlRaw = row.Values.GetValueOrDefault("WikiUrl", string.Empty).Trim();
+            var wikiUrl = string.IsNullOrWhiteSpace(wikiUrlRaw) ? null : wikiUrlRaw;
+            if (wikiUrl != null && wikiUrl.Length > 2048)
+            {
+                valContext.Errors.Add($"Row {row.RowNumber}: WikiUrl exceeds maximum length of 2048 characters.");
+                rowValid = false;
+            }
+
             if (rowValid)
             {
                 parsedRows.Add(new ParsedImportRow(
@@ -455,7 +495,9 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
                     acquisitionType,
                     folderParentName,
                     prereqs,
-                    rankQuota));
+                    rankQuota,
+                    imageUrl,
+                    wikiUrl));
             }
         }
 

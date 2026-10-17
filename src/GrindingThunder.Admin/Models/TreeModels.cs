@@ -133,7 +133,8 @@ public record PublicVehicleTreeEntryDto(
     Guid? FolderParentId,
     int TreeColumn,
     int TreeRow,
-    List<Guid> PrerequisiteIds);
+    List<Guid> PrerequisiteIds,
+    string? WikiUrl = null);
 
 // Form input models for the version editor pages.
 public class AddRankInputModel
@@ -228,4 +229,9 @@ public class CreateVehicleEntryInputModel : EntryInputModel
     [Url(ErrorMessage = "Image URL must be a valid absolute URL.")]
     [Display(Name = "Image URL")]
     public string? ImageUrl { get; set; }
+
+    [Url(ErrorMessage = "Wiki URL must be a valid absolute URL.")]
+    [StringLength(2048, ErrorMessage = "Wiki URL cannot exceed 2048 characters.")]
+    [Display(Name = "Wiki URL")]
+    public string? WikiUrl { get; set; }
 }

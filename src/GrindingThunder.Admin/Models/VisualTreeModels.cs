@@ -66,7 +66,8 @@ public sealed record VisualTreeNodeViewModel(
     int CoordinateStackIndex,
     VehicleAcquisitionType AcquisitionType,
     bool IsFolderParent,
-    Guid? FolderParentId)
+    Guid? FolderParentId,
+    string? WikiUrl = null)
 {
     public string DomId => $"tree-node-{Id:N}";
 }
@@ -97,6 +98,7 @@ public static class VisualTreeMapper
             .Select(rank => new RankSource(rank.Id, rank.RankNumber, rank.RequiredVehiclesUnlocked))
             .ToList();
         var images = vehicles.ToDictionary(vehicle => vehicle.Id, vehicle => vehicle.ImageUrl);
+        var wikis = vehicles.ToDictionary(vehicle => vehicle.Id, vehicle => vehicle.WikiUrl);
         var folderParentIds = draft.Entries
             .Where(entry => entry.FolderParentEntryId.HasValue)
             .Select(entry => entry.FolderParentEntryId!.Value)
@@ -113,7 +115,8 @@ public static class VisualTreeMapper
             entry.TreeRow,
             entry.AcquisitionType,
             folderParentIds.Contains(entry.Id),
-            entry.FolderParentEntryId)).ToList();
+            entry.FolderParentEntryId,
+            wikis.GetValueOrDefault(entry.VehicleId))).ToList();
         var prerequisiteEdges = draft.Prerequisites.Select(edge => new VisualTreeEdgeViewModel(
             edge.PrerequisiteVehicleTreeEntryId,
             edge.VehicleTreeEntryId,
@@ -145,7 +148,8 @@ public static class VisualTreeMapper
             entry.TreeRow,
             entry.AcquisitionType,
             entry.IsFolderParent || folderParentIds.Contains(entry.Id),
-            entry.FolderParentId)).ToList();
+            entry.FolderParentId,
+            entry.WikiUrl)).ToList();
         var prerequisiteEdges = entries.SelectMany(entry => entry.PrerequisiteIds.Select(prerequisiteId =>
             new VisualTreeEdgeViewModel(prerequisiteId, entry.Id, VisualTreeEdgeKind.Prerequisite)));
 
@@ -183,7 +187,8 @@ public static class VisualTreeMapper
                 coordinateStacks[node.Id],
                 node.AcquisitionType,
                 node.IsFolderParent,
-                node.FolderParentId))
+                node.FolderParentId,
+                node.WikiUrl))
             .ToList();
 
         var visualRanks = rankSources
@@ -241,5 +246,6 @@ public static class VisualTreeMapper
         int TreeRow,
         VehicleAcquisitionType AcquisitionType,
         bool IsFolderParent,
-        Guid? FolderParentId);
+        Guid? FolderParentId,
+        string? WikiUrl = null);
 }

@@ -532,7 +532,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
         }
 
         var createResponse = await apiClient.CreateVehicleAsync(
-            new CreateVehicleRequest(Tree.Id, CreateEntry.Name.Trim(), CreateEntry.ImageUrl),
+            new CreateVehicleRequest(Tree.Id, CreateEntry.Name.Trim(), CreateEntry.ImageUrl, CreateEntry.WikiUrl),
             cancellationToken);
         if (createResponse.IsForbidden) return RedirectToPage("/AccessDenied");
         if (!createResponse.IsSuccess || createResponse.Value is null)

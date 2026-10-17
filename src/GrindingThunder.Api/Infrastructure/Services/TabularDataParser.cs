@@ -84,7 +84,7 @@ public static class TabularDataParser
             result.Errors.Add(
                 $"Missing required column(s): {string.Join(", ", missingRequired)}. " +
                 "Expected canonical columns: VehicleName, RankNumber, RpCost, SlCost, TreeColumn, TreeRow, " +
-                "[AcquisitionType], [FolderParentVehicleName], [PrerequisiteVehicleNames], [RequiredVehiclesUnlocked].");
+                "[AcquisitionType], [FolderParentVehicleName], [PrerequisiteVehicleNames], [RequiredVehiclesUnlocked], [ImageUrl], [WikiUrl].");
             return result;
         }
 
@@ -134,6 +134,8 @@ public static class TabularDataParser
             "folderparentvehiclename" or "folderparent" or "folderparentvehicle" => "FolderParentVehicleName",
             "prerequisitevehiclenames" or "prerequisites" or "prerequisite" or "prerequisitevehicle" or "prerequisitevehicles" => "PrerequisiteVehicleNames",
             "requiredvehiclesunlocked" or "rankquota" or "rankrequiredvehicles" or "rankunlockrequirement" => "RequiredVehiclesUnlocked",
+            "imageurl" or "image" or "mainrenderimage" or "renderimage" => "ImageUrl",
+            "wikiurl" or "wiki" or "directwikipageurl" or "wikipageurl" or "url" => "WikiUrl",
             _ => header.Trim()
         };
     }

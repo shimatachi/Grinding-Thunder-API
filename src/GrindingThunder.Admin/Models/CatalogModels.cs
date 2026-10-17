@@ -12,9 +12,9 @@ public record CreateVehicleTypeRequest(string Name);
 public record UpdateVehicleTypeRequest(string Name);
 
 public record VehicleDto(Guid Id, string Name, string? ImageUrl,
-    Guid ResearchTreeId, Guid NationId, string NationName, Guid VehicleTypeId, string VehicleTypeName);
-public record CreateVehicleRequest(Guid ResearchTreeId, string Name, string? ImageUrl = null);
-public record UpdateVehicleRequest(string Name, string? ImageUrl = null);
+    Guid ResearchTreeId, Guid NationId, string NationName, Guid VehicleTypeId, string VehicleTypeName, string? WikiUrl = null);
+public record CreateVehicleRequest(Guid ResearchTreeId, string Name, string? ImageUrl = null, string? WikiUrl = null);
+public record UpdateVehicleRequest(string Name, string? ImageUrl = null, string? WikiUrl = null);
 
 public record GameUpdateDto(Guid Id, string Version, string? Name, DateOnly? ReleaseDate);
 public record CreateGameUpdateRequest(string Version, string? Name = null, DateOnly? ReleaseDate = null);
@@ -39,6 +39,11 @@ public class VehicleInputModel : NameInputModel
     [Url(ErrorMessage = "Image URL must be a valid absolute URL.")]
     [Display(Name = "Image URL")]
     public string? ImageUrl { get; set; }
+
+    [Url(ErrorMessage = "Wiki URL must be a valid absolute URL.")]
+    [StringLength(2048, ErrorMessage = "Wiki URL cannot exceed 2048 characters.")]
+    [Display(Name = "Wiki URL")]
+    public string? WikiUrl { get; set; }
 }
 
 public class GameUpdateInputModel

@@ -26,7 +26,7 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
         var vehicles = await _context.Vehicles.AsNoTracking()
             .Where(v => v.ResearchTreeId == researchTreeId)
             .OrderBy(v => v.Name)
-            .Select(v => new VehicleDto(v.Id, v.Name, v.ImageUrl, v.ResearchTreeId,
+            .Select(v => new VehicleDto(v.Id, v.Name, v.ImageUrl, v.WikiUrl, v.ResearchTreeId,
                 v.ResearchTree.NationId, v.ResearchTree.Nation.Name,
                 v.ResearchTree.VehicleTypeId, v.ResearchTree.VehicleType.Name))
             .ToListAsync(cancellationToken);
@@ -40,7 +40,7 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
         var vehicles = await _context.Vehicles
             .AsNoTracking()
             .OrderBy(v => v.Name)
-            .Select(v => new VehicleDto(v.Id, v.Name, v.ImageUrl, v.ResearchTreeId,
+            .Select(v => new VehicleDto(v.Id, v.Name, v.ImageUrl, v.WikiUrl, v.ResearchTreeId,
                 v.ResearchTree.NationId, v.ResearchTree.Nation.Name,
                 v.ResearchTree.VehicleTypeId, v.ResearchTree.VehicleType.Name))
             .ToListAsync(cancellationToken);
@@ -82,6 +82,7 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
         var trimmedName = request.Name.Trim();
 
         if (trimmedName.Length > 150) return BadRequest("Name must be at most 150 characters.");
+        if (request.WikiUrl?.Length > 2048) return BadRequest("WikiUrl must be at most 2048 characters.");
         if (request.ResearchTreeId == Guid.Empty) return BadRequest("ResearchTreeId is required.");
         var tree = await _context.ResearchTrees
             .Include(t => t.Nation).Include(t => t.VehicleType)
@@ -103,7 +104,8 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
             ResearchTreeId = tree.Id,
             ResearchTree = tree,
             Name = trimmedName,
-            ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim()
+            ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim(),
+            WikiUrl = string.IsNullOrWhiteSpace(request.WikiUrl) ? null : request.WikiUrl.Trim()
         };
 
         _context.Vehicles.Add(vehicle);
@@ -139,6 +141,7 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
 
         var trimmedName = request.Name.Trim();
         if (trimmedName.Length > 150) return BadRequest("Name must be at most 150 characters.");
+        if (request.WikiUrl?.Length > 2048) return BadRequest("WikiUrl must be at most 2048 characters.");
 
         var duplicate = await _context.Vehicles
             .AnyAsync(v => v.Id != id && v.ResearchTreeId == vehicle.ResearchTreeId &&
@@ -151,6 +154,7 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
 
         vehicle.Name = trimmedName;
         vehicle.ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim();
+        vehicle.WikiUrl = string.IsNullOrWhiteSpace(request.WikiUrl) ? null : request.WikiUrl.Trim();
 
         try { await _context.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateException ex) when (IsDuplicateName(ex))
@@ -161,7 +165,7 @@ public class AdminVehiclesController(ApplicationDbContext context) : ControllerB
         return NoContent();
     }
 
-    private static VehicleDto ToDto(Vehicle vehicle) => new(vehicle.Id, vehicle.Name, vehicle.ImageUrl,
+    private static VehicleDto ToDto(Vehicle vehicle) => new(vehicle.Id, vehicle.Name, vehicle.ImageUrl, vehicle.WikiUrl,
         vehicle.ResearchTreeId, vehicle.ResearchTree.NationId, vehicle.ResearchTree.Nation.Name,
         vehicle.ResearchTree.VehicleTypeId, vehicle.ResearchTree.VehicleType.Name);
 

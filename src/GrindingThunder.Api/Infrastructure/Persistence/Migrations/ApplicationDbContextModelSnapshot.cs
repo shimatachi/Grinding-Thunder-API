@@ -285,6 +285,10 @@ namespace GrindingThunder.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ResearchTreeId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("WikiUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ResearchTreeId", "NormalizedName")

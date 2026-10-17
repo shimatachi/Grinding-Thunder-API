@@ -7,5 +7,6 @@ public class Vehicle
     public ResearchTree ResearchTree { get; set; } = null!;
     public string Name { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
+    public string? WikiUrl { get; set; }
     public ICollection<VehicleTreeEntry> TreeEntries { get; set; } = new List<VehicleTreeEntry>();
 }

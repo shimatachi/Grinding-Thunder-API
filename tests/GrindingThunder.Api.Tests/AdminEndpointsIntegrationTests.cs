@@ -337,17 +337,27 @@ public class AdminEndpointsIntegrationTests : IClassFixture<CustomWebApplication
         var vehicleName = $"Tank_{Guid.NewGuid():N}"[..15];
 
         // Editor create
-        using var createReq = CreateAuthorizedRequest(HttpMethod.Post, "/api/admin/vehicles", editorToken, new CreateVehicleRequest((await catalogDb.ResearchTrees.FirstAsync()).Id, vehicleName, "https://example.com/tank.png"));
+        var wikiUrl = "https://wiki.warthunder.com/Test_Tank";
+        using var createReq = CreateAuthorizedRequest(HttpMethod.Post, "/api/admin/vehicles", editorToken, new CreateVehicleRequest((await catalogDb.ResearchTrees.FirstAsync()).Id, vehicleName, "https://example.com/tank.png", wikiUrl));
         var createResp = await _client.SendAsync(createReq);
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
         var created = await createResp.Content.ReadFromJsonAsync<VehicleDto>();
         Assert.NotNull(created);
         Assert.Equal(vehicleName, created.Name);
+        Assert.Equal(wikiUrl, created.WikiUrl);
 
         // Editor update
-        using var updateReq = CreateAuthorizedRequest(HttpMethod.Put, $"/api/admin/vehicles/{created.Id}", editorToken, new UpdateVehicleRequest(vehicleName + "_A", "https://example.com/tank_a.png"));
+        var updatedWikiUrl = "https://wiki.warthunder.com/Test_Tank_A";
+        using var updateReq = CreateAuthorizedRequest(HttpMethod.Put, $"/api/admin/vehicles/{created.Id}", editorToken, new UpdateVehicleRequest(vehicleName + "_A", "https://example.com/tank_a.png", updatedWikiUrl));
         var updateResp = await _client.SendAsync(updateReq);
         Assert.Equal(HttpStatusCode.NoContent, updateResp.StatusCode);
+
+        using (var verifyDb = CreateDbContext())
+        {
+            var updatedEntity = await verifyDb.Vehicles.FindAsync(created.Id);
+            Assert.NotNull(updatedEntity);
+            Assert.Equal(updatedWikiUrl, updatedEntity.WikiUrl);
+        }
 
         // Admin delete unused vehicle
         using var deleteReq = CreateAuthorizedRequest(HttpMethod.Delete, $"/api/admin/vehicles/{created.Id}", adminToken);

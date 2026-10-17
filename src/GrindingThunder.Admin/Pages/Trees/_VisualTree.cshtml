@@ -196,6 +196,7 @@
                                                      data-vehicle-id="@node.VehicleId"
                                                      data-vehicle-name="@node.Name"
                                                      data-image-url="@node.ImageUrl"
+                                                     data-wiki-url="@node.WikiUrl"
                                                      data-tree-rank-id="@node.TreeRankId"
                                                      data-rp-cost="@node.RpCost"
                                                      data-sl-cost="@node.SlCost"
@@ -320,6 +321,9 @@
                                     <div class="text-secondary small">Vehicle ID: <code data-inspector-vehicle-id></code></div>
                                     <div class="text-secondary small">@Model.ResearchTreeLabel</div>
                                     <div class="text-secondary small">Tree ID: <code>@Model.ResearchTreeId</code></div>
+                                    <div class="mt-2 d-none" data-inspector-wiki-container>
+                                        <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary" data-inspector-wiki-link>View on War Thunder Wiki ↗</a>
+                                    </div>
                                 </div>
                             </div>
                         </section>
@@ -404,6 +408,7 @@
                         <h4>Create in @Model.ResearchTreeLabel</h4>
                         <div class="mb-3"><label class="form-label" for="CreateEntry_Name">Vehicle name</label><input class="form-control" id="CreateEntry_Name" name="CreateEntry.Name" required /></div>
                         <div class="mb-3"><label class="form-label" for="CreateEntry_ImageUrl">Image URL (optional)</label><input class="form-control" id="CreateEntry_ImageUrl" name="CreateEntry.ImageUrl" type="url" /></div>
+                        <div class="mb-3"><label class="form-label" for="CreateEntry_WikiUrl">Wiki URL (optional)</label><input class="form-control" id="CreateEntry_WikiUrl" name="CreateEntry.WikiUrl" type="url" placeholder="https://wiki.warthunder.com/..." /></div>
                         <partial name="/Pages/Trees/_VisualEntryFields.cshtml" model="@(new VisualEntryFieldsViewModel("CreateEntry", "VisualCreate", Model.Ranks, Model.Entries))" />
                         <button type="submit" class="btn btn-primary w-100">Create and Add</button>
                     </form>
@@ -427,6 +432,9 @@
                             <div class="fw-bold" data-readonly-name></div>
                             <div class="text-secondary small">Vehicle ID: <code data-readonly-vehicle-id></code></div>
                             <div class="text-secondary small">@Model.ResearchTreeLabel</div>
+                            <div class="mt-2 d-none" data-readonly-wiki-container>
+                                <a href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary" data-readonly-wiki-link>View on War Thunder Wiki ↗</a>
+                            </div>
                         </div>
                     </div>
                     <div class="mb-3 d-flex flex-wrap gap-2">

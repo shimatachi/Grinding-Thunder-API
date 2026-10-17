@@ -195,7 +195,8 @@ public static class DbInitializer
                         Id = Guid.NewGuid(),
                         ResearchTreeId = usaGroundVersion.ResearchTreeId,
                         Name = "M3 Stuart",
-                        ImageUrl = "https://static.encyclopedia.warthunder.com/images/us_m2a4.png"
+                        ImageUrl = "https://static.encyclopedia.warthunder.com/images/us_m2a4.png",
+                        WikiUrl = "https://wiki.warthunder.com/M3_Stuart"
                     };
 
                     var m2a4 = new Vehicle

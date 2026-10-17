@@ -31,8 +31,8 @@ public class VisualTreeMapperTests
             [new VehiclePrerequisiteDto(childEntryId, parentEntryId, versionId)]);
         var vehicles = new[]
         {
-            new VehicleDto(parentVehicleId, "Parent", "https://example.test/parent.png", Guid.NewGuid(), Guid.NewGuid(), "Nation", Guid.NewGuid(), "Aviation"),
-            new VehicleDto(childVehicleId, "Child", null, Guid.NewGuid(), Guid.NewGuid(), "Nation", Guid.NewGuid(), "Aviation")
+            new VehicleDto(parentVehicleId, "Parent", "https://example.test/parent.png", Guid.NewGuid(), Guid.NewGuid(), "Nation", Guid.NewGuid(), "Aviation", "https://wiki.warthunder.com/Parent"),
+            new VehicleDto(childVehicleId, "Child", null, Guid.NewGuid(), Guid.NewGuid(), "Nation", Guid.NewGuid(), "Aviation", null)
         };
 
         var result = VisualTreeMapper.FromDraft(draft, vehicles);
@@ -42,9 +42,11 @@ public class VisualTreeMapperTests
         var parent = Assert.Single(result.Nodes, node => node.Id == parentEntryId);
         Assert.Equal((3, 8), (parent.TreeColumn, parent.TreeRow));
         Assert.Equal("https://example.test/parent.png", parent.ImageUrl);
+        Assert.Equal("https://wiki.warthunder.com/Parent", parent.WikiUrl);
         Assert.True(parent.IsFolderParent);
         var child = Assert.Single(result.Nodes, node => node.Id == childEntryId);
         Assert.Equal((5, 12), (child.TreeColumn, child.TreeRow));
+        Assert.Null(child.WikiUrl);
         Assert.Equal(VehicleAcquisitionType.Premium, child.AcquisitionType);
         Assert.Contains(new VisualTreeEdgeViewModel(parentEntryId, childEntryId, VisualTreeEdgeKind.Prerequisite), result.Edges);
         Assert.Contains(new VisualTreeEdgeViewModel(parentEntryId, childEntryId, VisualTreeEdgeKind.Folder), result.Edges);
@@ -65,7 +67,7 @@ public class VisualTreeMapperTests
         };
         var entries = new[]
         {
-            new PublicVehicleTreeEntryDto(firstId, rankFourId, versionId, "First", null, 10, 20, VehicleAcquisitionType.Squadron, false, null, 2, 9, []),
+            new PublicVehicleTreeEntryDto(firstId, rankFourId, versionId, "First", null, 10, 20, VehicleAcquisitionType.Squadron, false, null, 2, 9, [], "https://wiki.warthunder.com/First"),
             new PublicVehicleTreeEntryDto(secondId, rankSixId, versionId, "Second", "https://example.test/second.png", 30, 40, VehicleAcquisitionType.Event, false, null, 2, 9, [firstId])
         };
 
@@ -74,6 +76,8 @@ public class VisualTreeMapperTests
         Assert.Equal([4, 6], result.Ranks.Select(rank => rank.RankNumber));
         Assert.Equal([3, 5], result.Ranks.Select(rank => rank.RequiredVehiclesUnlocked));
         Assert.All(result.Nodes, node => Assert.Equal((2, 9), (node.TreeColumn, node.TreeRow)));
+        Assert.Equal("https://wiki.warthunder.com/First", result.Nodes.First(n => n.Id == firstId).WikiUrl);
+        Assert.Null(result.Nodes.First(n => n.Id == secondId).WikiUrl);
         var edge = Assert.Single(result.Edges);
         Assert.Equal(new VisualTreeEdgeViewModel(firstId, secondId, VisualTreeEdgeKind.Prerequisite), edge);
     }

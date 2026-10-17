@@ -1035,6 +1035,32 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
 
 ## Next
 
+- **Batch 38.1 — Rank-scoped layout collision validation** (status: Planned)
+  Goal: align layout collision rules with the rank-banded visual tree model.
+
+  Rule:
+  - TreeColumn and TreeRow are local coordinates inside one TreeRank.
+  - Two root entries may share the same TreeColumn/TreeRow when they belong to
+    different TreeRanks.
+  - Two root entries in the same TreeRank may not share the same TreeColumn/TreeRow.
+
+  Scope:
+  - update ResearchTreeVersion validation;
+  - update import preview collision validation;
+  - update visual editor collision detection;
+  - update multi-entry layout validation;
+  - update relevant tests;
+  - preserve folder-child behavior;
+  - no schema migration required.
+
+  Canonical collision key:
+  `(TreeRankId, TreeColumn, TreeRow)`
+
+  During import before TreeRank IDs are resolved:
+  `(RankNumber, TreeColumn, TreeRow)`
+
+  Dependency: Batch 38.
+
 - **Batch 39 — Player frontend foundation (`GrindingThunder.Web`)** (status: Planned)
   Goal: create a dedicated player-facing frontend separate from
   `GrindingThunder.Admin`.

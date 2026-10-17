@@ -11,13 +11,17 @@
         const edgeToggle = tree.querySelector("[data-tree-edge-toggle]");
         const edgeModeIndicator = tree.querySelector("[data-tree-edge-mode-indicator]");
         const help = tree.querySelector("[data-tree-help]");
+        const inspectorCard = tree.querySelector("[data-tree-inspector]");
         const inspectorForm = tree.querySelector("[data-tree-inspector-form]");
         const removeForm = tree.querySelector("[data-tree-remove-form]");
         const selectionEmpty = tree.querySelector("[data-tree-selection-empty]");
+        const previousButton = tree.querySelector("[data-tree-previous]");
+        const nextButton = tree.querySelector("[data-tree-next]");
         const inspector = {
             entryId: tree.querySelector("[data-inspector-entry-id]"),
             removeEntryId: tree.querySelector("[data-remove-entry-id]"),
             name: tree.querySelector("[data-inspector-name]"),
+            vehicleId: tree.querySelector("[data-inspector-vehicle-id]"),
             image: tree.querySelector("[data-inspector-image]"),
             rank: tree.querySelector("[data-inspector-rank]"),
             rp: tree.querySelector("[data-inspector-rp]"),
@@ -26,7 +30,8 @@
             row: tree.querySelector("[data-inspector-row]"),
             coordinate: tree.querySelector("[data-inspector-coordinate]"),
             acquisition: tree.querySelector("[data-inspector-acquisition]"),
-            folder: tree.querySelector("[data-inspector-folder]")
+            folder: tree.querySelector("[data-inspector-folder]"),
+            dirty: tree.querySelector("[data-inspector-dirty]")
         };
         const edgeUi = {
             panel: tree.querySelector("[data-tree-edge-panel]"),
@@ -61,12 +66,55 @@
         let pendingDependent = null;
         let pendingPrerequisite = null;
         let selectedEdge = null;
+        let originalEntry = null;
+        let isDirty = false;
+        let isSubmitting = false;
 
         const isEditing = () => canEdit && editToggle?.checked === true;
         const isEdgeMode = () => canEdit && edgeMode;
         const clampScale = value => Math.min(1.5, Math.max(.35, value));
         const nodeById = id => id ? tree.querySelector(`[data-tree-node="${id}"]`) : null;
         const nodeName = node => node?.dataset.vehicleName || "Unknown vehicle";
+        const entryStateFromNode = node => ({
+            treeRankId: node?.dataset.treeRankId || "",
+            rpCost: node?.dataset.rpCost || "0",
+            slCost: node?.dataset.slCost || "0",
+            treeColumn: node?.dataset.treeColumn || "0",
+            treeRow: node?.dataset.treeRow || "0",
+            acquisitionType: node?.dataset.acquisitionType || "0",
+            folderParentId: node?.dataset.folderParentId || ""
+        });
+        const entryStateFromForm = () => ({
+            treeRankId: inspector.rank?.value || "",
+            rpCost: inspector.rp?.value || "",
+            slCost: inspector.sl?.value || "",
+            treeColumn: inspector.column?.value || "",
+            treeRow: inspector.row?.value || "",
+            acquisitionType: inspector.acquisition?.value || "",
+            folderParentId: inspector.folder?.value || ""
+        });
+        const stateMatches = (left, right) => left && right &&
+            Object.keys(left).every(key => left[key] === right[key]);
+        const setDirty = value => {
+            isDirty = Boolean(value);
+            inspector.dirty?.classList.toggle("d-none", !isDirty);
+            inspectorCard?.classList.toggle("is-dirty", isDirty);
+            if (inspectorForm) inspectorForm.dataset.dirty = isDirty.toString();
+        };
+        const updateDirty = () => setDirty(Boolean(selectedNode && originalEntry) && !stateMatches(entryStateFromForm(), originalEntry));
+        const confirmDiscardChanges = () => !isDirty || window.confirm("Discard unsaved changes to this vehicle entry?");
+        const formatCost = value => {
+            const parsed = Number.parseInt(value || "0", 10);
+            return Number.isFinite(parsed) ? parsed.toLocaleString() : value;
+        };
+        const acquisitionClasses = {
+            "0": "bg-green-lt",
+            "1": "bg-yellow-lt",
+            "2": "bg-purple-lt",
+            "3": "bg-orange-lt",
+            "4": "bg-blue-lt",
+            "5": "bg-secondary-lt"
+        };
 
         const nodeGeometry = node => {
             const nodeRect = node.getBoundingClientRect();
@@ -138,6 +186,7 @@
             svg.setAttribute("width", width);
             svg.setAttribute("height", height);
             paths.replaceChildren();
+            const renderedFolderTargets = new Set();
 
             tree.querySelectorAll("[data-tree-edge]").forEach(edgeData => {
                 const from = nodeById(edgeData.dataset.fromNode);
@@ -145,12 +194,21 @@
                 if (!from || !to) return;
 
                 const kind = edgeData.dataset.edgeKind;
+                if (kind === "folder" && to === selectedNode &&
+                    edgeData.dataset.fromNode !== selectedNode.dataset.folderParentId) return;
                 const isSelected = kind === "prerequisite" &&
                     selectedEdge?.from === edgeData.dataset.fromNode &&
                     selectedEdge?.to === edgeData.dataset.toNode;
                 appendVisiblePath(from, to, kind, isSelected ? "is-selected" : "");
+                if (kind === "folder") renderedFolderTargets.add(edgeData.dataset.toNode);
                 if (kind === "prerequisite" && canEdit) appendEdgeHitTarget(from, to);
             });
+
+            if (selectedNode?.dataset.folderParentId &&
+                !renderedFolderTargets.has(selectedNode.dataset.treeNode || "")) {
+                const folderParent = nodeById(selectedNode.dataset.folderParentId);
+                if (folderParent) appendVisiblePath(folderParent, selectedNode, "folder", "is-pending");
+            }
 
             if (pendingDependent && pendingPrerequisite) {
                 appendVisiblePath(pendingPrerequisite, pendingDependent, "prerequisite", "is-pending");
@@ -210,47 +268,141 @@
             layoutRank(rank);
             ensureStageBounds(column);
             applyScale(scale);
+            updateDirty();
+        };
+
+        const updateNavigation = () => {
+            const rank = selectedNode?.closest("[data-tree-rank]");
+            const nodes = rank ? [...rank.querySelectorAll("[data-tree-node]")]
+                .sort((left, right) =>
+                    Number.parseInt(left.dataset.treeColumn || "0", 10) - Number.parseInt(right.dataset.treeColumn || "0", 10) ||
+                    Number.parseInt(left.dataset.treeRow || "0", 10) - Number.parseInt(right.dataset.treeRow || "0", 10) ||
+                    nodeName(left).localeCompare(nodeName(right))) : [];
+            const index = selectedNode ? nodes.indexOf(selectedNode) : -1;
+            if (previousButton) {
+                previousButton.disabled = index <= 0;
+                previousButton.dataset.targetNode = index > 0 ? nodes[index - 1].dataset.treeNode || "" : "";
+            }
+            if (nextButton) {
+                nextButton.disabled = index < 0 || index >= nodes.length - 1;
+                nextButton.dataset.targetNode = index >= 0 && index < nodes.length - 1 ? nodes[index + 1].dataset.treeNode || "" : "";
+            }
+        };
+
+        const focusInspector = () => {
+            if (!selectedNode || !inspectorForm) return;
+            inspectorCard?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            requestAnimationFrame(() => inspector.rank?.focus({ preventScroll: true }));
+        };
+
+        const moveSelectedNodeToRank = rankId => {
+            if (!selectedNode || !rankId) return;
+            const oldRank = selectedNode.closest("[data-tree-rank]");
+            const newRank = [...tree.querySelectorAll("[data-tree-rank]")]
+                .find(rank => rank.dataset.treeRankId === rankId);
+            if (!newRank || newRank === oldRank) return;
+            newRank.querySelector(".visual-tree-rank-grid")?.appendChild(selectedNode);
+            selectedNode.dataset.treeRankId = rankId;
+            selectedNode.dataset.treeRankNumber = newRank.dataset.treeRank || "";
+            layoutRank(oldRank);
+            layoutRank(newRank);
+        };
+
+        const previewInspectorState = () => {
+            if (!selectedNode) return;
+            const state = entryStateFromForm();
+            moveSelectedNodeToRank(state.treeRankId);
+            selectedNode.dataset.rpCost = state.rpCost;
+            selectedNode.dataset.slCost = state.slCost;
+            selectedNode.dataset.acquisitionType = state.acquisitionType;
+            selectedNode.dataset.folderParentId = state.folderParentId;
+
+            const rpPreview = selectedNode.querySelector("[data-tree-rp-preview]");
+            const slPreview = selectedNode.querySelector("[data-tree-sl-preview]");
+            const acquisitionPreview = selectedNode.querySelector("[data-tree-acquisition-preview]");
+            if (rpPreview) rpPreview.textContent = `${formatCost(state.rpCost)} RP`;
+            if (slPreview) slPreview.textContent = `${formatCost(state.slCost)} SL`;
+            if (acquisitionPreview) {
+                Object.values(acquisitionClasses).forEach(className => acquisitionPreview.classList.remove(className));
+                acquisitionPreview.classList.add(acquisitionClasses[state.acquisitionType] || "bg-secondary-lt");
+                acquisitionPreview.textContent = inspector.acquisition?.selectedOptions[0]?.textContent || "Unknown";
+            }
+            selectedNode.classList.toggle("visual-tree-node-folder-child", Boolean(state.folderParentId));
+            selectedNode.classList.toggle("visual-tree-node-folder-parent", selectedNode.dataset.isFolderParent === "true");
+
+            const column = state.treeColumn === "" ? Number.NaN : Number(state.treeColumn);
+            const row = state.treeRow === "" ? Number.NaN : Number(state.treeRow);
+            if (Number.isFinite(column) && Number.isFinite(row)) setCoordinates(column, row);
+            else updateDirty();
+            updateNavigation();
+            drawConnectors();
+        };
+
+        const setInspectorState = state => {
+            if (inspector.rank) inspector.rank.value = state.treeRankId;
+            if (inspector.rp) inspector.rp.value = state.rpCost;
+            if (inspector.sl) inspector.sl.value = state.slCost;
+            if (inspector.column) inspector.column.value = state.treeColumn;
+            if (inspector.row) inspector.row.value = state.treeRow;
+            if (inspector.acquisition) inspector.acquisition.value = state.acquisitionType;
+            if (inspector.folder) inspector.folder.value = state.folderParentId;
+        };
+
+        const restoreSelectedPreview = () => {
+            if (!selectedNode || !originalEntry) return;
+            setInspectorState(originalEntry);
+            previewInspectorState();
+            setDirty(false);
         };
 
         const clearEntrySelection = () => {
             selectedNode?.classList.remove("is-selected");
             selectedNode = null;
+            originalEntry = null;
+            setDirty(false);
             selectionEmpty?.classList.remove("d-none");
             inspectorForm?.classList.add("d-none");
             removeForm?.classList.add("d-none");
+            updateNavigation();
         };
 
-        const selectNode = node => {
-            if (!isEditing() || !node) return;
+        const selectNode = (node, shouldFocus = true) => {
+            if (!isEditing() || !node) return false;
+            if (node === selectedNode) {
+                if (shouldFocus) focusInspector();
+                return true;
+            }
+            if (!confirmDiscardChanges()) return false;
+            restoreSelectedPreview();
             selectedNode?.classList.remove("is-selected");
             selectedNode = node;
             selectedNode.classList.add("is-selected");
+            originalEntry = entryStateFromNode(node);
 
             if (inspector.entryId) inspector.entryId.value = node.dataset.treeNode || "";
             if (inspector.removeEntryId) inspector.removeEntryId.value = node.dataset.treeNode || "";
             if (inspector.name) inspector.name.textContent = nodeName(node);
+            if (inspector.vehicleId) inspector.vehicleId.textContent = node.dataset.vehicleId || "";
             if (inspector.image) {
                 const imageUrl = node.dataset.imageUrl || "";
                 inspector.image.toggleAttribute("hidden", !imageUrl);
                 if (imageUrl) inspector.image.src = imageUrl;
                 else inspector.image.removeAttribute("src");
             }
-            if (inspector.rank) inspector.rank.value = node.dataset.treeRankId || "";
-            if (inspector.rp) inspector.rp.value = node.dataset.rpCost || "0";
-            if (inspector.sl) inspector.sl.value = node.dataset.slCost || "0";
-            if (inspector.column) inspector.column.value = node.dataset.treeColumn || "0";
-            if (inspector.row) inspector.row.value = node.dataset.treeRow || "0";
+            setInspectorState(originalEntry);
             if (inspector.coordinate) inspector.coordinate.textContent = `Column ${node.dataset.treeColumn || "0"} · Row ${node.dataset.treeRow || "0"}`;
-            if (inspector.acquisition) inspector.acquisition.value = node.dataset.acquisitionType || "0";
             if (inspector.folder) {
                 inspector.folder.querySelectorAll("option").forEach(option => {
                     option.disabled = option.value === node.dataset.treeNode;
                 });
-                inspector.folder.value = node.dataset.folderParentId || "";
             }
             selectionEmpty?.classList.add("d-none");
             inspectorForm?.classList.remove("d-none");
             removeForm?.classList.remove("d-none");
+            setDirty(false);
+            updateNavigation();
+            if (shouldFocus) focusInspector();
+            return true;
         };
 
         const updateEdgePanel = () => {
@@ -344,6 +496,11 @@
         };
 
         editToggle?.addEventListener("change", () => {
+            if (!editToggle.checked && isDirty && !confirmDiscardChanges()) {
+                editToggle.checked = true;
+                return;
+            }
+            if (!editToggle.checked) restoreSelectedPreview();
             if (isEditing()) deactivateEdgeMode();
             tree.classList.toggle("is-editing", isEditing());
             if (help) help.textContent = isEditing()
@@ -355,14 +512,17 @@
 
         edgeToggle?.addEventListener("click", () => {
             if (isEdgeMode()) deactivateEdgeMode();
-            else activateEdgeMode();
+            else {
+                if (!confirmDiscardChanges()) return;
+                restoreSelectedPreview();
+                activateEdgeMode();
+            }
         });
 
         tree.querySelectorAll("[data-tree-node]").forEach(node => {
             node.addEventListener("pointerdown", event => {
-                if (!isEditing() || event.button !== 0) return;
+                if (!isEditing() || event.button !== 0 || selectedNode !== node) return;
                 event.preventDefault();
-                selectNode(node);
                 dragState = {
                     node,
                     pointerId: event.pointerId,
@@ -389,9 +549,18 @@
             node.addEventListener("pointerup", stopDragging);
             node.addEventListener("pointercancel", stopDragging);
             node.addEventListener("click", event => {
-                if (!isEdgeMode()) return;
+                if (isEdgeMode()) {
+                    event.preventDefault();
+                    selectNodeForEdge(node);
+                } else if (isEditing()) {
+                    event.preventDefault();
+                    selectNode(node, true);
+                }
+            });
+            node.addEventListener("dblclick", event => {
+                if (!isEditing()) return;
                 event.preventDefault();
-                selectNodeForEdge(node);
+                selectNode(node, true);
             });
             node.addEventListener("keydown", event => {
                 if (event.key !== "Enter" && event.key !== " ") return;
@@ -434,8 +603,22 @@
                 setCoordinates(column, row);
             });
         });
-        inspector.column?.addEventListener("input", () => setCoordinates(Number(inspector.column.value), Number(inspector.row?.value || 0)));
-        inspector.row?.addEventListener("input", () => setCoordinates(Number(inspector.column?.value || 0), Number(inspector.row.value)));
+        inspectorForm?.querySelectorAll("[data-dirty-field]").forEach(field => {
+            field.addEventListener("input", previewInspectorState);
+            field.addEventListener("change", previewInspectorState);
+        });
+        inspectorForm?.addEventListener("submit", () => {
+            isSubmitting = true;
+            setDirty(false);
+        });
+        removeForm?.addEventListener("submit", () => { isSubmitting = true; });
+
+        const navigateToInspectorNode = button => {
+            const target = nodeById(button?.dataset.targetNode);
+            if (target) selectNode(target, true);
+        };
+        previousButton?.addEventListener("click", () => navigateToInspectorNode(previousButton));
+        nextButton?.addEventListener("click", () => navigateToInspectorNode(nextButton));
 
         tree.querySelector("[data-tree-zoom-in]")?.addEventListener("click", () => applyScale(scale + .1));
         tree.querySelector("[data-tree-zoom-out]")?.addEventListener("click", () => applyScale(scale - .1));
@@ -483,6 +666,8 @@
                 return;
             }
             if (event.key === "Escape" && isEditing() && selectedNode) {
+                if (!confirmDiscardChanges()) return;
+                restoreSelectedPreview();
                 clearEntrySelection();
                 return;
             }
@@ -497,6 +682,12 @@
             if (event.key === "ArrowUp") row--;
             if (event.key === "ArrowDown") row++;
             setCoordinates(column, row);
+        });
+
+        window.addEventListener("beforeunload", event => {
+            if (!isDirty || isSubmitting) return;
+            event.preventDefault();
+            event.returnValue = "";
         });
 
         if (stage && typeof ResizeObserver !== "undefined") {

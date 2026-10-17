@@ -32,7 +32,7 @@
                     {
                         <label class="form-check form-switch mb-0 visual-tree-edit-toggle">
                             <input class="form-check-input" type="checkbox" role="switch" data-tree-edit-toggle />
-                            <span class="form-check-label fw-semibold">Move entries</span>
+                            <span class="form-check-label fw-semibold">Edit mode</span>
                         </label>
                         <button type="button" class="btn btn-sm btn-outline-primary" data-tree-edge-toggle aria-pressed="false">
                             Edit prerequisites
@@ -132,6 +132,7 @@
                                                      data-tree-row="@node.TreeRow"
                                                      data-acquisition-type="@((int)node.AcquisitionType)"
                                                      data-folder-parent-id="@node.FolderParentId"
+                                                     data-is-folder-parent="@node.IsFolderParent.ToString().ToLowerInvariant()"
                                                      data-tree-rank-number="@node.RankNumber"
                                                      tabindex="@(Model.CanEdit ? "0" : "-1")"
                                                      style="--tree-column: @node.TreeColumn; --tree-row: @node.RowOffset; --tree-stack: @node.CoordinateStackIndex">
@@ -148,11 +149,11 @@
                                                 <div class="visual-tree-node-body">
                                                     <div class="visual-tree-node-name" title="@node.Name">@node.Name</div>
                                                     <div class="visual-tree-node-costs">
-                                                        <span title="Research Points">@node.RpCost.ToString("N0") RP</span>
-                                                        <span title="Silver Lions">@node.SlCost.ToString("N0") SL</span>
+                                                        <span title="Research Points" data-tree-rp-preview>@node.RpCost.ToString("N0") RP</span>
+                                                        <span title="Silver Lions" data-tree-sl-preview>@node.SlCost.ToString("N0") SL</span>
                                                     </div>
                                                     <div class="visual-tree-node-badges">
-                                                        <span class="badge @acquisitionClass">@node.AcquisitionType</span>
+                                                        <span class="badge @acquisitionClass" data-tree-acquisition-preview>@node.AcquisitionType</span>
                                                         @if (node.IsFolderParent)
                                                         {
                                                             <span class="badge bg-azure-lt">Folder</span>
@@ -212,23 +213,39 @@
                 </form>
             </div>
 
-            <div class="card" data-tree-entry-editor>
-                <div class="card-header"><h3 class="card-title">Entry inspector</h3></div>
+            <div class="card" data-tree-entry-editor data-tree-inspector>
+                <div class="card-header visual-tree-inspector-header">
+                    <h3 class="card-title">Entry inspector</h3>
+                    <div class="btn-list ms-auto" aria-label="Navigate vehicle entries">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-previous disabled>Previous</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-next disabled>Next</button>
+                    </div>
+                </div>
                 <div class="card-body text-secondary" data-tree-selection-empty>Select a vehicle node to inspect and edit it.</div>
-                <form method="post" asp-page-handler="UpdateVisualEntry" class="d-none" data-tree-inspector-form>
+                <form method="post" asp-page-handler="UpdateVisualEntry" class="d-none" data-tree-inspector-form data-dirty-track="vehicle-entry">
                     <div class="card-body">
                         <input type="hidden" name="VisualEntry.EntryId" data-inspector-entry-id />
-                        <div class="visual-tree-identity mb-3">
-                            <div class="visual-tree-inspector-image"><img alt="" data-inspector-image /></div>
-                            <div>
-                                <div class="fw-bold" data-inspector-name></div>
-                                <div class="text-secondary small">@Model.ResearchTreeLabel</div>
-                                <div class="text-secondary small">Tree ID: <code>@Model.ResearchTreeId</code></div>
-                            </div>
+                        <div class="alert alert-warning d-none visual-tree-unsaved" role="status" aria-live="polite" data-inspector-dirty>
+                            <strong>Unsaved changes</strong>
+                            <div class="small">Save this entry or discard the preview before leaving it.</div>
                         </div>
+                        <section class="visual-tree-inspector-section mb-3" data-inspector-identity>
+                            <h4 class="visual-tree-inspector-section-title">Stable vehicle identity</h4>
+                            <div class="visual-tree-identity">
+                                <div class="visual-tree-inspector-image"><img alt="" data-inspector-image /></div>
+                                <div>
+                                    <div class="fw-bold" data-inspector-name></div>
+                                    <div class="text-secondary small">Vehicle ID: <code data-inspector-vehicle-id></code></div>
+                                    <div class="text-secondary small">@Model.ResearchTreeLabel</div>
+                                    <div class="text-secondary small">Tree ID: <code>@Model.ResearchTreeId</code></div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="visual-tree-inspector-section" data-inspector-version-data>
+                        <h4 class="visual-tree-inspector-section-title">Version-specific entry data</h4>
                         <div class="mb-3">
                             <label class="form-label" for="VisualEntry_TreeRankId">Rank</label>
-                            <select class="form-select" id="VisualEntry_TreeRankId" name="VisualEntry.TreeRankId" data-inspector-rank required>
+                            <select class="form-select" id="VisualEntry_TreeRankId" name="VisualEntry.TreeRankId" data-inspector-rank data-dirty-field="treeRankId" required>
                                 @foreach (var rank in Model.Ranks.OrderBy(rank => rank.RankNumber))
                                 {
                                     <option value="@rank.Id">Rank @rank.RankNumber</option>
@@ -236,12 +253,12 @@
                             </select>
                         </div>
                         <div class="row g-2 mb-3">
-                            <div class="col-6"><label class="form-label" for="VisualEntry_RpCost">RP cost</label><input class="form-control" id="VisualEntry_RpCost" name="VisualEntry.RpCost" type="number" min="0" required data-inspector-rp /></div>
-                            <div class="col-6"><label class="form-label" for="VisualEntry_SlCost">SL cost</label><input class="form-control" id="VisualEntry_SlCost" name="VisualEntry.SlCost" type="number" min="0" required data-inspector-sl /></div>
+                            <div class="col-6"><label class="form-label" for="VisualEntry_RpCost">RP cost</label><input class="form-control" id="VisualEntry_RpCost" name="VisualEntry.RpCost" type="number" min="0" required data-inspector-rp data-dirty-field="rpCost" /></div>
+                            <div class="col-6"><label class="form-label" for="VisualEntry_SlCost">SL cost</label><input class="form-control" id="VisualEntry_SlCost" name="VisualEntry.SlCost" type="number" min="0" required data-inspector-sl data-dirty-field="slCost" /></div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="VisualEntry_AcquisitionType">Acquisition type</label>
-                            <select class="form-select" id="VisualEntry_AcquisitionType" name="VisualEntry.AcquisitionType" data-inspector-acquisition>
+                            <select class="form-select" id="VisualEntry_AcquisitionType" name="VisualEntry.AcquisitionType" data-inspector-acquisition data-dirty-field="acquisitionType">
                                 @foreach (var acquisitionType in Enum.GetValues<VehicleAcquisitionType>())
                                 {
                                     <option value="@((int)acquisitionType)">@acquisitionType</option>
@@ -249,8 +266,8 @@
                             </select>
                         </div>
                         <div class="row g-2 mb-2">
-                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeColumn">Tree column</label><input class="form-control" id="VisualEntry_TreeColumn" name="VisualEntry.TreeColumn" type="number" min="0" required data-inspector-column /></div>
-                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeRow">Tree row</label><input class="form-control" id="VisualEntry_TreeRow" name="VisualEntry.TreeRow" type="number" min="0" required data-inspector-row /></div>
+                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeColumn">Tree column</label><input class="form-control" id="VisualEntry_TreeColumn" name="VisualEntry.TreeColumn" type="number" min="0" step="1" required data-inspector-column data-dirty-field="treeColumn" /></div>
+                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeRow">Tree row</label><input class="form-control" id="VisualEntry_TreeRow" name="VisualEntry.TreeRow" type="number" min="0" step="1" required data-inspector-row data-dirty-field="treeRow" /></div>
                         </div>
                         <div class="visual-tree-coordinate-indicator mb-2" data-inspector-coordinate aria-live="polite">Column — · Row —</div>
                         <div class="btn-list mb-3" aria-label="Move selected vehicle">
@@ -261,7 +278,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="VisualEntry_FolderParentEntryId">Folder parent (optional)</label>
-                            <select class="form-select" id="VisualEntry_FolderParentEntryId" name="VisualEntry.FolderParentEntryId" data-inspector-folder>
+                            <select class="form-select" id="VisualEntry_FolderParentEntryId" name="VisualEntry.FolderParentEntryId" data-inspector-folder data-dirty-field="folderParentId">
                                 <option value="">— none —</option>
                                 @foreach (var entry in Model.Entries.OrderBy(entry => entry.VehicleName))
                                 {
@@ -270,6 +287,7 @@
                             </select>
                         </div>
                         <div class="form-hint">Drag the selected card, use the arrow buttons, or press an arrow key. Movement snaps to integer tree coordinates and is persisted only when saved.</div>
+                        </section>
                     </div>
                     <div class="card-footer"><button type="submit" class="btn btn-primary w-100">Save Changes</button></div>
                 </form>

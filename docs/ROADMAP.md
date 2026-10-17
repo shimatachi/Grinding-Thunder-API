@@ -673,7 +673,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   read-only regressions.
 
 
-- **Batch 30 — Vehicle node inspector and direct editing UX** (status: Planned)
+- **Batch 30 — Vehicle node inspector and direct editing UX** (status: Completed)
   Goal: make clicking a vehicle card the primary way to inspect and edit its
   version-specific information.
 

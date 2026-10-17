@@ -94,6 +94,35 @@ public class VisualTreeIntegrationTests
         Assert.Contains("Create and Add", html);
     }
 
+    [Fact]
+    public async Task DraftEditor_InspectorSeparatesStableIdentityAndTracksVersionDataChanges()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+
+        var response = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var html = await response.Content.ReadAsStringAsync();
+        var javascript = await client.GetStringAsync("/js/visual-tree.js");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("data-inspector-identity", html);
+        Assert.Contains("Stable vehicle identity", html);
+        Assert.Contains("data-inspector-vehicle-id", html);
+        Assert.Contains("data-inspector-version-data", html);
+        Assert.Contains("Version-specific entry data", html);
+        Assert.Contains("data-dirty-track=\"vehicle-entry\"", html);
+        Assert.Contains("data-inspector-dirty", html);
+        Assert.Contains("Unsaved changes", html);
+        Assert.Contains("data-dirty-field=\"treeColumn\"", html);
+        Assert.Contains("data-dirty-field=\"treeRow\"", html);
+        Assert.Contains("data-tree-previous", html);
+        Assert.Contains("data-tree-next", html);
+        Assert.Contains("confirmDiscardChanges", javascript);
+        Assert.Contains("beforeunload", javascript);
+        Assert.Contains("previewInspectorState", javascript);
+    }
+
     [Theory]
     [InlineData("admin")]
     [InlineData("editor")]
@@ -364,6 +393,9 @@ public class VisualTreeIntegrationTests
         Assert.DoesNotContain("data-tree-edge-toggle", html);
         Assert.DoesNotContain("data-tree-edge-remove-form", html);
         Assert.DoesNotContain("Entry inspector", html);
+        Assert.DoesNotContain("data-tree-inspector-form", html);
+        Assert.DoesNotContain("data-inspector-dirty", html);
+        Assert.DoesNotContain("data-dirty-field", html);
         Assert.DoesNotContain("Save Changes", html);
         Assert.DoesNotContain("Create and Add", html);
         Assert.DoesNotContain("handler=Publish", html);
@@ -391,6 +423,9 @@ public class VisualTreeIntegrationTests
         Assert.DoesNotContain("data-tree-edge-toggle", html);
         Assert.DoesNotContain("data-tree-edge-remove-form", html);
         Assert.DoesNotContain("Entry inspector", html);
+        Assert.DoesNotContain("data-tree-inspector-form", html);
+        Assert.DoesNotContain("data-inspector-dirty", html);
+        Assert.DoesNotContain("data-dirty-field", html);
         Assert.DoesNotContain(factory.MockApiHandler.RecordedRequests, request =>
             request.RequestUri?.AbsolutePath.StartsWith("/api/admin/", StringComparison.OrdinalIgnoreCase) == true);
     }

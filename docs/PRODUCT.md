@@ -26,13 +26,19 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
   - Progress persistence (`PlayerUnlockedVehicles`) saves owned vehicles by stable `VehicleId` alongside calculator preferences (`OptimizationMode`, `AverageRpPerMatch`, `AverageNetSlPerMatch`).
   - Full-set ownership replacement (`PUT /api/player/progress`) with optimistic concurrency control via `progressStamp` (UUID).
   - Explicit calculator contract decoupling: the calculator API (`POST /api/research/calculate`) remains completely anonymous and decoupled from persistence. Saved player inventories are not automatically injected into calculations; clients pass explicit `unlockedVehicleIds` (intersected with the selected version's vehicle entries).
-- An anonymous, player-facing research-tree browser is available at `/Tree` in the Razor Pages web project. It defaults to the latest Published snapshot for the selected nation/category and never exposes Drafts or mutation actions. Player ownership and calculator overlays are not integrated into this page yet.
+- An anonymous, player-facing research-tree browser is available at `/Tree` in the Razor Pages web project. It defaults to the latest Published snapshot for the selected nation/category and never exposes Drafts or tree structure mutations. Player authentication, persistent ownership synchronization, and visual research calculator overlays are integrated directly on this canvas.
 
 ## CURRENT — public research-tree browser
 
 - Anonymous users can choose a nation, category/ResearchTree, and Published version without being redirected to `/Login`. The latest Published version is selected by default.
 - The page uses the same `VisualResearchTreeViewModel`, `VisualTreeMapper.FromPublic`, `_VisualTree.cshtml`, CSS, JavaScript, and SVG connector routing as the admin visual tree. Rank bands and unlock quotas, integer coordinates, acquisition styling, folder groups, and explicit prerequisite edges therefore have one canonical renderer.
-- Public browsing is strictly read-only. It supports pan, zoom, fit, reset, keyboard/click card selection, and a details panel for stable identity, rank, RP/SL costs, acquisition type, coordinates, and folder membership. It contains no edit mode, layout tools, prerequisite editor, or POST mutation forms.
+- Public browsing is strictly read-only for versioned tech-tree data. It supports pan, zoom, fit, reset, keyboard/click card selection, and a details panel for stable identity, rank, RP/SL costs, acquisition type, coordinates, folder membership, and player progression controls. It contains no edit mode, layout tools, prerequisite editor, or tech-tree mutation forms.
+- Player authentication and progression overlay:
+  - Players can register, log in, and log out directly from `/Tree` via a lightweight modal and header widget. The session uses a dedicated `PlayerAuth` cookie scheme, completely isolated from admin back-office authentication.
+  - When logged in, player-owned vehicles are fetched from `GET /api/player/progress` and intersected with vehicles present in the selected tree snapshot, highlighting owned vehicles with distinct cards and checkmarks.
+  - Players can toggle ownership directly via card buttons or the details inspector. Toggling sends an optimistic full-set update to `PUT /api/player/progress`, preserving vehicles owned in other trees or versions. Anonymous users can toggle in-memory ownership.
+  - Users can select a target vehicle to calculate optimal progression via `POST /api/research/calculate`. The SVG canvas visually highlights the active route connectors and distinguishes owned, target, required prerequisite, and rank-gate filler nodes.
+  - A bottom progression summary HUD displays remaining RP, remaining SL, match estimates (with RP/SL breakdown), rank deficit warnings, and a quick-clear target action.
 
 ## CURRENT — admin back office
 
@@ -55,7 +61,6 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
 
 ## FUTURE — direction without detailed rules yet
 
-- Player ownership controls and calculator/progression overlays on the public tree.
 - Vehicle modification progression (a separate progression system out of scope for the initial vehicle research planner).
 - Advanced War Thunder economy and RP mechanics (premium account modifiers, talisman bonuses, vehicle research efficiency penalties).
 - Assisted scraping and data-conversion tools to transform external game data into the application's canonical import schema.

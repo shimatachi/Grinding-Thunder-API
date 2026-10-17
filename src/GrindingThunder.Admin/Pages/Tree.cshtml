@@ -6,12 +6,28 @@
     <div class="row align-items-center g-3">
         <div class="col">
             <h1 class="page-title">Research Trees</h1>
-            <div class="text-secondary">Explore immutable War Thunder progression snapshots.</div>
+            <div class="text-secondary">Explore immutable War Thunder progression snapshots and plan research routes.</div>
         </div>
-        @if (User.Identity?.IsAuthenticated != true)
-        {
-            <div class="col-auto"><a class="btn btn-outline-secondary" asp-page="/Login">Admin sign in</a></div>
-        }
+        <div class="col-auto d-flex align-items-center gap-2" data-player-widget>
+            @if (Model.IsPlayerAuthenticated)
+            {
+                <span class="badge bg-green-lt d-flex align-items-center gap-1" data-player-user-display>
+                    <span class="status-dot status-dot-animated bg-green me-1"></span>
+                    <strong data-player-username-text>@Model.PlayerUsername</strong>
+                </span>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-player-logout-btn>Sign out</button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-primary btn-sm" data-player-login-btn data-bs-toggle="modal" data-bs-target="#playerAuthModal">
+                    Player sign in
+                </button>
+            }
+            @if (User.Identity?.IsAuthenticated != true)
+            {
+                <a class="btn btn-outline-secondary btn-sm" asp-page="/Login">Admin sign in</a>
+            }
+        </div>
     </div>
 </div>
 
@@ -60,6 +76,53 @@ else
 
     @if (Model.SelectedVersion is not null)
     {
+        <div class="card mt-3 visual-tree-progression-hud d-none" data-progression-hud>
+            <div class="card-body py-2">
+                <div class="row align-items-center g-3">
+                    <div class="col-auto">
+                        <div class="text-secondary small">Target vehicle</div>
+                        <div class="h4 mb-0 fw-bold" data-hud-target-name>—</div>
+                    </div>
+                    <div class="col-auto border-start ps-3">
+                        <div class="text-secondary small">Remaining RP</div>
+                        <div class="h4 mb-0 text-primary fw-bold" data-hud-total-rp>0 RP</div>
+                    </div>
+                    <div class="col-auto border-start ps-3">
+                        <div class="text-secondary small">Remaining SL</div>
+                        <div class="h4 mb-0 text-yellow fw-bold" data-hud-total-sl>0 SL</div>
+                    </div>
+                    <div class="col-auto border-start ps-3">
+                        <div class="text-secondary small">Estimated matches</div>
+                        <div class="h4 mb-0 fw-bold" data-hud-matches>0</div>
+                    </div>
+                    <div class="col-auto border-start ps-3">
+                        <label class="form-label mb-0 small text-secondary" for="hud-optimization-mode">Optimization</label>
+                        <select class="form-select form-select-sm" id="hud-optimization-mode" data-hud-opt-mode>
+                            <option value="LeastRp">Least RP</option>
+                            <option value="LeastSl">Least SL</option>
+                            <option value="FewestVehicles">Fewest Vehicles</option>
+                            <option value="FewestMatches">Fewest Matches</option>
+                        </select>
+                    </div>
+                    <div class="col-auto border-start ps-3">
+                        <label class="form-label mb-0 small text-secondary" for="hud-rp-per-match">Avg RP/Match</label>
+                        <input type="number" min="1" step="100" class="form-control form-control-sm" id="hud-rp-per-match" data-hud-rp-match style="width: 5.5rem;" />
+                    </div>
+                    <div class="col-auto ps-1">
+                        <label class="form-label mb-0 small text-secondary" for="hud-sl-per-match">Avg SL/Match</label>
+                        <input type="number" min="1" step="500" class="form-control form-control-sm" id="hud-sl-per-match" data-hud-sl-match style="width: 6rem;" />
+                    </div>
+                    <div class="col-auto ms-auto d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-hud-clear-target>Clear Target</button>
+                    </div>
+                </div>
+                <div class="mt-2 d-none" data-hud-deficits-container>
+                    <div class="alert alert-warning py-1 px-2 mb-0 small d-flex flex-wrap gap-2 align-items-center" data-hud-deficits-list>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mb-2">
             <h2 class="h3 mb-0">@Model.SelectedNation?.Name — @Model.SelectedResearchTree?.VehicleTypeName</h2>
             <span class="badge bg-green-lt">Published</span>
@@ -68,6 +131,71 @@ else
         <partial name="/Pages/Trees/_VisualTree.cshtml" model="Model.VisualWorkspace" />
     }
 }
+
+<div class="modal fade" id="playerAuthModal" tabindex="-1" aria-labelledby="playerAuthModalLabel" aria-hidden="true" data-player-modal>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="playerAuthModalLabel">Player Authentication</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs nav-fill mb-3" role="tablist">
+                    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#player-tab-login" role="tab">Sign In</a></li>
+                    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#player-tab-register" role="tab">Register</a></li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane active" id="player-tab-login" role="tabpanel">
+                        <div class="alert alert-danger d-none" data-player-login-error></div>
+                        <form data-player-login-form novalidate>
+                            <div class="mb-3">
+                                <label class="form-label" for="player-login-username">Username or Email</label>
+                                <input type="text" class="form-control" id="player-login-username" data-login-user required autocomplete="username" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="player-login-password">Password</label>
+                                <input type="password" class="form-control" id="player-login-password" data-login-pass required autocomplete="current-password" />
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Sign In as Player</button>
+                        </form>
+                    </div>
+                    <div class="tab-pane" id="player-tab-register" role="tabpanel">
+                        <div class="alert alert-danger d-none" data-player-register-error></div>
+                        <form data-player-register-form novalidate>
+                            <div class="mb-3">
+                                <label class="form-label" for="player-reg-username">Username</label>
+                                <input type="text" class="form-control" id="player-reg-username" data-reg-user required pattern="[a-zA-Z0-9_.-]+" autocomplete="username" />
+                                <div class="form-hint small">Letters, digits, underscores, dots, or dashes.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="player-reg-email">Email</label>
+                                <input type="email" class="form-control" id="player-reg-email" data-reg-email required autocomplete="email" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="player-reg-password">Password</label>
+                                <input type="password" class="form-control" id="player-reg-password" data-reg-pass required minlength="8" autocomplete="new-password" />
+                                <div class="form-hint small">At least 8 characters.</div>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">Create Player Account</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script id="initial-player-state" type="application/json">
+@Html.Raw(System.Text.Json.JsonSerializer.Serialize(new
+{
+    isAuthenticated = Model.IsPlayerAuthenticated,
+    username = Model.PlayerUsername,
+    unlockedVehicleIds = Model.InitialPlayerProgress?.UnlockedVehicleIds ?? [],
+    preferences = Model.InitialPlayerProgress?.Preferences ?? new GrindingThunder.Admin.Models.PlayerCalculatorPreferences(GrindingThunder.Admin.Models.ResearchOptimizationMode.LeastRp, 5000, 20000),
+    versionId = Model.SelectedVersion?.Id ?? Guid.Empty,
+    treeVehicleIds = Model.Entries.Select(e => e.Id).Distinct().ToList()
+}))
+</script>
 
 @section Scripts {
     <script src="~/js/visual-tree.js"></script>

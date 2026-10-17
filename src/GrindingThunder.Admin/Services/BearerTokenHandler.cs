@@ -13,7 +13,45 @@ public class BearerTokenHandler(IHttpContextAccessor httpContextAccessor) : Dele
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (request.Headers.Authorization != null)
+        {
+            return await base.SendAsync(request, cancellationToken);
+        }
+
         var httpContext = _httpContextAccessor.HttpContext;
+        var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+
+        if (path.StartsWith("/api/player", StringComparison.OrdinalIgnoreCase))
+        {
+            if (httpContext != null &&
+                !path.Equals("/api/player/auth/login", StringComparison.OrdinalIgnoreCase) &&
+                !path.Equals("/api/player/auth/register", StringComparison.OrdinalIgnoreCase))
+            {
+                string? playerToken = null;
+                try
+                {
+                    var playerAuth = await httpContext.AuthenticateAsync("PlayerAuth");
+                    if (playerAuth.Succeeded && playerAuth.Principal != null)
+                    {
+                        playerToken = playerAuth.Properties?.GetTokenValue("access_token")
+                            ?? playerAuth.Principal.FindFirst("access_token")?.Value
+                            ?? playerAuth.Principal.FindFirst("player_token")?.Value;
+                    }
+                }
+                catch
+                {
+                    // Fall back if authentication scheme is not registered in isolated unit tests
+                }
+
+                if (!string.IsNullOrWhiteSpace(playerToken))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", playerToken);
+                }
+            }
+
+            return await base.SendAsync(request, cancellationToken);
+        }
+
         if (httpContext?.User.Identity?.IsAuthenticated == true)
         {
             string? token = null;

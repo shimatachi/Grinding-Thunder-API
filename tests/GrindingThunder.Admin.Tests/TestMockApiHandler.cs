@@ -48,6 +48,11 @@ public class TestMockApiHandler : HttpMessageHandler
     public bool ConflictNextAccountMutation { get; set; }
     public bool ConflictNextEntryUpdate { get; set; }
     public bool DraftPublished { get; private set; }
+    public static readonly Guid PlayerAccountId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+    public const string PlayerToken = "test-player-jwt-token-xyz";
+    public HashSet<Guid> PlayerUnlockedVehicleIds { get; } = [OtherVehicleId];
+    public (string OptimizationMode, int? AverageRpPerMatch, int? AverageNetSlPerMatch) PlayerPreferences { get; set; } = ("LeastRp", 4500, 18000);
+    public bool ConflictNextPlayerProgress { get; set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -56,6 +61,220 @@ public class TestMockApiHandler : HttpMessageHandler
         var path = request.RequestUri?.AbsolutePath ?? string.Empty;
         if (request.Content?.Headers.ContentType?.MediaType == "application/json")
             RecordedJsonRequests.Add((path, await request.Content.ReadAsStringAsync(cancellationToken)));
+
+        if (request.Method == HttpMethod.Post && path.EndsWith("/api/player/auth/register", StringComparison.OrdinalIgnoreCase))
+        {
+            var content = request.Content != null ? await request.Content.ReadAsStringAsync(cancellationToken) : string.Empty;
+            using var doc = JsonDocument.Parse(content);
+            var username = doc.RootElement.GetPropertyIgnoreCase("Username").GetString() ?? "player";
+            var email = doc.RootElement.GetPropertyIgnoreCase("Email").GetString() ?? "player@example.test";
+
+            return JsonResponse(HttpStatusCode.Created, new
+            {
+                playerAccountId = PlayerAccountId,
+                username,
+                email,
+                token = PlayerToken,
+                tokenType = "Bearer",
+                expiresAt = DateTime.UtcNow.AddDays(7)
+            });
+        }
+
+        if (request.Method == HttpMethod.Post && path.EndsWith("/api/player/auth/login", StringComparison.OrdinalIgnoreCase))
+        {
+            var content = request.Content != null ? await request.Content.ReadAsStringAsync(cancellationToken) : string.Empty;
+            using var doc = JsonDocument.Parse(content);
+            var usernameOrEmail = doc.RootElement.GetPropertyIgnoreCase("UsernameOrEmail").GetString() ?? string.Empty;
+            var password = doc.RootElement.GetPropertyIgnoreCase("Password").GetString() ?? string.Empty;
+
+            if (password == "InvalidPass")
+            {
+                return JsonResponse(HttpStatusCode.Unauthorized, new { message = "Invalid username/email or password." });
+            }
+
+            var username = usernameOrEmail.Contains('@') ? usernameOrEmail.Split('@')[0] : usernameOrEmail;
+            return JsonResponse(HttpStatusCode.OK, new
+            {
+                playerAccountId = PlayerAccountId,
+                username = string.IsNullOrWhiteSpace(username) ? "testplayer" : username,
+                email = "player@example.test",
+                token = PlayerToken,
+                tokenType = "Bearer",
+                expiresAt = DateTime.UtcNow.AddDays(7)
+            });
+        }
+
+        if (request.Method == HttpMethod.Get && path.EndsWith("/api/player/auth/me", StringComparison.OrdinalIgnoreCase))
+        {
+            var authHeader = request.Headers.Authorization;
+            if (authHeader?.Scheme == "Bearer" && authHeader.Parameter == PlayerToken)
+            {
+                return JsonResponse(HttpStatusCode.OK, new
+                {
+                    playerAccountId = PlayerAccountId,
+                    username = "testplayer",
+                    email = "player@example.test"
+                });
+            }
+
+            return JsonResponse(HttpStatusCode.Unauthorized, new { message = "Unauthorized" });
+        }
+
+        if (request.Method == HttpMethod.Get && path.EndsWith("/api/player/progress", StringComparison.OrdinalIgnoreCase))
+        {
+            var authHeader = request.Headers.Authorization;
+            if (authHeader?.Scheme != "Bearer" || authHeader.Parameter != PlayerToken)
+            {
+                return JsonResponse(HttpStatusCode.Unauthorized, new { message = "Unauthorized" });
+            }
+
+            return JsonResponse(HttpStatusCode.OK, new
+            {
+                unlockedVehicleIds = PlayerUnlockedVehicleIds.ToList(),
+                preferences = new
+                {
+                    optimizationMode = PlayerPreferences.OptimizationMode,
+                    averageRpPerMatch = PlayerPreferences.AverageRpPerMatch,
+                    averageNetSlPerMatch = PlayerPreferences.AverageNetSlPerMatch
+                }
+            });
+        }
+
+        if (request.Method == HttpMethod.Put && path.EndsWith("/api/player/progress", StringComparison.OrdinalIgnoreCase))
+        {
+            var authHeader = request.Headers.Authorization;
+            if (authHeader?.Scheme != "Bearer" || authHeader.Parameter != PlayerToken)
+            {
+                return JsonResponse(HttpStatusCode.Unauthorized, new { message = "Unauthorized" });
+            }
+
+            if (ConflictNextPlayerProgress)
+            {
+                ConflictNextPlayerProgress = false;
+                return JsonResponse(HttpStatusCode.Conflict, new { message = "Progress has been modified by another session." });
+            }
+
+            var content = request.Content != null ? await request.Content.ReadAsStringAsync(cancellationToken) : string.Empty;
+            using var doc = JsonDocument.Parse(content);
+            try
+            {
+                var idsElement = doc.RootElement.GetPropertyIgnoreCase("UnlockedVehicleIds");
+                PlayerUnlockedVehicleIds.Clear();
+                foreach (var idItem in idsElement.EnumerateArray())
+                {
+                    if (idItem.TryGetGuid(out var gid)) PlayerUnlockedVehicleIds.Add(gid);
+                }
+            }
+            catch { }
+
+            try
+            {
+                var prefElement = doc.RootElement.GetPropertyIgnoreCase("Preferences");
+                var opt = "LeastRp";
+                try { opt = prefElement.GetPropertyIgnoreCase("OptimizationMode").GetString() ?? "LeastRp"; } catch { }
+                int? avgRp = 4500;
+                try { avgRp = prefElement.GetPropertyIgnoreCase("AverageRpPerMatch").GetInt32(); } catch { }
+                int? avgSl = 18000;
+                try { avgSl = prefElement.GetPropertyIgnoreCase("AverageNetSlPerMatch").GetInt32(); } catch { }
+                PlayerPreferences = (opt, avgRp, avgSl);
+            }
+            catch { }
+
+            return JsonResponse(HttpStatusCode.OK, new
+            {
+                unlockedVehicleIds = PlayerUnlockedVehicleIds.ToList(),
+                preferences = new
+                {
+                    optimizationMode = PlayerPreferences.OptimizationMode,
+                    averageRpPerMatch = PlayerPreferences.AverageRpPerMatch,
+                    averageNetSlPerMatch = PlayerPreferences.AverageNetSlPerMatch
+                }
+            });
+        }
+
+        if (request.Method == HttpMethod.Post && path.EndsWith("/api/research/calculate", StringComparison.OrdinalIgnoreCase))
+        {
+            var content = request.Content != null ? await request.Content.ReadAsStringAsync(cancellationToken) : string.Empty;
+            using var doc = JsonDocument.Parse(content);
+            var targetId = doc.RootElement.GetPropertyIgnoreCase("TargetVehicleId").GetGuid();
+            var unlocked = new HashSet<Guid>();
+            try
+            {
+                var idsElement = doc.RootElement.GetPropertyIgnoreCase("UnlockedVehicleIds");
+                foreach (var idItem in idsElement.EnumerateArray())
+                {
+                    if (idItem.TryGetGuid(out var gid)) unlocked.Add(gid);
+                }
+            }
+            catch { }
+
+            var requiredVehicles = new List<object>();
+            long totalRp = 0;
+            long totalSl = 0;
+
+            if (targetId == VehicleId)
+            {
+                if (!unlocked.Contains(VehicleId2))
+                {
+                    requiredVehicles.Add(new
+                    {
+                        vehicleId = VehicleId2,
+                        name = "F-4E",
+                        rpRemaining = 180000,
+                        slRemaining = 290000,
+                        isRankGateFiller = false
+                    });
+                    totalRp += 180000;
+                    totalSl += 290000;
+                }
+
+                if (!unlocked.Contains(VehicleId))
+                {
+                    requiredVehicles.Add(new
+                    {
+                        vehicleId = VehicleId,
+                        name = "F-16A",
+                        rpRemaining = 220000,
+                        slRemaining = 350000,
+                        isRankGateFiller = false
+                    });
+                    totalRp += 220000;
+                    totalSl += 350000;
+                }
+            }
+            else
+            {
+                if (!unlocked.Contains(targetId))
+                {
+                    requiredVehicles.Add(new
+                    {
+                        vehicleId = targetId,
+                        name = "Target vehicle",
+                        rpRemaining = 100000,
+                        slRemaining = 200000,
+                        isRankGateFiller = false
+                    });
+                    totalRp += 100000;
+                    totalSl += 200000;
+                }
+            }
+
+            long estMatches = totalRp > 0 ? (long)Math.Ceiling((double)totalRp / 5000) : 0;
+            long rpMatches = estMatches;
+            long slMatches = totalSl > 0 ? (long)Math.Ceiling((double)totalSl / 20000) : 0;
+
+            return JsonResponse(HttpStatusCode.OK, new
+            {
+                targetVehicleId = targetId,
+                totalRpRequired = totalRp,
+                totalSlRequired = totalSl,
+                rpEstimatedMatches = rpMatches,
+                slEstimatedMatches = slMatches,
+                estimatedMatches = estMatches,
+                requiredVehicles,
+                rankDeficits = new object[] { }
+            });
+        }
 
         if (request.Method == HttpMethod.Post && path.EndsWith("/api/auth/login", StringComparison.OrdinalIgnoreCase))
         {

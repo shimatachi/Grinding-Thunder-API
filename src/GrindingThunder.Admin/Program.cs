@@ -14,16 +14,25 @@ builder.Services.AddRazorPages(options =>
 });
 
 // Configure Cookie Authentication
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
-    {
-        options.Cookie.Name = "GrindingThunder.Admin.Session";
-        options.LoginPath = "/Login";
-        options.LogoutPath = "/Logout";
-        options.AccessDeniedPath = "/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
-        options.SlidingExpiration = true;
-    });
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+})
+.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+{
+    options.Cookie.Name = "GrindingThunder.Admin.Session";
+    options.LoginPath = "/Login";
+    options.LogoutPath = "/Logout";
+    options.AccessDeniedPath = "/AccessDenied";
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+})
+.AddCookie("PlayerAuth", options =>
+{
+    options.Cookie.Name = "GrindingThunder.Player.Session";
+    options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    options.SlidingExpiration = true;
+});
 
 // Configure HttpContextAccessor and Bearer Token Handler
 builder.Services.AddHttpContextAccessor();

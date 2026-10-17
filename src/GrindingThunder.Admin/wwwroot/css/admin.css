@@ -126,3 +126,83 @@ body { min-height: 100vh; }
     .visual-tree-sidebar { position: static; max-height: none; overflow: visible; }
     .visual-tree-edit-toggle { width: 100%; padding-right: 0; border-right: 0; }
 }
+
+/* Batch 34: Player Progression Overlay */
+.visual-tree-node.is-progression-owned {
+    border-color: #2fb344;
+    background: color-mix(in srgb, var(--tblr-bg-surface) 88%, #2fb344 12%);
+    opacity: 0.8;
+}
+.visual-tree-node.is-progression-owned:hover,
+.visual-tree-node.is-progression-owned:focus-within {
+    opacity: 1;
+}
+.visual-tree-node.is-progression-target {
+    z-index: 22 !important;
+    outline: 3px solid #f76707 !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 15px rgba(247, 103, 7, .75) !important;
+}
+.visual-tree-node.is-progression-required {
+    z-index: 20 !important;
+    outline: 3px solid #206bc4 !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 10px rgba(32, 107, 196, .6) !important;
+}
+.visual-tree-node.is-progression-filler {
+    z-index: 20 !important;
+    outline: 3px solid #ae3ec9 !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 10px rgba(174, 62, 201, .6) !important;
+}
+
+.visual-tree-node-actions {
+    position: absolute;
+    top: .35rem;
+    left: .35rem;
+    display: flex;
+    gap: .25rem;
+    z-index: 5;
+}
+.visual-tree-node-quick-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 1px solid var(--tblr-border-color);
+    border-radius: var(--tblr-border-radius);
+    background: var(--tblr-bg-surface);
+    color: var(--tblr-body-color);
+    font-size: .75rem;
+    cursor: pointer;
+    opacity: .85;
+    transition: opacity .15s ease, background-color .15s ease;
+}
+.visual-tree-node-quick-btn:hover {
+    opacity: 1;
+    background: var(--tblr-bg-surface-secondary);
+}
+.visual-tree-node.is-progression-owned .visual-tree-node-owned-btn {
+    background: #2fb344;
+    color: #fff;
+    border-color: #2fb344;
+}
+.visual-tree-node.is-progression-target .visual-tree-node-target-btn {
+    background: #f76707;
+    color: #fff;
+    border-color: #f76707;
+}
+
+.visual-tree-edge-prerequisite.is-progression-route {
+    stroke: #206bc4 !important;
+    stroke-width: 5.5 !important;
+    filter: drop-shadow(0 0 5px rgba(32, 107, 196, .85)) !important;
+}
+
+.visual-tree-progression-hud {
+    background: var(--tblr-bg-surface);
+    border-left: 4px solid var(--tblr-primary);
+    box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .08);
+}

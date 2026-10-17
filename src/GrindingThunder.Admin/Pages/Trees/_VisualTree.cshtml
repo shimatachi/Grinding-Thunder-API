@@ -77,10 +77,19 @@
             <div class="card-body py-2 visual-tree-legend" aria-label="Tree relationship legend">
                 <span><i class="visual-tree-legend-line visual-tree-legend-line-prerequisite"></i> Progression prerequisite</span>
                 <span><i class="visual-tree-legend-line visual-tree-legend-line-folder"></i> Folder / group membership</span>
+                @if (!Model.CanEdit)
+                {
+                    <span class="d-none d-md-inline-flex align-items-center gap-1 ms-2 ps-2 border-start">
+                        <span class="badge bg-green-lt">Owned</span>
+                        <span class="badge bg-orange text-white">Target</span>
+                        <span class="badge bg-blue text-white">Required</span>
+                        <span class="badge bg-purple text-white">Filler</span>
+                    </span>
+                }
                 <span class="text-secondary ms-auto" data-tree-help>
                     @(Model.CanEdit
                         ? "Drag empty space to pan · enable Edit Mode to select nodes"
-                        : "Drag empty space to pan · use controls or Ctrl + wheel to zoom")
+                        : "Click a vehicle to select target · use quick buttons to toggle ownership")
                 </span>
             </div>
             @if (Model.CanEdit)
@@ -193,6 +202,13 @@
                                                      data-tree-rank-number="@node.RankNumber"
                                                      tabindex="0"
                                                      style="--tree-column: @node.TreeColumn; --tree-row: @node.RowOffset; --tree-stack: @node.CoordinateStackIndex">
+                                                @if (!Model.CanEdit)
+                                                {
+                                                    <div class="visual-tree-node-actions" data-node-actions>
+                                                        <button type="button" class="visual-tree-node-quick-btn visual-tree-node-owned-btn" data-node-owned-toggle title="Toggle owned (researched)" aria-label="Toggle owned">✓</button>
+                                                        <button type="button" class="visual-tree-node-quick-btn visual-tree-node-target-btn" data-node-target-toggle title="Set as target vehicle" aria-label="Set as target">🎯</button>
+                                                    </div>
+                                                }
                                                 <div class="visual-tree-node-image">
                                                     @if (!string.IsNullOrWhiteSpace(node.ImageUrl))
                                                     {
@@ -214,6 +230,7 @@
                                                         <span title="Silver Lions" data-tree-sl-preview>@node.SlCost.ToString("N0") SL</span>
                                                     </div>
                                                     <div class="visual-tree-node-badges">
+                                                        <span class="badge d-none visual-tree-progression-badge" data-progression-badge></span>
                                                         @if (node.IsFolderParent)
                                                         {
                                                             <span class="badge bg-azure-lt">Folder</span>
@@ -406,6 +423,13 @@
                             <div class="text-secondary small">Vehicle ID: <code data-readonly-vehicle-id></code></div>
                             <div class="text-secondary small">@Model.ResearchTreeLabel</div>
                         </div>
+                    </div>
+                    <div class="mb-3 d-flex flex-wrap gap-2">
+                        <span class="badge bg-secondary-lt" data-readonly-progression-badge>Unresearched</span>
+                    </div>
+                    <div class="btn-list mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-success w-100" data-readonly-toggle-owned>Toggle Owned</button>
+                        <button type="button" class="btn btn-sm btn-primary w-100" data-readonly-set-target>Set as Target</button>
                     </div>
                     <dl class="row mb-0">
                         <dt class="col-6">Rank</dt><dd class="col-6" data-readonly-rank></dd>

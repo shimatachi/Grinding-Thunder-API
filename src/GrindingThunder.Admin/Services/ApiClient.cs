@@ -313,6 +313,58 @@ public class ApiClient(HttpClient httpClient) : IApiClient
         return GetListAsync<PublicVehicleTreeEntryDto>(uri, cancellationToken);
     }
 
+    public Task<ApiResponse<PlayerTokenResponse>> PlayerLoginAsync(PlayerLoginRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<PlayerLoginRequest, PlayerTokenResponse>("api/player/auth/login", request, cancellationToken);
+
+    public Task<ApiResponse<PlayerTokenResponse>> PlayerRegisterAsync(PlayerRegisterRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<PlayerRegisterRequest, PlayerTokenResponse>("api/player/auth/register", request, cancellationToken);
+
+    public Task<ApiResponse<PlayerProfileResponse>> GetPlayerProfileAsync(string? playerToken = null, CancellationToken cancellationToken = default) =>
+        SendWithPlayerTokenAsync<PlayerProfileResponse>(HttpMethod.Get, "api/player/auth/me", null, playerToken, cancellationToken);
+
+    public Task<ApiResponse<PlayerProgressResponse>> GetPlayerProgressAsync(string? playerToken = null, CancellationToken cancellationToken = default) =>
+        SendWithPlayerTokenAsync<PlayerProgressResponse>(HttpMethod.Get, "api/player/progress", null, playerToken, cancellationToken);
+
+    public Task<ApiResponse<PlayerProgressResponse>> UpdatePlayerProgressAsync(UpdatePlayerProgressRequest request, string? playerToken = null, CancellationToken cancellationToken = default) =>
+        SendWithPlayerTokenAsync<PlayerProgressResponse>(HttpMethod.Put, "api/player/progress", request, playerToken, cancellationToken);
+
+    public Task<ApiResponse<ResearchCalculationResult>> CalculateResearchAsync(ResearchCalculationRequest request, CancellationToken cancellationToken = default) =>
+        PostAsync<ResearchCalculationRequest, ResearchCalculationResult>("api/research/calculate", request, cancellationToken);
+
+    private async Task<ApiResponse<T>> SendWithPlayerTokenAsync<T>(
+        HttpMethod method,
+        string uri,
+        object? body,
+        string? playerToken,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var message = new HttpRequestMessage(method, uri);
+            if (!string.IsNullOrWhiteSpace(playerToken))
+            {
+                message.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", playerToken);
+            }
+            if (body != null)
+            {
+                message.Content = JsonContent.Create(body, options: JsonOptions);
+            }
+
+            var response = await _httpClient.SendAsync(message, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var value = await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
+                return new ApiResponse<T>(response.StatusCode, value);
+            }
+
+            return new ApiResponse<T>(response.StatusCode, ErrorMessage: await ReadErrorAsync(response, cancellationToken));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ApiResponse<T>(HttpStatusCode.ServiceUnavailable, ErrorMessage: ConnectionError(ex));
+        }
+    }
+
     private async Task<ApiResponse<IReadOnlyList<T>>> GetListAsync<T>(string uri, CancellationToken cancellationToken)
     {
         try

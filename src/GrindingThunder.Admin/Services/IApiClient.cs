@@ -116,5 +116,12 @@ public interface IApiClient
         Guid researchTreeVersionId,
         string? vehicleTypeName = null,
         CancellationToken cancellationToken = default);
+
+    Task<ApiResponse<PlayerTokenResponse>> PlayerLoginAsync(PlayerLoginRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<PlayerTokenResponse>> PlayerRegisterAsync(PlayerRegisterRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<PlayerProfileResponse>> GetPlayerProfileAsync(string? playerToken = null, CancellationToken cancellationToken = default);
+    Task<ApiResponse<PlayerProgressResponse>> GetPlayerProgressAsync(string? playerToken = null, CancellationToken cancellationToken = default);
+    Task<ApiResponse<PlayerProgressResponse>> UpdatePlayerProgressAsync(UpdatePlayerProgressRequest request, string? playerToken = null, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ResearchCalculationResult>> CalculateResearchAsync(ResearchCalculationRequest request, CancellationToken cancellationToken = default);
 }
 

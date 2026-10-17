@@ -37,8 +37,39 @@
             sl: tree.querySelector("[data-readonly-sl]"),
             acquisition: tree.querySelector("[data-readonly-acquisition]"),
             coordinate: tree.querySelector("[data-readonly-coordinate]"),
-            folder: tree.querySelector("[data-readonly-folder]")
+            folder: tree.querySelector("[data-readonly-folder]"),
+            progressionBadge: tree.querySelector("[data-readonly-progression-badge]"),
+            toggleOwnedBtn: tree.querySelector("[data-readonly-toggle-owned]"),
+            setTargetBtn: tree.querySelector("[data-readonly-set-target]")
         };
+        const activeRouteEdges = new Set();
+        let targetVehicleId = null;
+        let calculationResult = null;
+        const allUnlockedVehicleIds = new Set();
+        const unlockedVehicleIds = new Set();
+        const treeVehicleIds = new Set();
+        let versionId = null;
+        const playerState = { isAuthenticated: false, username: null, preferences: null };
+
+        const hud = document.querySelector("[data-progression-hud]");
+        const hudTargetName = hud?.querySelector("[data-hud-target-name]");
+        const hudTotalRp = hud?.querySelector("[data-hud-total-rp]");
+        const hudTotalSl = hud?.querySelector("[data-hud-total-sl]");
+        const hudMatches = hud?.querySelector("[data-hud-matches]");
+        const hudOptMode = hud?.querySelector("[data-hud-opt-mode]");
+        const hudRpInput = hud?.querySelector("[data-hud-rp-match]");
+        const hudSlInput = hud?.querySelector("[data-hud-sl-match]");
+        const hudClearTarget = hud?.querySelector("[data-hud-clear-target]");
+        const hudDeficitsContainer = hud?.querySelector("[data-hud-deficits-container]");
+        const hudDeficitsList = hud?.querySelector("[data-hud-deficits-list]");
+
+        const playerWidget = document.querySelector("[data-player-widget]");
+        const playerModalEl = document.querySelector("[data-player-modal]");
+        const loginForm = document.querySelector("[data-player-login-form]");
+        const registerForm = document.querySelector("[data-player-register-form]");
+        const loginError = document.querySelector("[data-player-login-error]");
+        const registerError = document.querySelector("[data-player-register-error]");
+        const logoutBtn = document.querySelector("[data-player-logout-btn]");
         const inspector = {
             entryId: tree.querySelector("[data-inspector-entry-id]"),
             removeEntryId: tree.querySelector("[data-remove-entry-id]"),
@@ -230,7 +261,9 @@
                 const isSelected = kind === "prerequisite" &&
                     selectedEdge?.from === edgeData.dataset.fromNode &&
                     selectedEdge?.to === edgeData.dataset.toNode;
-                appendVisiblePath(from, to, kind, isSelected ? "is-selected" : "");
+                const isRoute = kind === "prerequisite" &&
+                    activeRouteEdges.has(`${edgeData.dataset.fromNode}->${edgeData.dataset.toNode}`);
+                appendVisiblePath(from, to, kind, `${isSelected ? "is-selected" : ""} ${isRoute ? "is-progression-route" : ""}`.trim());
                 if (kind === "folder") renderedFolderTargets.add(edgeData.dataset.toNode);
                 if (kind === "prerequisite" && canEdit) appendEdgeHitTarget(from, to);
             });
@@ -583,7 +616,497 @@
                 if (imageUrl) readonlyInspector.image.src = imageUrl;
                 else readonlyInspector.image.removeAttribute("src");
             }
+            updateReadonlyProgressionControls(node);
             requestAnimationFrame(() => applyScale(scale));
+        };
+
+        const updateReadonlyProgressionControls = node => {
+            if (!node || !readonlyPanel) return;
+            const vId = node.dataset.vehicleId?.toLowerCase();
+            const isOwned = vId && unlockedVehicleIds.has(vId);
+            const isTarget = vId && targetVehicleId && vId === targetVehicleId.toLowerCase();
+
+            let requiredSummary = null;
+            if (calculationResult?.requiredVehicles && vId) {
+                requiredSummary = calculationResult.requiredVehicles.find(
+                    rv => rv.vehicleId.toLowerCase() === vId
+                );
+            }
+
+            if (readonlyInspector.progressionBadge) {
+                if (isTarget) {
+                    readonlyInspector.progressionBadge.className = "badge bg-orange text-white";
+                    readonlyInspector.progressionBadge.textContent = "Target";
+                } else if (requiredSummary) {
+                    if (requiredSummary.isRankGateFiller) {
+                        readonlyInspector.progressionBadge.className = "badge bg-purple text-white";
+                        readonlyInspector.progressionBadge.textContent = "Rank Filler";
+                    } else {
+                        readonlyInspector.progressionBadge.className = "badge bg-blue text-white";
+                        readonlyInspector.progressionBadge.textContent = "Required Route";
+                    }
+                } else if (isOwned) {
+                    readonlyInspector.progressionBadge.className = "badge bg-green-lt";
+                    readonlyInspector.progressionBadge.textContent = "Owned";
+                } else {
+                    readonlyInspector.progressionBadge.className = "badge bg-secondary-lt";
+                    readonlyInspector.progressionBadge.textContent = "Unresearched";
+                }
+            }
+
+            if (readonlyInspector.toggleOwnedBtn) {
+                if (isOwned) {
+                    readonlyInspector.toggleOwnedBtn.textContent = "Mark as Unowned";
+                    readonlyInspector.toggleOwnedBtn.className = "btn btn-sm btn-outline-danger w-100";
+                } else {
+                    readonlyInspector.toggleOwnedBtn.textContent = "Mark as Owned";
+                    readonlyInspector.toggleOwnedBtn.className = "btn btn-sm btn-outline-success w-100";
+                }
+            }
+
+            if (readonlyInspector.setTargetBtn) {
+                if (isTarget) {
+                    readonlyInspector.setTargetBtn.textContent = "Clear Target";
+                    readonlyInspector.setTargetBtn.className = "btn btn-sm btn-outline-secondary w-100";
+                } else {
+                    readonlyInspector.setTargetBtn.textContent = "Set as Target";
+                    readonlyInspector.setTargetBtn.className = "btn btn-sm btn-primary w-100";
+                }
+            }
+        };
+
+        const updateProgressionUI = () => {
+            const requiredMap = new Map();
+            if (calculationResult?.requiredVehicles) {
+                calculationResult.requiredVehicles.forEach(rv => {
+                    requiredMap.set(rv.vehicleId.toLowerCase(), rv);
+                });
+            }
+
+            tree.querySelectorAll("[data-tree-node]").forEach(node => {
+                const vId = node.dataset.vehicleId?.toLowerCase();
+                const badge = node.querySelector("[data-progression-badge]");
+                node.classList.remove("is-progression-owned", "is-progression-target", "is-progression-required", "is-progression-filler");
+
+                if (!vId) {
+                    if (badge) badge.classList.add("d-none");
+                    return;
+                }
+
+                if (targetVehicleId && vId === targetVehicleId.toLowerCase()) {
+                    node.classList.add("is-progression-target");
+                    if (badge) {
+                        badge.className = "badge bg-orange text-white visual-tree-progression-badge";
+                        badge.textContent = "Target";
+                        badge.classList.remove("d-none");
+                    }
+                } else if (requiredMap.has(vId)) {
+                    const summary = requiredMap.get(vId);
+                    if (summary.isRankGateFiller) {
+                        node.classList.add("is-progression-filler");
+                        if (badge) {
+                            badge.className = "badge bg-purple text-white visual-tree-progression-badge";
+                            badge.textContent = "Filler";
+                            badge.classList.remove("d-none");
+                        }
+                    } else {
+                        node.classList.add("is-progression-required");
+                        if (badge) {
+                            badge.className = "badge bg-blue text-white visual-tree-progression-badge";
+                            badge.textContent = "Required";
+                            badge.classList.remove("d-none");
+                        }
+                    }
+                } else if (unlockedVehicleIds.has(vId)) {
+                    node.classList.add("is-progression-owned");
+                    if (badge) {
+                        badge.className = "badge bg-green-lt visual-tree-progression-badge";
+                        badge.textContent = "Owned";
+                        badge.classList.remove("d-none");
+                    }
+                } else {
+                    if (badge) badge.classList.add("d-none");
+                }
+            });
+
+            if (selectedNode) {
+                updateReadonlyProgressionControls(selectedNode);
+            }
+
+            drawConnectors();
+        };
+
+        const computeActiveRouteEdges = () => {
+            activeRouteEdges.clear();
+            if (!calculationResult || !targetVehicleId) return;
+
+            const requiredMap = new Map();
+            calculationResult.requiredVehicles.forEach(rv => {
+                requiredMap.set(rv.vehicleId.toLowerCase(), rv);
+            });
+
+            tree.querySelectorAll("[data-tree-edge][data-edge-kind='prerequisite']").forEach(edge => {
+                const fromNode = nodeById(edge.dataset.fromNode);
+                const toNode = nodeById(edge.dataset.toNode);
+                if (!fromNode || !toNode) return;
+
+                const toVehicleId = toNode.dataset.vehicleId?.toLowerCase();
+                const fromVehicleId = fromNode.dataset.vehicleId?.toLowerCase();
+                if (!toVehicleId || !fromVehicleId) return;
+
+                const toIsTarget = toVehicleId === targetVehicleId.toLowerCase();
+                const toSummary = requiredMap.get(toVehicleId);
+
+                if (toIsTarget || (toSummary && !toSummary.isRankGateFiller)) {
+                    const fromSummary = requiredMap.get(fromVehicleId);
+                    const fromIsOwned = unlockedVehicleIds.has(fromVehicleId);
+                    if ((fromSummary && !fromSummary.isRankGateFiller) || fromIsOwned) {
+                        activeRouteEdges.add(`${edge.dataset.fromNode}->${edge.dataset.toNode}`);
+                    }
+                }
+            });
+        };
+
+        const calculateRoute = async () => {
+            if (!targetVehicleId || !versionId) {
+                calculationResult = null;
+                activeRouteEdges.clear();
+                hud?.classList.add("d-none");
+                updateProgressionUI();
+                return;
+            }
+
+            const optMode = hudOptMode?.value || "LeastRp";
+            const avgRp = Number.parseInt(hudRpInput?.value || "5000", 10) || 5000;
+            const avgSl = Number.parseInt(hudSlInput?.value || "20000", 10) || 20000;
+
+            const targetNode = Array.from(tree.querySelectorAll("[data-tree-node]"))
+                .find(n => n.dataset.vehicleId?.toLowerCase() === targetVehicleId.toLowerCase());
+            const targetName = targetNode ? nodeName(targetNode) : "Selected vehicle";
+
+            try {
+                const response = await fetch("/Tree?handler=Calculate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        researchTreeVersionId: versionId,
+                        targetVehicleId: targetVehicleId,
+                        unlockedVehicleIds: Array.from(unlockedVehicleIds),
+                        fillerTargetIds: [],
+                        averageRpPerMatch: avgRp,
+                        averageNetSlPerMatch: avgSl,
+                        optimizationMode: optMode
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error("Calculation failed:", await response.text());
+                    return;
+                }
+
+                const data = await response.json();
+                calculationResult = data;
+
+                if (hud) {
+                    hud.classList.remove("d-none");
+                    if (hudTargetName) hudTargetName.textContent = targetName;
+                    if (hudTotalRp) hudTotalRp.textContent = `${formatCost(data.totalRpRequired)} RP`;
+                    if (hudTotalSl) hudTotalSl.textContent = `${formatCost(data.totalSlRequired)} SL`;
+                    if (hudMatches) {
+                        hudMatches.textContent = `${data.estimatedMatches} matches`;
+                        hudMatches.title = `RP estimate: ${data.rpEstimatedMatches} matches · SL estimate: ${data.slEstimatedMatches} matches`;
+                    }
+
+                    if (hudDeficitsContainer && hudDeficitsList) {
+                        if (data.rankDeficits && data.rankDeficits.length > 0) {
+                            hudDeficitsContainer.classList.remove("d-none");
+                            hudDeficitsList.innerHTML = "<strong>Rank Gates:</strong> " +
+                                data.rankDeficits.map(d => `<span class="badge bg-warning text-dark">Rank ${d.rankNumber}: need ${d.shortfall} more (requires ${d.required})</span>`).join(" ");
+                        } else {
+                            hudDeficitsContainer.classList.add("d-none");
+                            hudDeficitsList.innerHTML = "";
+                        }
+                    }
+                }
+
+                computeActiveRouteEdges();
+                updateProgressionUI();
+            } catch (err) {
+                console.error("Error calculating research:", err);
+            }
+        };
+
+        const toggleVehicleOwnership = async vehicleId => {
+            if (!vehicleId) return;
+            const normId = vehicleId.toLowerCase();
+            if (unlockedVehicleIds.has(normId)) {
+                unlockedVehicleIds.delete(normId);
+                allUnlockedVehicleIds.delete(normId);
+            } else {
+                unlockedVehicleIds.add(normId);
+                allUnlockedVehicleIds.add(normId);
+                if (targetVehicleId && targetVehicleId.toLowerCase() === normId) {
+                    targetVehicleId = null;
+                }
+            }
+
+            updateProgressionUI();
+
+            if (playerState.isAuthenticated) {
+                try {
+                    const optMode = hudOptMode?.value || playerState.preferences?.optimizationMode || "LeastRp";
+                    const avgRp = Number.parseInt(hudRpInput?.value || "5000", 10) || 5000;
+                    const avgSl = Number.parseInt(hudSlInput?.value || "20000", 10) || 20000;
+
+                    const response = await fetch("/Tree?handler=UpdateProgress", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            unlockedVehicleIds: Array.from(allUnlockedVehicleIds),
+                            preferences: {
+                                optimizationMode: optMode,
+                                averageRpPerMatch: avgRp,
+                                averageNetSlPerMatch: avgSl
+                            }
+                        })
+                    });
+
+                    if (response.status === 409) {
+                        // Concurrency conflict: refetch player progress
+                        const refreshResponse = await fetch("/Tree?handler=PlayerProgress");
+                        if (refreshResponse.ok) {
+                            const freshData = await refreshResponse.json();
+                            allUnlockedVehicleIds.clear();
+                            (freshData.unlockedVehicleIds || []).forEach(id => allUnlockedVehicleIds.add(id.toLowerCase()));
+                            unlockedVehicleIds.clear();
+                            allUnlockedVehicleIds.forEach(id => {
+                                if (treeVehicleIds.has(id)) unlockedVehicleIds.add(id);
+                            });
+                            updateProgressionUI();
+                        }
+                    }
+                } catch (err) {
+                    console.error("Failed to update progress:", err);
+                }
+            }
+
+            if (targetVehicleId) {
+                await calculateRoute();
+            }
+        };
+
+        const setTargetVehicle = async vehicleId => {
+            if (!vehicleId) return;
+            const normId = vehicleId.toLowerCase();
+            if (targetVehicleId && targetVehicleId.toLowerCase() === normId) {
+                targetVehicleId = null;
+            } else {
+                targetVehicleId = vehicleId;
+            }
+            await calculateRoute();
+        };
+
+        const hidePlayerModal = () => {
+            if (!playerModalEl) return;
+            if (window.bootstrap?.Modal) {
+                const modal = window.bootstrap.Modal.getInstance(playerModalEl);
+                if (modal) modal.hide();
+                else {
+                    playerModalEl.classList.remove("show");
+                    playerModalEl.style.display = "none";
+                    document.body.classList.remove("modal-open");
+                    document.querySelectorAll(".modal-backdrop").forEach(b => b.remove());
+                }
+            } else {
+                playerModalEl.classList.remove("show");
+                playerModalEl.style.display = "none";
+                document.body.classList.remove("modal-open");
+                document.querySelectorAll(".modal-backdrop").forEach(b => b.remove());
+            }
+        };
+
+        const updatePlayerWidget = username => {
+            if (!playerWidget) return;
+            if (username) {
+                playerWidget.innerHTML = `
+                    <span class="badge bg-green-lt d-flex align-items-center gap-1" data-player-user-display>
+                        <span class="status-dot status-dot-animated bg-green me-1"></span>
+                        <strong data-player-username-text>${username}</strong>
+                    </span>
+                    <button type="button" class="btn btn-outline-danger btn-sm" data-player-logout-btn>Sign out</button>
+                `;
+                playerWidget.querySelector("[data-player-logout-btn]")?.addEventListener("click", async () => {
+                    try {
+                        await fetch("/Tree?handler=PlayerLogout", { method: "POST" });
+                    } catch { }
+                    playerState.isAuthenticated = false;
+                    playerState.username = null;
+                    updatePlayerWidget(null);
+                    updateProgressionUI();
+                });
+            } else {
+                playerWidget.innerHTML = `
+                    <button type="button" class="btn btn-primary btn-sm" data-player-login-btn data-bs-toggle="modal" data-bs-target="#playerAuthModal">
+                        Player sign in
+                    </button>
+                `;
+            }
+        };
+
+        const initPlayerProgression = () => {
+            const initialDataEl = document.getElementById("initial-player-state");
+            let initialData = null;
+            if (initialDataEl) {
+                try {
+                    initialData = JSON.parse(initialDataEl.textContent);
+                } catch { }
+            }
+
+            if (initialData) {
+                playerState.isAuthenticated = Boolean(initialData.isAuthenticated);
+                playerState.username = initialData.username || null;
+                playerState.preferences = initialData.preferences || null;
+                versionId = initialData.versionId || null;
+
+                allUnlockedVehicleIds.clear();
+                (initialData.unlockedVehicleIds || []).forEach(id => {
+                    if (id) allUnlockedVehicleIds.add(id.toLowerCase());
+                });
+
+                treeVehicleIds.clear();
+                (initialData.treeVehicleIds || []).forEach(id => {
+                    if (id) treeVehicleIds.add(id.toLowerCase());
+                });
+
+                unlockedVehicleIds.clear();
+                allUnlockedVehicleIds.forEach(id => {
+                    if (treeVehicleIds.has(id)) unlockedVehicleIds.add(id);
+                });
+
+                if (hudOptMode && playerState.preferences?.optimizationMode) {
+                    hudOptMode.value = playerState.preferences.optimizationMode;
+                }
+                if (hudRpInput && playerState.preferences?.averageRpPerMatch) {
+                    hudRpInput.value = playerState.preferences.averageRpPerMatch;
+                } else if (hudRpInput) {
+                    hudRpInput.value = "5000";
+                }
+                if (hudSlInput && playerState.preferences?.averageNetSlPerMatch) {
+                    hudSlInput.value = playerState.preferences.averageNetSlPerMatch;
+                } else if (hudSlInput) {
+                    hudSlInput.value = "20000";
+                }
+            } else {
+                tree.querySelectorAll("[data-tree-node]").forEach(n => {
+                    const vId = n.dataset.vehicleId?.toLowerCase();
+                    if (vId) treeVehicleIds.add(vId);
+                });
+            }
+
+            hudOptMode?.addEventListener("change", () => { if (targetVehicleId) calculateRoute(); });
+            hudRpInput?.addEventListener("change", () => { if (targetVehicleId) calculateRoute(); });
+            hudSlInput?.addEventListener("change", () => { if (targetVehicleId) calculateRoute(); });
+            hudClearTarget?.addEventListener("click", () => {
+                targetVehicleId = null;
+                calculateRoute();
+            });
+
+            loginForm?.addEventListener("submit", async event => {
+                event.preventDefault();
+                loginError?.classList.add("d-none");
+                const usernameOrEmail = loginForm.querySelector("[data-login-user]")?.value;
+                const password = loginForm.querySelector("[data-login-pass]")?.value;
+                try {
+                    const res = await fetch("/Tree?handler=PlayerLogin", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ usernameOrEmail, password })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        playerState.isAuthenticated = true;
+                        playerState.username = data.username;
+                        updatePlayerWidget(data.username);
+                        hidePlayerModal();
+
+                        const progRes = await fetch("/Tree?handler=PlayerProgress");
+                        if (progRes.ok) {
+                            const progData = await progRes.json();
+                            allUnlockedVehicleIds.clear();
+                            (progData.unlockedVehicleIds || []).forEach(id => allUnlockedVehicleIds.add(id.toLowerCase()));
+                            unlockedVehicleIds.clear();
+                            allUnlockedVehicleIds.forEach(id => {
+                                if (treeVehicleIds.has(id)) unlockedVehicleIds.add(id);
+                            });
+                            if (progData.preferences) {
+                                playerState.preferences = progData.preferences;
+                                if (hudOptMode && progData.preferences.optimizationMode) hudOptMode.value = progData.preferences.optimizationMode;
+                                if (hudRpInput && progData.preferences.averageRpPerMatch) hudRpInput.value = progData.preferences.averageRpPerMatch;
+                                if (hudSlInput && progData.preferences.averageNetSlPerMatch) hudSlInput.value = progData.preferences.averageNetSlPerMatch;
+                            }
+                            updateProgressionUI();
+                            if (targetVehicleId) calculateRoute();
+                        }
+                    } else {
+                        const err = await res.json().catch(() => ({ message: "Login failed." }));
+                        if (loginError) {
+                            loginError.textContent = err.message || "Invalid credentials.";
+                            loginError.classList.remove("d-none");
+                        }
+                    }
+                } catch (ex) {
+                    if (loginError) {
+                        loginError.textContent = "Unable to connect: " + ex.message;
+                        loginError.classList.remove("d-none");
+                    }
+                }
+            });
+
+            registerForm?.addEventListener("submit", async event => {
+                event.preventDefault();
+                registerError?.classList.add("d-none");
+                const username = registerForm.querySelector("[data-reg-user]")?.value;
+                const email = registerForm.querySelector("[data-reg-email]")?.value;
+                const password = registerForm.querySelector("[data-reg-pass]")?.value;
+                try {
+                    const res = await fetch("/Tree?handler=PlayerRegister", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ username, email, password })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        playerState.isAuthenticated = true;
+                        playerState.username = data.username;
+                        updatePlayerWidget(data.username);
+                        hidePlayerModal();
+                        updateProgressionUI();
+                    } else {
+                        const err = await res.json().catch(() => ({ message: "Registration failed." }));
+                        if (registerError) {
+                            registerError.textContent = err.message || "Registration failed.";
+                            registerError.classList.remove("d-none");
+                        }
+                    }
+                } catch (ex) {
+                    if (registerError) {
+                        registerError.textContent = "Unable to connect: " + ex.message;
+                        registerError.classList.remove("d-none");
+                    }
+                }
+            });
+
+            logoutBtn?.addEventListener("click", async () => {
+                try {
+                    await fetch("/Tree?handler=PlayerLogout", { method: "POST" });
+                } catch { }
+                playerState.isAuthenticated = false;
+                playerState.username = null;
+                updatePlayerWidget(null);
+                updateProgressionUI();
+            });
+
+            updateProgressionUI();
         };
 
         const selectNode = (node, shouldFocus = true) => {
@@ -885,6 +1408,20 @@
                     event.preventDefault();
                     return;
                 }
+                const ownedToggle = event.target.closest("[data-node-owned-toggle]");
+                if (ownedToggle) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    toggleVehicleOwnership(node.dataset.vehicleId);
+                    return;
+                }
+                const targetToggle = event.target.closest("[data-node-target-toggle]");
+                if (targetToggle) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setTargetVehicle(node.dataset.vehicleId);
+                    return;
+                }
                 if (isEdgeMode()) {
                     event.preventDefault();
                     selectNodeForEdge(node);
@@ -918,6 +1455,18 @@
         });
 
         tree.querySelector("[data-tree-readonly-close]")?.addEventListener("click", clearReadonlySelection);
+
+        readonlyInspector.toggleOwnedBtn?.addEventListener("click", () => {
+            if (selectedNode?.dataset.vehicleId) {
+                toggleVehicleOwnership(selectedNode.dataset.vehicleId);
+            }
+        });
+
+        readonlyInspector.setTargetBtn?.addEventListener("click", () => {
+            if (selectedNode?.dataset.vehicleId) {
+                setTargetVehicle(selectedNode.dataset.vehicleId);
+            }
+        });
 
         paths?.addEventListener("pointerdown", event => {
             if (isEdgeMode() && event.target.closest("[data-tree-edge-hit]")) event.stopPropagation();
@@ -1097,6 +1646,10 @@
         refreshOccupiedCells();
         refreshLayoutTools();
         applyScale(1);
+
+        if (!canEdit) {
+            initPlayerProgression();
+        }
 
         if (tree.dataset.startEdgeMode === "true") {
             activateEdgeMode(false);

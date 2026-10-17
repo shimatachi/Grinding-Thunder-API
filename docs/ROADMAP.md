@@ -873,38 +873,22 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   (553 total), including new Published success, Draft rejection, anonymous access,
   default selection, and read-only-control coverage.
 
-
-## Next
-
-- **Batch 34 — Player progression overlay on visual tree** (status: Planned)
+- **Batch 34 — Player progression overlay on visual tree** (status: Completed)
   Goal: connect the existing persistent player progress from Batch 22 to the shared
   visual research tree.
+  Delivered:
+  - Extended `IApiClient` and `ApiClient` with player auth, progress, and research calculation methods.
+  - Implemented dual cookie authentication scheme (`PlayerAuth` alongside Admin default) with strict Bearer token handler request-path isolation.
+  - Integrated player login, registration, and logout directly on `/Tree` via AJAX handlers and a lightweight modal, preserving the canonical read-only HTML contract (no `<form method="post">`).
+  - Implemented player progress loading (`GET /api/player/progress`), intersection with the selected `ResearchTreeVersion`, and persistent ownership toggling (`PUT /api/player/progress` with optimistic concurrency handling) while preserving vehicles owned in other trees. Anonymous visitors can toggle in-memory ownership.
+  - Added target vehicle selection and live progression calculation (`POST /api/research/calculate`).
+  - Enhanced visual canvas with distinct card badges and accents for Owned, Target, Required Prerequisite, and Rank-Gate Filler nodes, plus active route connector highlights.
+  - Added a responsive progression summary HUD drawer displaying remaining RP, remaining SL, estimated matches (with resource breakdown), rank deficits, and target reset.
+  - Added full test coverage in `PlayerProgressionOverlayTests` (anonymous calculation, player login/register, cookie isolation, persistent progress intersection, out-of-tree vehicle preservation, optimistic concurrency handling, and logout).
+  Verification: 0 warnings, 0 errors, all 559 tests pass across the entire solution.
 
-  Scope:
-  - show unlocked/owned vehicles directly on the visual tree;
-  - visually distinguish:
-    - owned;
-    - remaining;
-    - target;
-    - required prerequisite;
-    - rank-gate filler;
-  - allow a signed-in player to toggle ownership from the tree where appropriate;
-  - synchronize through the existing player progress API;
-  - preserve stable `VehicleId` ownership semantics;
-  - intersect player-owned Vehicles with the explicitly selected
-    ResearchTreeVersion;
-  - do not treat absence from one version as deletion of stable player ownership;
-  - integrate calculator results visually where useful.
 
-  Possible progression visualization:
-  - owned nodes;
-  - planned route;
-  - automatically selected filler vehicles;
-  - remaining RP / SL;
-  - estimated matches.
-
-  Dependency: Batch 33 and existing Batch 22 player progress.
-
+## Next
 
 - **Batch 35 — Visual editor productivity and safety** (status: Planned)
   Goal: add advanced editing conveniences only after the core WYSIWYG workflow has

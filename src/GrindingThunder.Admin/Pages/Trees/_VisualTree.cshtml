@@ -249,7 +249,7 @@
                                                         }
                                                     </div>
                                                 </div>
-                                                <span class="visual-tree-node-coordinate" data-tree-coordinate aria-label="Tree position: column @node.TreeColumn, row @node.TreeRow">Column @node.TreeColumn · Row @node.TreeRow</span>
+                                                <span class="visual-tree-node-coordinate" data-tree-coordinate aria-label="Tree position: column @(node.TreeColumn + 1), row @(node.TreeRow + 1)">Column @(node.TreeColumn + 1) · Row @(node.TreeRow + 1)</span>
                                             </article>
                                         }
                                     </div>
@@ -352,8 +352,8 @@
                             </select>
                         </div>
                         <div class="row g-2 mb-2">
-                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeColumn">Tree column</label><input class="form-control" id="VisualEntry_TreeColumn" name="VisualEntry.TreeColumn" type="number" min="0" step="1" required data-inspector-column data-dirty-field="treeColumn" /></div>
-                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeRow">Tree row</label><input class="form-control" id="VisualEntry_TreeRow" name="VisualEntry.TreeRow" type="number" min="0" step="1" required data-inspector-row data-dirty-field="treeRow" /></div>
+                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeColumn">Tree column</label><input class="form-control" id="VisualEntry_TreeColumn" name="VisualEntry.TreeColumn" type="number" min="1" step="1" required data-inspector-column data-dirty-field="treeColumn" /></div>
+                            <div class="col-6"><label class="form-label" for="VisualEntry_TreeRow">Tree row</label><input class="form-control" id="VisualEntry_TreeRow" name="VisualEntry.TreeRow" type="number" min="1" step="1" required data-inspector-row data-dirty-field="treeRow" /></div>
                         </div>
                         <div class="visual-tree-coordinate-indicator mb-2" data-inspector-coordinate aria-live="polite">Column — · Row —</div>
                         <div class="btn-list mb-3" aria-label="Move selected vehicle">

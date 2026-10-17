@@ -20,8 +20,8 @@
             </div>
             <div class="mb-3"><label asp-for="Input.RpCost" class="form-label"></label><input asp-for="Input.RpCost" type="number" min="0" class="form-control" /><span asp-validation-for="Input.RpCost" class="text-danger"></span></div>
             <div class="mb-3"><label asp-for="Input.SlCost" class="form-label"></label><input asp-for="Input.SlCost" type="number" min="0" class="form-control" /><span asp-validation-for="Input.SlCost" class="text-danger"></span></div>
-            <div class="mb-3"><label asp-for="Input.TreeColumn" class="form-label"></label><input asp-for="Input.TreeColumn" type="number" min="0" class="form-control" /><span asp-validation-for="Input.TreeColumn" class="text-danger"></span></div>
-            <div class="mb-3"><label asp-for="Input.TreeRow" class="form-label"></label><input asp-for="Input.TreeRow" type="number" min="0" class="form-control" /><span asp-validation-for="Input.TreeRow" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Input.TreeColumn" class="form-label"></label><input asp-for="Input.TreeColumn" type="number" min="1" class="form-control" /><span asp-validation-for="Input.TreeColumn" class="text-danger"></span></div>
+            <div class="mb-3"><label asp-for="Input.TreeRow" class="form-label"></label><input asp-for="Input.TreeRow" type="number" min="1" class="form-control" /><span asp-validation-for="Input.TreeRow" class="text-danger"></span></div>
             <div class="mb-3"><label asp-for="Input.AcquisitionType" class="form-label"></label>
                 <select asp-for="Input.AcquisitionType" class="form-select">
                     @foreach (var acquisitionType in Enum.GetValues<VehicleAcquisitionType>())

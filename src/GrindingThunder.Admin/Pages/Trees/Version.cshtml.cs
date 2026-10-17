@@ -369,8 +369,8 @@ public class VersionModel(IApiClient apiClient) : PageModel
                     AddEntry.TreeRankId,
                     AddEntry.RpCost,
                     AddEntry.SlCost,
-                    AddEntry.TreeColumn,
-                    AddEntry.TreeRow,
+                    AddEntry.TreeColumn - 1,
+                    AddEntry.TreeRow - 1,
                     AddEntry.AcquisitionType,
                     AddEntry.FolderParentEntryId),
                 cancellationToken),
@@ -436,12 +436,20 @@ public class VersionModel(IApiClient apiClient) : PageModel
             ModelState.AddModelError("VisualEntry.AcquisitionType", "Select a valid acquisition type.");
         }
 
+        if (VisualEntry.TreeColumn < 1 || VisualEntry.TreeRow < 1)
+        {
+            ModelState.AddModelError(string.Empty, "Tree coordinates must be at least 1.");
+        }
+
+        var canonicalColumn = VisualEntry.TreeColumn - 1;
+        var canonicalRow = VisualEntry.TreeRow - 1;
+
         if (VisualEntry.FolderParentEntryId is null && Draft.Entries.Any(entry =>
                 entry.Id != VisualEntry.EntryId &&
                 entry.FolderParentEntryId is null &&
                 entry.TreeRankId == VisualEntry.TreeRankId &&
-                entry.TreeColumn == VisualEntry.TreeColumn &&
-                entry.TreeRow == VisualEntry.TreeRow))
+                entry.TreeColumn == canonicalColumn &&
+                entry.TreeRow == canonicalRow))
         {
             ModelState.AddModelError(string.Empty,
                 $"Coordinate collision at column {VisualEntry.TreeColumn}, row {VisualEntry.TreeRow}. Root entries must occupy distinct cells within a rank.");
@@ -458,8 +466,8 @@ public class VersionModel(IApiClient apiClient) : PageModel
             new UpdateVehicleTreeEntryRequest(
                 VisualEntry.RpCost,
                 VisualEntry.SlCost,
-                VisualEntry.TreeColumn,
-                VisualEntry.TreeRow,
+                canonicalColumn,
+                canonicalRow,
                 VisualEntry.TreeRankId,
                 VisualEntry.AcquisitionType,
                 VisualEntry.FolderParentEntryId),
@@ -502,12 +510,20 @@ public class VersionModel(IApiClient apiClient) : PageModel
         if (!Enum.IsDefined(VisualEntry.AcquisitionType))
             ModelState.AddModelError("VisualEntry.AcquisitionType", "Select a valid acquisition type.");
 
+        if (VisualEntry.TreeColumn < 1 || VisualEntry.TreeRow < 1)
+        {
+            ModelState.AddModelError(string.Empty, "Tree coordinates must be at least 1.");
+        }
+
+        var canonicalColumn = VisualEntry.TreeColumn - 1;
+        var canonicalRow = VisualEntry.TreeRow - 1;
+
         if (VisualEntry.FolderParentEntryId is null && Draft.Entries.Any(entry =>
                 entry.Id != VisualEntry.EntryId &&
                 entry.FolderParentEntryId is null &&
                 entry.TreeRankId == VisualEntry.TreeRankId &&
-                entry.TreeColumn == VisualEntry.TreeColumn &&
-                entry.TreeRow == VisualEntry.TreeRow))
+                entry.TreeColumn == canonicalColumn &&
+                entry.TreeRow == canonicalRow))
         {
             ModelState.AddModelError(string.Empty,
                 $"Coordinate collision at column {VisualEntry.TreeColumn}, row {VisualEntry.TreeRow}. Root entries must occupy distinct cells within a rank.");
@@ -522,8 +538,8 @@ public class VersionModel(IApiClient apiClient) : PageModel
             new UpdateVehicleTreeEntryRequest(
                 VisualEntry.RpCost,
                 VisualEntry.SlCost,
-                VisualEntry.TreeColumn,
-                VisualEntry.TreeRow,
+                canonicalColumn,
+                canonicalRow,
                 VisualEntry.TreeRankId,
                 VisualEntry.AcquisitionType,
                 VisualEntry.FolderParentEntryId),
@@ -565,9 +581,9 @@ public class VersionModel(IApiClient apiClient) : PageModel
             return Page();
         }
 
-        if (LayoutPositions.Any(position => position.TreeColumn < 0 || position.TreeRow < 0))
+        if (LayoutPositions.Any(position => position.TreeColumn < 1 || position.TreeRow < 1))
         {
-            ModelState.AddModelError(string.Empty, "Tree coordinates must be non-negative integers.");
+            ModelState.AddModelError(string.Empty, "Tree coordinates must be at least 1.");
             return Page();
         }
 
@@ -586,7 +602,10 @@ public class VersionModel(IApiClient apiClient) : PageModel
             return Page();
         }
 
-        var proposed = LayoutPositions.ToDictionary(position => position.EntryId);
+        var proposed = LayoutPositions.ToDictionary(
+            position => position.EntryId,
+            position => (TreeColumn: position.TreeColumn - 1, TreeRow: position.TreeRow - 1));
+
         var rootCollisions = Draft.Entries
             .Where(entry => entry.FolderParentEntryId is null)
             .Select(entry => proposed.TryGetValue(entry.Id, out var position)
@@ -597,7 +616,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
         if (rootCollisions is not null)
         {
             ModelState.AddModelError(string.Empty,
-                $"Coordinate collision at column {rootCollisions.Key.TreeColumn}, row {rootCollisions.Key.TreeRow}. Root entries must occupy distinct cells within a rank.");
+                $"Coordinate collision at column {rootCollisions.Key.TreeColumn + 1}, row {rootCollisions.Key.TreeRow + 1}. Root entries must occupy distinct cells within a rank.");
             return Page();
         }
 
@@ -606,7 +625,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
             var response = await apiClient.UpdateVehicleTreeEntryCoordinatesAsync(
                 versionId,
                 position.EntryId,
-                new UpdateEntryCoordinatesRequest(position.TreeColumn, position.TreeRow),
+                new UpdateEntryCoordinatesRequest(position.TreeColumn - 1, position.TreeRow - 1),
                 cancellationToken);
             if (response.IsForbidden) return RedirectToPage("/AccessDenied");
             if (!response.IsSuccess)
@@ -631,8 +650,8 @@ public class VersionModel(IApiClient apiClient) : PageModel
         if (LayoutPositions.Count is < 1 or > 12)
             ModelState.AddModelError(string.Empty, "Select between 1 and 12 vehicle entries for a layout update.");
 
-        if (LayoutPositions.Any(position => position.TreeColumn < 0 || position.TreeRow < 0))
-            ModelState.AddModelError(string.Empty, "Tree coordinates must be non-negative integers.");
+        if (LayoutPositions.Any(position => position.TreeColumn < 1 || position.TreeRow < 1))
+            ModelState.AddModelError(string.Empty, "Tree coordinates must be at least 1.");
 
         var duplicateIds = LayoutPositions.GroupBy(position => position.EntryId).Any(group => group.Count() > 1);
         var draftEntries = Draft!.Entries.ToDictionary(entry => entry.Id);
@@ -648,7 +667,10 @@ public class VersionModel(IApiClient apiClient) : PageModel
 
         if (ModelState.IsValid)
         {
-            var proposed = LayoutPositions.ToDictionary(position => position.EntryId);
+            var proposed = LayoutPositions.ToDictionary(
+                position => position.EntryId,
+                position => (TreeColumn: position.TreeColumn - 1, TreeRow: position.TreeRow - 1));
+
             var rootCollisions = Draft.Entries
                 .Where(entry => entry.FolderParentEntryId is null)
                 .Select(entry => proposed.TryGetValue(entry.Id, out var position)
@@ -659,7 +681,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
             if (rootCollisions is not null)
             {
                 ModelState.AddModelError(string.Empty,
-                    $"Coordinate collision at column {rootCollisions.Key.TreeColumn}, row {rootCollisions.Key.TreeRow}. Root entries must occupy distinct cells within a rank.");
+                    $"Coordinate collision at column {rootCollisions.Key.TreeColumn + 1}, row {rootCollisions.Key.TreeRow + 1}. Root entries must occupy distinct cells within a rank.");
             }
         }
 
@@ -670,7 +692,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
             var response = await apiClient.UpdateVehicleTreeEntryCoordinatesAsync(
                 versionId,
                 position.EntryId,
-                new UpdateEntryCoordinatesRequest(position.TreeColumn, position.TreeRow),
+                new UpdateEntryCoordinatesRequest(position.TreeColumn - 1, position.TreeRow - 1),
                 cancellationToken);
             if (response.IsForbidden) return Forbid();
             if (!response.IsSuccess) return JsonApiFailure(response, "Unable to update the selected layout.");
@@ -737,8 +759,8 @@ public class VersionModel(IApiClient apiClient) : PageModel
                 CreateEntry.TreeRankId,
                 CreateEntry.RpCost,
                 CreateEntry.SlCost,
-                CreateEntry.TreeColumn,
-                CreateEntry.TreeRow,
+                CreateEntry.TreeColumn - 1,
+                CreateEntry.TreeRow - 1,
                 CreateEntry.AcquisitionType,
                 CreateEntry.FolderParentEntryId),
             cancellationToken);

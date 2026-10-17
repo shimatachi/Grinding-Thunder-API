@@ -125,7 +125,8 @@ public class VisualTreeIntegrationTests
         Assert.Contains("data-tree-grid-guide", html);
         Assert.Contains("data-inspector-coordinate", html);
         Assert.Contains("data-tree-coordinate", html);
-        Assert.Contains("Column 1 · Row 0", html);
+        Assert.Contains("Column 1 · Row 1", html);
+        Assert.Contains("Column 2 · Row 1", html);
         Assert.Contains("press an arrow key", html);
         Assert.Contains("name=\"VisualEntry.FolderParentEntryId\"", html);
         Assert.Contains("Save Changes", html);
@@ -231,7 +232,8 @@ public class VisualTreeIntegrationTests
         Assert.Contains(coordinateUpdates, request => request.Path.Contains(TestMockApiHandler.SquadronEntryId.ToString()));
         Assert.Contains(coordinateUpdates, request => request.Path.Contains(TestMockApiHandler.EventEntryId.ToString()));
         using var firstPayload = JsonDocument.Parse(coordinateUpdates[0].Body);
-        Assert.Equal(7, firstPayload.RootElement.GetProperty("TreeRow").GetInt32());
+        Assert.Equal(4, firstPayload.RootElement.GetProperty("TreeColumn").GetInt32());
+        Assert.Equal(6, firstPayload.RootElement.GetProperty("TreeRow").GetInt32());
     }
 
     [Fact]
@@ -250,7 +252,7 @@ public class VisualTreeIntegrationTests
             {
                 ["LayoutPositions[0].EntryId"] = TestMockApiHandler.EntryId.ToString(),
                 ["LayoutPositions[0].TreeColumn"] = "2",
-                ["LayoutPositions[0].TreeRow"] = "0",
+                ["LayoutPositions[0].TreeRow"] = "1",
                 ["LayoutPositions[1].EntryId"] = TestMockApiHandler.SquadronEntryId.ToString(),
                 ["LayoutPositions[1].TreeColumn"] = "2",
                 ["LayoutPositions[1].TreeRow"] = "4",
@@ -296,8 +298,8 @@ public class VisualTreeIntegrationTests
         using var payload = JsonDocument.Parse(request.Body);
         Assert.Equal(190000, payload.RootElement.GetProperty("RpCost").GetInt32());
         Assert.Equal(310000, payload.RootElement.GetProperty("SlCost").GetInt32());
-        Assert.Equal(4, payload.RootElement.GetProperty("TreeColumn").GetInt32());
-        Assert.Equal(3, payload.RootElement.GetProperty("TreeRow").GetInt32());
+        Assert.Equal(3, payload.RootElement.GetProperty("TreeColumn").GetInt32());
+        Assert.Equal(2, payload.RootElement.GetProperty("TreeRow").GetInt32());
         Assert.Equal(2, payload.RootElement.GetProperty("AcquisitionType").GetInt32());
         Assert.Equal(TestMockApiHandler.SparseDraftRankId, payload.RootElement.GetProperty("TreeRankId").GetGuid());
         Assert.Equal(TestMockApiHandler.EntryId, payload.RootElement.GetProperty("FolderParentEntryId").GetGuid());
@@ -321,7 +323,7 @@ public class VisualTreeIntegrationTests
             recorded.Path == $"/api/admin/drafts/{TestMockApiHandler.DraftVersionId}/entries");
         using var payload = JsonDocument.Parse(request.Body);
         Assert.Equal(TestMockApiHandler.AvailableVehicleId, payload.RootElement.GetProperty("VehicleId").GetGuid());
-        Assert.Equal(2, payload.RootElement.GetProperty("TreeColumn").GetInt32());
+        Assert.Equal(1, payload.RootElement.GetProperty("TreeColumn").GetInt32());
     }
 
     [Fact]
@@ -361,7 +363,7 @@ public class VisualTreeIntegrationTests
         using (var payload = JsonDocument.Parse(add.Body))
         {
             Assert.Equal(TestMockApiHandler.CreatedVehicleId, payload.RootElement.GetProperty("VehicleId").GetGuid());
-            Assert.Equal(3, payload.RootElement.GetProperty("TreeColumn").GetInt32());
+            Assert.Equal(2, payload.RootElement.GetProperty("TreeColumn").GetInt32());
         }
     }
 
@@ -383,8 +385,8 @@ public class VisualTreeIntegrationTests
                 ["VisualEntry.TreeRankId"] = TestMockApiHandler.RankId.ToString(),
                 ["VisualEntry.RpCost"] = "220000",
                 ["VisualEntry.SlCost"] = "350000",
-                ["VisualEntry.TreeColumn"] = "1",
-                ["VisualEntry.TreeRow"] = "0",
+                ["VisualEntry.TreeColumn"] = "2",
+                ["VisualEntry.TreeRow"] = "1",
                 ["VisualEntry.AcquisitionType"] = "0",
                 ["__RequestVerificationToken"] = token
             }));
@@ -607,4 +609,173 @@ public class VisualTreeIntegrationTests
         }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
+
+    [Fact]
+    public async Task VisualCoordinates_PersistedZeroZero_DisplaysAsOneOneInHtmlInspectorAndBadges()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+
+        var response = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // Persisted (0, 0) for F-16A displays as (1, 1) in coordinate badge and min="1" in inspector inputs
+        Assert.Contains("Column 1 · Row 1", html);
+        Assert.Contains("aria-label=\"Tree position: column 1, row 1\"", html);
+        Assert.Contains("id=\"VisualEntry_TreeColumn\"", html);
+        Assert.Contains("name=\"VisualEntry.TreeColumn\" type=\"number\" min=\"1\"", html);
+        Assert.Contains("id=\"VisualEntry_TreeRow\"", html);
+        Assert.Contains("name=\"VisualEntry.TreeRow\" type=\"number\" min=\"1\"", html);
+    }
+
+    [Fact]
+    public async Task VisualCoordinates_SubmittingOneOne_SendsZeroZeroToApiClient()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+        var page = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(page);
+
+        // 1. Form POST UpdateVisualEntry with entered (1, 1)
+        factory.MockApiHandler.RecordedJsonRequests.Clear();
+        var formResponse = await client.PostAsync(
+            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}?handler=UpdateVisualEntry",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["VisualEntry.EntryId"] = TestMockApiHandler.EntryId.ToString(),
+                ["VisualEntry.TreeRankId"] = TestMockApiHandler.RankId.ToString(),
+                ["VisualEntry.RpCost"] = "220000",
+                ["VisualEntry.SlCost"] = "350000",
+                ["VisualEntry.TreeColumn"] = "1",
+                ["VisualEntry.TreeRow"] = "1",
+                ["VisualEntry.AcquisitionType"] = "0",
+                ["VisualEntry.FolderParentEntryId"] = "",
+                ["__RequestVerificationToken"] = token
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, formResponse.StatusCode);
+        var formApiRequest = factory.MockApiHandler.RecordedJsonRequests.Single(r =>
+            r.Path == $"/api/admin/drafts/{TestMockApiHandler.DraftVersionId}/entries/{TestMockApiHandler.EntryId}");
+        using (var payload = JsonDocument.Parse(formApiRequest.Body))
+        {
+            Assert.Equal(0, payload.RootElement.GetProperty("TreeColumn").GetInt32());
+            Assert.Equal(0, payload.RootElement.GetProperty("TreeRow").GetInt32());
+        }
+
+        // 2. JSON POST UpdateVisualEntryJson with entered (1, 1)
+        factory.MockApiHandler.RecordedJsonRequests.Clear();
+        var jsonResponse = await client.PostAsync(
+            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}?handler=UpdateVisualEntryJson",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["VisualEntry.EntryId"] = TestMockApiHandler.EntryId.ToString(),
+                ["VisualEntry.TreeRankId"] = TestMockApiHandler.RankId.ToString(),
+                ["VisualEntry.RpCost"] = "220000",
+                ["VisualEntry.SlCost"] = "350000",
+                ["VisualEntry.TreeColumn"] = "1",
+                ["VisualEntry.TreeRow"] = "1",
+                ["VisualEntry.AcquisitionType"] = "0",
+                ["VisualEntry.FolderParentEntryId"] = "",
+                ["__RequestVerificationToken"] = token
+            }));
+
+        Assert.Equal(HttpStatusCode.OK, jsonResponse.StatusCode);
+        var jsonApiRequest = factory.MockApiHandler.RecordedJsonRequests.Single(r =>
+            r.Path == $"/api/admin/drafts/{TestMockApiHandler.DraftVersionId}/entries/{TestMockApiHandler.EntryId}");
+        using (var payload = JsonDocument.Parse(jsonApiRequest.Body))
+        {
+            Assert.Equal(0, payload.RootElement.GetProperty("TreeColumn").GetInt32());
+            Assert.Equal(0, payload.RootElement.GetProperty("TreeRow").GetInt32());
+        }
+        using (var responseDoc = JsonDocument.Parse(await jsonResponse.Content.ReadAsStringAsync()))
+        {
+            Assert.True(responseDoc.RootElement.GetProperty("success").GetBoolean());
+            var entry = responseDoc.RootElement.GetProperty("entry");
+            Assert.Equal(1, entry.GetProperty("treeColumn").GetInt32());
+            Assert.Equal(1, entry.GetProperty("treeRow").GetInt32());
+        }
+    }
+
+    [Fact]
+    public async Task VisualCoordinates_CollisionValidation_ReflectsOneBasedCoordinatesMatchingZeroBasedRule()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+        var page = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(page);
+
+        // In draft overview, F-16A (EntryId) is root entry at canonical (0, 0) = displayed (1, 1).
+        // Try updating F-4E (EntryId2) as root entry to displayed (1, 1).
+        var response = await client.PostAsync(
+            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}?handler=UpdateVisualEntry",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["VisualEntry.EntryId"] = TestMockApiHandler.EntryId2.ToString(),
+                ["VisualEntry.TreeRankId"] = TestMockApiHandler.RankId.ToString(),
+                ["VisualEntry.RpCost"] = "180000",
+                ["VisualEntry.SlCost"] = "290000",
+                ["VisualEntry.TreeColumn"] = "1",
+                ["VisualEntry.TreeRow"] = "1",
+                ["VisualEntry.AcquisitionType"] = "1",
+                ["VisualEntry.FolderParentEntryId"] = "",
+                ["__RequestVerificationToken"] = token
+            }));
+
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Coordinate collision at column 1, row 1. Root entries must occupy distinct cells within a rank.", html);
+    }
+
+    [Fact]
+    public async Task VisualCoordinates_LayoutToolbarMultiSelection_AccuratelyConvertsCoordinates()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+        var page = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(page);
+
+        factory.MockApiHandler.RecordedJsonRequests.Clear();
+        var response = await client.PostAsync(
+            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}?handler=UpdateLayoutJson",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["LayoutPositions[0].EntryId"] = TestMockApiHandler.SquadronEntryId.ToString(),
+                ["LayoutPositions[0].TreeColumn"] = "1",
+                ["LayoutPositions[0].TreeRow"] = "2",
+                ["LayoutPositions[1].EntryId"] = TestMockApiHandler.EventEntryId.ToString(),
+                ["LayoutPositions[1].TreeColumn"] = "2",
+                ["LayoutPositions[1].TreeRow"] = "2",
+                ["__RequestVerificationToken"] = token
+            }));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var jsonDoc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(jsonDoc.RootElement.GetProperty("success").GetBoolean());
+
+        var positions = jsonDoc.RootElement.GetProperty("positions").EnumerateArray().ToList();
+        Assert.Equal(2, positions.Count);
+        Assert.Equal(1, positions[0].GetProperty("treeColumn").GetInt32());
+        Assert.Equal(2, positions[0].GetProperty("treeRow").GetInt32());
+        Assert.Equal(2, positions[1].GetProperty("treeColumn").GetInt32());
+        Assert.Equal(2, positions[1].GetProperty("treeRow").GetInt32());
+
+        var coordinateRequests = factory.MockApiHandler.RecordedJsonRequests
+            .Where(r => r.Path.EndsWith("/coordinates", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        Assert.Equal(2, coordinateRequests.Count);
+
+        using var payload0 = JsonDocument.Parse(coordinateRequests[0].Body);
+        Assert.Equal(0, payload0.RootElement.GetProperty("TreeColumn").GetInt32());
+        Assert.Equal(1, payload0.RootElement.GetProperty("TreeRow").GetInt32());
+
+        using var payload1 = JsonDocument.Parse(coordinateRequests[1].Body);
+        Assert.Equal(1, payload1.RootElement.GetProperty("TreeColumn").GetInt32());
+        Assert.Equal(1, payload1.RootElement.GetProperty("TreeRow").GetInt32());
+    }
 }
+

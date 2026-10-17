@@ -155,8 +155,8 @@
             treeRankId: node?.dataset.treeRankId || "",
             rpCost: node?.dataset.rpCost || "0",
             slCost: node?.dataset.slCost || "0",
-            treeColumn: node?.dataset.treeColumn || "0",
-            treeRow: node?.dataset.treeRow || "0",
+            treeColumn: (Number.parseInt(node?.dataset.treeColumn || "0", 10) + 1).toString(),
+            treeRow: (Number.parseInt(node?.dataset.treeRow || "0", 10) + 1).toString(),
             acquisitionType: node?.dataset.acquisitionType || "0",
             folderParentId: node?.dataset.folderParentId || ""
         });
@@ -405,8 +405,10 @@
             node.style.setProperty("--tree-stack", 0);
             const nodeCoordinate = node.querySelector("[data-tree-coordinate]");
             if (nodeCoordinate) {
-                nodeCoordinate.textContent = `Column ${column} · Row ${row}`;
-                nodeCoordinate.setAttribute("aria-label", `Tree position: column ${column}, row ${row}`);
+                const displayCol = column + 1;
+                const displayRow = row + 1;
+                nodeCoordinate.textContent = `Column ${displayCol} · Row ${displayRow}`;
+                nodeCoordinate.setAttribute("aria-label", `Tree position: column ${displayCol}, row ${displayRow}`);
             }
             ensureStageBounds(column);
         };
@@ -426,13 +428,48 @@
                 groups.forEach(nodes => {
                     const marker = document.createElement("div");
                     marker.className = "visual-tree-cell";
-                    marker.style.setProperty("--tree-column", nodes[0].dataset.treeColumn || "0");
-                    marker.style.setProperty("--tree-row", Math.max(0, Number.parseInt(nodes[0].dataset.treeRow || "0", 10) - minimumRow));
+                    const col = Number.parseInt(nodes[0].dataset.treeColumn || "0", 10);
+                    const row = Number.parseInt(nodes[0].dataset.treeRow || "0", 10);
+                    marker.style.setProperty("--tree-column", col);
+                    marker.style.setProperty("--tree-row", Math.max(0, row - minimumRow));
                     marker.classList.toggle("is-folder-cell", nodes.some(node => Boolean(node.dataset.folderParentId)));
                     marker.classList.toggle("is-collision", nodes.filter(node => !node.dataset.folderParentId).length > 1);
                     marker.setAttribute("aria-hidden", "true");
+                    marker.title = `Occupied: Col ${col + 1}, Row ${row + 1}`;
+
+                    const cellLabel = document.createElement("span");
+                    cellLabel.className = "visual-tree-cell-label";
+                    cellLabel.textContent = `${col + 1},${row + 1}`;
+                    marker.appendChild(cellLabel);
+
                     grid.appendChild(marker);
                 });
+            });
+        };
+
+        const refreshGridLabels = () => {
+            tree.querySelectorAll(".visual-tree-grid-labels").forEach(el => el.remove());
+            if (!isEditing()) return;
+            tree.querySelectorAll("[data-tree-rank]").forEach(rank => {
+                const grid = rank.querySelector(".visual-tree-rank-grid");
+                if (!grid) return;
+                const container = document.createElement("div");
+                container.className = "visual-tree-grid-labels";
+                container.setAttribute("aria-hidden", "true");
+                const nodes = rank.querySelectorAll("[data-tree-node]");
+                let maxCol = 3;
+                nodes.forEach(n => {
+                    const col = Number.parseInt(n.dataset.treeColumn || "0", 10);
+                    if (col > maxCol) maxCol = col;
+                });
+                for (let c = 0; c <= maxCol + 1; c++) {
+                    const colLabel = document.createElement("span");
+                    colLabel.className = "visual-tree-grid-col-label";
+                    colLabel.style.left = `${c * columnStep}px`;
+                    colLabel.textContent = `Col ${c + 1}`;
+                    container.appendChild(colLabel);
+                }
+                grid.appendChild(container);
             });
         };
 
@@ -472,7 +509,9 @@
                     btn.type = "button";
                     btn.className = "btn btn-xs btn-outline-danger py-0 px-2";
                     btn.dataset.jumpToNode = node.dataset.treeNode || "";
-                    btn.textContent = `${nodeName(node)} (Overlap: Col ${node.dataset.treeColumn}, Row ${node.dataset.treeRow})`;
+                    const col = Number.parseInt(node.dataset.treeColumn || "0", 10) + 1;
+                    const row = Number.parseInt(node.dataset.treeRow || "0", 10) + 1;
+                    btn.textContent = `${nodeName(node)} (Overlap: Col ${col}, Row ${row})`;
                     btn.title = `Focus ${nodeName(node)} on canvas`;
                     collisionList.appendChild(btn);
                 });
@@ -481,7 +520,9 @@
                     btn.type = "button";
                     btn.className = "btn btn-xs btn-outline-danger py-0 px-2";
                     btn.dataset.jumpToNode = node.dataset.treeNode || "";
-                    btn.textContent = `${nodeName(node)} (Out-of-bounds: Col ${node.dataset.treeColumn}, Row ${node.dataset.treeRow})`;
+                    const col = Number.parseInt(node.dataset.treeColumn || "0", 10) + 1;
+                    const row = Number.parseInt(node.dataset.treeRow || "0", 10) + 1;
+                    btn.textContent = `${nodeName(node)} (Out-of-bounds: Col ${col}, Row ${row})`;
                     btn.title = `Focus ${nodeName(node)} on canvas`;
                     collisionList.appendChild(btn);
                 });
@@ -502,10 +543,12 @@
             if (!layoutFields) return;
             layoutFields.replaceChildren();
             selectedNodeList().forEach((node, index) => {
+                const col = Number.parseInt(node.dataset.treeColumn || "0", 10) + 1;
+                const row = Number.parseInt(node.dataset.treeRow || "0", 10) + 1;
                 const values = {
                     EntryId: node.dataset.treeNode || "",
-                    TreeColumn: node.dataset.treeColumn || "0",
-                    TreeRow: node.dataset.treeRow || "0"
+                    TreeColumn: col.toString(),
+                    TreeRow: row.toString()
                 };
                 Object.entries(values).forEach(([name, value]) => {
                     const input = document.createElement("input");
@@ -536,6 +579,7 @@
         const refreshLayoutPresentation = () => {
             tree.querySelectorAll("[data-tree-rank]").forEach(layoutRank);
             refreshOccupiedCells();
+            refreshGridLabels();
             refreshLayoutTools();
             applyScale(scale);
         };
@@ -568,9 +612,11 @@
             row = Math.max(0, Math.round(row));
             const rank = selectedNode.closest("[data-tree-rank]");
             setNodeCoordinates(selectedNode, column, row);
-            inspector.column.value = column.toString();
-            inspector.row.value = row.toString();
-            const coordinateText = `Column ${column} · Row ${row}`;
+            const displayCol = column + 1;
+            const displayRow = row + 1;
+            inspector.column.value = displayCol.toString();
+            inspector.row.value = displayRow.toString();
+            const coordinateText = `Column ${displayCol} · Row ${displayRow}`;
             if (inspector.coordinate) inspector.coordinate.textContent = coordinateText;
             layoutRank(rank);
             refreshOccupiedCells();
@@ -667,7 +713,7 @@
                     applyEntryStateToNode(m.node, m.from);
                     if (m.node === selectedNode) {
                         setInspectorState(m.from);
-                        if (inspector.coordinate) inspector.coordinate.textContent = `Column ${m.from.treeColumn} Â· Row ${m.from.treeRow}`;
+                        if (inspector.coordinate) inspector.coordinate.textContent = `Column ${m.from.treeColumn} · Row ${m.from.treeRow}`;
                     }
                     return;
                 }
@@ -676,10 +722,12 @@
                 }
                 setNodeCoordinates(m.node, m.from.column, m.from.row);
                 if (m.node === selectedNode && inspector.column && inspector.row) {
-                    inspector.column.value = m.from.column.toString();
-                    inspector.row.value = m.from.row.toString();
+                    const displayCol = m.from.column + 1;
+                    const displayRow = m.from.row + 1;
+                    inspector.column.value = displayCol.toString();
+                    inspector.row.value = displayRow.toString();
                     if (inspector.coordinate) {
-                        inspector.coordinate.textContent = `Column ${m.from.column} · Row ${m.from.row}`;
+                        inspector.coordinate.textContent = `Column ${displayCol} · Row ${displayRow}`;
                     }
                 }
             });
@@ -707,7 +755,7 @@
                     applyEntryStateToNode(m.node, m.to);
                     if (m.node === selectedNode) {
                         setInspectorState(m.to);
-                        if (inspector.coordinate) inspector.coordinate.textContent = `Column ${m.to.treeColumn} Â· Row ${m.to.treeRow}`;
+                        if (inspector.coordinate) inspector.coordinate.textContent = `Column ${m.to.treeColumn} · Row ${m.to.treeRow}`;
                     }
                     return;
                 }
@@ -716,10 +764,12 @@
                 }
                 setNodeCoordinates(m.node, m.to.column, m.to.row);
                 if (m.node === selectedNode && inspector.column && inspector.row) {
-                    inspector.column.value = m.to.column.toString();
-                    inspector.row.value = m.to.row.toString();
+                    const displayCol = m.to.column + 1;
+                    const displayRow = m.to.row + 1;
+                    inspector.column.value = displayCol.toString();
+                    inspector.row.value = displayRow.toString();
                     if (inspector.coordinate) {
-                        inspector.coordinate.textContent = `Column ${m.to.column} · Row ${m.to.row}`;
+                        inspector.coordinate.textContent = `Column ${displayCol} · Row ${displayRow}`;
                     }
                 }
             });
@@ -768,8 +818,8 @@
             treeRankId: entry?.treeRankId?.toString() || "",
             rpCost: entry?.rpCost?.toString() || "0",
             slCost: entry?.slCost?.toString() || "0",
-            treeColumn: entry?.treeColumn?.toString() || "0",
-            treeRow: entry?.treeRow?.toString() || "0",
+            treeColumn: entry?.treeColumn?.toString() || "1",
+            treeRow: entry?.treeRow?.toString() || "1",
             acquisitionType: entry?.acquisitionType?.toString() || "0",
             folderParentId: entry?.folderParentEntryId?.toString() || ""
         });
@@ -783,7 +833,9 @@
             node.dataset.folderParentId = state.folderParentId;
             const column = state.treeColumn === "" ? Number.NaN : Number(state.treeColumn);
             const row = state.treeRow === "" ? Number.NaN : Number(state.treeRow);
-            if (Number.isFinite(column) && Number.isFinite(row)) setNodeCoordinates(node, column, row);
+            if (Number.isFinite(column) && Number.isFinite(row) && column >= 1 && row >= 1) {
+                setNodeCoordinates(node, column - 1, row - 1);
+            }
 
             const rpPreview = node.querySelector("[data-tree-rp-preview]");
             const slPreview = node.querySelector("[data-tree-sl-preview]");
@@ -856,8 +908,11 @@
 
             const column = state.treeColumn === "" ? Number.NaN : Number(state.treeColumn);
             const row = state.treeRow === "" ? Number.NaN : Number(state.treeRow);
-            if (Number.isFinite(column) && Number.isFinite(row)) setCoordinates(column, row);
-            else updateDirty();
+            if (Number.isFinite(column) && Number.isFinite(row) && column >= 1 && row >= 1) {
+                setCoordinates(column - 1, row - 1);
+            } else {
+                updateDirty();
+            }
             updateNavigation();
             drawConnectors();
         };
@@ -923,7 +978,9 @@
                 readonlyInspector.acquisition.textContent = node.querySelector("[data-tree-acquisition-preview]")?.textContent || "Unknown";
             }
             if (readonlyInspector.coordinate) {
-                readonlyInspector.coordinate.textContent = `Column ${node.dataset.treeColumn || "0"} · Row ${node.dataset.treeRow || "0"}`;
+                const col = Number.parseInt(node.dataset.treeColumn || "0", 10) + 1;
+                const r = Number.parseInt(node.dataset.treeRow || "0", 10) + 1;
+                readonlyInspector.coordinate.textContent = `Column ${col} · Row ${r}`;
             }
             if (readonlyInspector.folder) {
                 const parent = nodeById(node.dataset.folderParentId);
@@ -1476,7 +1533,9 @@
                 }
             }
             setInspectorState(originalEntry);
-            if (inspector.coordinate) inspector.coordinate.textContent = `Column ${node.dataset.treeColumn || "0"} · Row ${node.dataset.treeRow || "0"}`;
+            const col = Number.parseInt(node.dataset.treeColumn || "0", 10) + 1;
+            const r = Number.parseInt(node.dataset.treeRow || "0", 10) + 1;
+            if (inspector.coordinate) inspector.coordinate.textContent = `Column ${col} · Row ${r}`;
             if (inspector.folder) {
                 inspector.folder.querySelectorAll("option").forEach(option => {
                     option.disabled = option.value === node.dataset.treeNode;
@@ -1559,6 +1618,15 @@
             const minimumRow = Number.parseInt(rank.dataset.treeMinRow || "0", 10);
             preview.style.top = `${Math.max(0, row - minimumRow) * rowStep}px`;
             preview.setAttribute("aria-hidden", "true");
+
+            const displayCol = Math.max(0, column) + 1;
+            const displayRow = Math.max(0, row) + 1;
+            const badge = document.createElement("span");
+            badge.className = "visual-tree-placement-badge badge bg-dark text-white";
+            badge.textContent = `Col ${displayCol}, Row ${displayRow}`;
+            preview.appendChild(badge);
+            preview.title = `Position: Col ${displayCol}, Row ${displayRow}`;
+
             grid.appendChild(preview);
         };
 
@@ -1851,16 +1919,16 @@
         tree.querySelectorAll("[data-tree-nudge]").forEach(button => {
             button.addEventListener("click", () => {
                 if (!selectedNode) return;
-                let column = Number.parseInt(inspector.column?.value || "0", 10);
-                let row = Number.parseInt(inspector.row?.value || "0", 10);
+                let column = Number.parseInt(inspector.column?.value || "1", 10);
+                let row = Number.parseInt(inspector.row?.value || "1", 10);
                 if (button.dataset.treeNudge === "left") column--;
                 if (button.dataset.treeNudge === "right") column++;
                 if (button.dataset.treeNudge === "up") row--;
                 if (button.dataset.treeNudge === "down") row++;
-                if (column < 0 || row < 0) return;
+                if (column < 1 || row < 1) return;
                 const from = nodePosition(selectedNode);
-                setCoordinates(column, row);
-                pushHistory("Nudge", [{ node: selectedNode, from, to: { column, row } }]);
+                setCoordinates(column - 1, row - 1);
+                pushHistory("Nudge", [{ node: selectedNode, from, to: { column: column - 1, row: row - 1 } }]);
             });
         });
         tree.querySelectorAll("[data-tree-layout-nudge]").forEach(button => {
@@ -1937,7 +2005,7 @@
                     const payload = await postFormJson(layoutForm, "UpdateLayoutJson");
                     (payload.positions || []).forEach(position => {
                         const node = nodeById(position.entryId);
-                        if (node) setNodeCoordinates(node, position.treeColumn, position.treeRow);
+                        if (node) setNodeCoordinates(node, position.treeColumn - 1, position.treeRow - 1);
                     });
                     isLayoutDirty = false;
                     rememberLayoutPositions();

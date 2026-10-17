@@ -111,6 +111,7 @@ public class ImportValidationDiffPublishingTests
         Assert.Contains("F-4E", html);
         Assert.Contains("Prerequisite changes", html);
         Assert.Contains("Rank gate changes", html);
+        Assert.Contains("position: (1, 1) → (2, 1)", html);
         Assert.Contains(factory.MockApiHandler.RecordedRequests, request => request.RequestUri?.Query?.Contains("sourceVersionId=") == true);
     }
 

@@ -157,11 +157,11 @@ public class AddEntryInputModel
     [Range(0, int.MaxValue, ErrorMessage = "SL cost cannot be negative.")]
     public int SlCost { get; set; }
 
-    [Range(0, int.MaxValue, ErrorMessage = "Tree column cannot be negative.")]
-    public int TreeColumn { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "Tree column must be at least 1.")]
+    public int TreeColumn { get; set; } = 1;
 
-    [Range(0, int.MaxValue, ErrorMessage = "Tree row cannot be negative.")]
-    public int TreeRow { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "Tree row must be at least 1.")]
+    public int TreeRow { get; set; } = 1;
 
     public VehicleAcquisitionType AcquisitionType { get; set; } = VehicleAcquisitionType.Researchable;
 
@@ -192,12 +192,12 @@ public class EntryInputModel
     public int SlCost { get; set; }
 
     [Display(Name = "Tree column")]
-    [Range(0, int.MaxValue, ErrorMessage = "Tree column cannot be negative.")]
-    public int TreeColumn { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "Tree column must be at least 1.")]
+    public int TreeColumn { get; set; } = 1;
 
     [Display(Name = "Tree row")]
-    [Range(0, int.MaxValue, ErrorMessage = "Tree row cannot be negative.")]
-    public int TreeRow { get; set; }
+    [Range(1, int.MaxValue, ErrorMessage = "Tree row must be at least 1.")]
+    public int TreeRow { get; set; } = 1;
 
     [Display(Name = "Acquisition type")]
     public VehicleAcquisitionType AcquisitionType { get; set; } = VehicleAcquisitionType.Researchable;
@@ -215,10 +215,10 @@ public class LayoutPositionInputModel
 {
     public Guid EntryId { get; set; }
 
-    [Range(0, int.MaxValue, ErrorMessage = "Tree column cannot be negative.")]
+    [Range(1, int.MaxValue, ErrorMessage = "Tree column must be at least 1.")]
     public int TreeColumn { get; set; }
 
-    [Range(0, int.MaxValue, ErrorMessage = "Tree row cannot be negative.")]
+    [Range(1, int.MaxValue, ErrorMessage = "Tree row must be at least 1.")]
     public int TreeRow { get; set; }
 }
 

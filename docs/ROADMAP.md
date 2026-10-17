@@ -989,9 +989,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   (353 API + 229 Admin).
 
 
-## Next
-
-- **Batch 38 — Human-friendly visual coordinates** (status: Planned)
+- **Batch 38 — Human-friendly visual coordinates** (status: Completed)
   Goal: present layout coordinates as one-based values to administrators while
   preserving the existing zero-based persistence model.
 
@@ -1022,14 +1020,20 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - keep zero-based coordinates as internal canonical data;
   - do not silently reinterpret existing import files.
 
-  Tests:
-  - persisted 0,0 displays as 1,1;
-  - entered 1,1 persists as 0,0;
-  - drag/nudge conversion remains correct;
-  - collisions still use canonical persisted coordinates.
+  Result:
+  - updated visual card coordinate badges, accessibility labels, inspector inputs, and edit-mode grid labels to display 1-based coordinates (`col + 1`, `row + 1`);
+  - added 1-based occupied-cell indicator chips and drag-and-drop ghost preview badges (`Col X, Row Y`);
+  - configured `TreeColumn` and `TreeRow` inputs across inspector, single-entry modals, and quick-add forms with `[Range(1, int.MaxValue)]` and `min="1"`;
+  - translated 1-based form and JSON payloads to canonical 0-based coordinates (`entered - 1`) in `OnPostUpdateVisualEntry`, `OnPostUpdateVisualEntryJson`, `OnPostUpdateLayout`, `OnPostUpdateLayoutJson`, `OnPostAddEntry`, and `OnPostCreateAndAddEntry` before dispatching to `IApiClient`;
+  - preserved exact canvas positioning by retaining 0-based coordinates in CSS custom properties and DOM dataset attributes;
+  - formatted coordinate collision error messages and multi-selection collision lists using 1-based numbers;
+  - verified with comprehensive integration tests covering HTML badge/inspector rendering, 1-to-0 form translation to `IApiClient`, 1-based collision detection, and multi-selection layout translation.
 
-  Dependency: Batch 37.
+  Verification: 0 warnings, 0 errors, all 586 C# tests pass across the solution
+  (353 API + 233 Admin).
 
+
+## Next
 
 - **Batch 39 — Player frontend foundation (`GrindingThunder.Web`)** (status: Planned)
   Goal: create a dedicated player-facing frontend separate from

@@ -444,6 +444,22 @@ public class DraftEditorIntegrationTests
         Assert.Equal(HttpStatusCode.OK, form.StatusCode);
         Assert.Contains("F-4E", formHtml);
 
+        // Canonical 0-based coordinates (treeColumn: 1, treeRow: 0) render as 1-based values (col: 2, row: 1)
+        var columnInput = Regex.Match(formHtml, @"<input[^>]*name=""Input\.TreeColumn""[^>]*>").Value;
+        Assert.Contains("value=\"2\"", columnInput);
+        Assert.Contains("min=\"1\"", columnInput);
+        var rowInput = Regex.Match(formHtml, @"<input[^>]*name=""Input\.TreeRow""[^>]*>").Value;
+        Assert.Contains("value=\"1\"", rowInput);
+        Assert.Contains("min=\"1\"", rowInput);
+
+        // Canonical (0, 0) entry renders as (1, 1)
+        var rootForm = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}/Entry/{TestMockApiHandler.EntryId}");
+        var rootHtml = await rootForm.Content.ReadAsStringAsync();
+        var rootColumnInput = Regex.Match(rootHtml, @"<input[^>]*name=""Input\.TreeColumn""[^>]*>").Value;
+        Assert.Contains("value=\"1\"", rootColumnInput);
+        var rootRowInput = Regex.Match(rootHtml, @"<input[^>]*name=""Input\.TreeRow""[^>]*>").Value;
+        Assert.Contains("value=\"1\"", rootRowInput);
+
         var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(form);
         var response = await client.PostAsync(path, new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -463,9 +479,11 @@ public class DraftEditorIntegrationTests
             request.RequestUri?.AbsolutePath == $"/api/admin/drafts/{TestMockApiHandler.DraftVersionId}/entries/{TestMockApiHandler.EntryId2}");
         var body = await recorded.Content!.ReadAsStringAsync();
         Assert.Contains("185000", body);
-        Assert.Contains("\"TreeColumn\":3", body);
-        Assert.Contains("\"TreeRow\":2", body);
+        Assert.Contains("\"TreeColumn\":2", body);
+        Assert.Contains("\"TreeRow\":1", body);
         using var payload = JsonDocument.Parse(body);
+        Assert.Equal(2, payload.RootElement.GetProperty("TreeColumn").GetInt32());
+        Assert.Equal(1, payload.RootElement.GetProperty("TreeRow").GetInt32());
         Assert.Equal(TestMockApiHandler.RankId, payload.RootElement.GetProperty("TreeRankId").GetGuid());
         Assert.Equal(TestMockApiHandler.EntryId, payload.RootElement.GetProperty("FolderParentEntryId").GetGuid());
     }

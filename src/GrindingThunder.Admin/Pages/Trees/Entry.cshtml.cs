@@ -61,8 +61,8 @@ public class EntryModel(IApiClient apiClient) : PageModel
             TreeRankId = entry.TreeRankId,
             RpCost = entry.RpCost,
             SlCost = entry.SlCost,
-            TreeColumn = entry.TreeColumn,
-            TreeRow = entry.TreeRow,
+            TreeColumn = entry.TreeColumn + 1,
+            TreeRow = entry.TreeRow + 1,
             AcquisitionType = entry.AcquisitionType,
             FolderParentEntryId = entry.FolderParentEntryId
         };
@@ -108,8 +108,8 @@ public class EntryModel(IApiClient apiClient) : PageModel
             new UpdateVehicleTreeEntryRequest(
                 Input.RpCost,
                 Input.SlCost,
-                Input.TreeColumn,
-                Input.TreeRow,
+                Input.TreeColumn - 1,
+                Input.TreeRow - 1,
                 Input.TreeRankId,
                 Input.AcquisitionType,
                 Input.FolderParentEntryId),

@@ -129,8 +129,8 @@
                         <td>Rank @Model.RankNumberFor(entry.TreeRankId)</td>
                         <td>@entry.RpCost</td>
                         <td>@entry.SlCost</td>
-                        <td>@entry.TreeColumn</td>
-                        <td>@entry.TreeRow</td>
+                        <td>@(entry.TreeColumn + 1)</td>
+                        <td>@(entry.TreeRow + 1)</td>
                         <td>@entry.AcquisitionType</td>
                         <td>@(entry.FolderParentEntryId is null ? "—" : Model.EntryName(entry.FolderParentEntryId.Value))</td>
                         @if (Model.CanEdit)
@@ -155,8 +155,8 @@
                         <td>Rank @Model.RankNumberFor(entry.TreeRankId)</td>
                         <td>@entry.RpCost</td>
                         <td>@entry.SlCost</td>
-                        <td>@entry.TreeColumn</td>
-                        <td>@entry.TreeRow</td>
+                        <td>@(entry.TreeColumn + 1)</td>
+                        <td>@(entry.TreeRow + 1)</td>
                         <td>@entry.AcquisitionType</td>
                         <td>@(entry.FolderParentId is null ? "—" : Model.EntryName(entry.FolderParentId.Value))</td>
                     </tr>
@@ -190,8 +190,8 @@
                 </div>
                 <div class="col-auto"><label class="form-label" for="AddEntry_RpCost">RP cost</label><input asp-for="AddEntry.RpCost" type="number" min="0" class="form-control" id="AddEntry_RpCost" /></div>
                 <div class="col-auto"><label class="form-label" for="AddEntry_SlCost">SL cost</label><input asp-for="AddEntry.SlCost" type="number" min="0" class="form-control" id="AddEntry_SlCost" /></div>
-                <div class="col-auto"><label class="form-label" for="AddEntry_TreeColumn">Tree column</label><input asp-for="AddEntry.TreeColumn" type="number" min="0" class="form-control" id="AddEntry_TreeColumn" /></div>
-                <div class="col-auto"><label class="form-label" for="AddEntry_TreeRow">Tree row</label><input asp-for="AddEntry.TreeRow" type="number" min="0" class="form-control" id="AddEntry_TreeRow" /></div>
+                <div class="col-auto"><label class="form-label" for="AddEntry_TreeColumn">Tree column</label><input asp-for="AddEntry.TreeColumn" type="number" min="1" class="form-control" id="AddEntry_TreeColumn" /></div>
+                <div class="col-auto"><label class="form-label" for="AddEntry_TreeRow">Tree row</label><input asp-for="AddEntry.TreeRow" type="number" min="1" class="form-control" id="AddEntry_TreeRow" /></div>
                 <div class="col-auto"><label class="form-label" for="AddEntry_AcquisitionType">Acquisition</label>
                     <select asp-for="AddEntry.AcquisitionType" class="form-select" id="AddEntry_AcquisitionType">
                         @foreach (var acquisitionType in Enum.GetValues<VehicleAcquisitionType>())

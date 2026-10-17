@@ -283,6 +283,9 @@ public class ApiClient(HttpClient httpClient) : IApiClient
     public Task<ApiResponse> UpdateVehicleTreeEntryAsync(Guid versionId, Guid entryId, UpdateVehicleTreeEntryRequest request, CancellationToken cancellationToken = default) =>
         PutAsync($"api/admin/drafts/{versionId}/entries/{entryId}", request, cancellationToken);
 
+    public Task<ApiResponse> UpdateVehicleTreeEntryCoordinatesAsync(Guid versionId, Guid entryId, UpdateEntryCoordinatesRequest request, CancellationToken cancellationToken = default) =>
+        PutAsync($"api/admin/drafts/{versionId}/entries/{entryId}/coordinates", request, cancellationToken);
+
     public Task<ApiResponse> DeleteVehicleTreeEntryAsync(Guid versionId, Guid entryId, CancellationToken cancellationToken = default) =>
         DeleteAsync($"api/admin/drafts/{versionId}/entries/{entryId}", cancellationToken);
 

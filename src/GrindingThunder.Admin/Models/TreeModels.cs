@@ -97,6 +97,8 @@ public record UpdateVehicleTreeEntryRequest(
     VehicleAcquisitionType AcquisitionType = VehicleAcquisitionType.Researchable,
     Guid? FolderParentEntryId = null);
 
+public record UpdateEntryCoordinatesRequest(int TreeColumn, int TreeRow);
+
 public record VehiclePrerequisiteDto(
     Guid VehicleTreeEntryId,
     Guid PrerequisiteVehicleTreeEntryId,
@@ -206,6 +208,17 @@ public class EntryInputModel
 public class VisualEntryInputModel : EntryInputModel
 {
     public Guid EntryId { get; set; }
+}
+
+public class LayoutPositionInputModel
+{
+    public Guid EntryId { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "Tree column cannot be negative.")]
+    public int TreeColumn { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "Tree row cannot be negative.")]
+    public int TreeRow { get; set; }
 }
 
 public class CreateVehicleEntryInputModel : EntryInputModel

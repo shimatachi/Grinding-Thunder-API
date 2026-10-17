@@ -523,8 +523,6 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batch 26.
 
 
-## Most recently completed
-
 - **Batch 28 — Game Update release workspace** (status: Completed)
   Goal: turn Game Updates from primarily catalog records into a release-oriented
   workspace for coordinating ResearchTreeVersion changes across nations and
@@ -613,8 +611,6 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   feedback, role-specific controls, cross-tree clone rejection, and publication
   status transition.
 
-
-## Next
 
 - **Batch 29 — Visual tree layout and editor polish** (status: Completed)
   Goal: improve readability and precision of the existing visual tree editor while
@@ -768,7 +764,9 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   and existing Draft/Published/Publisher read-only coverage.
 
 
-- **Batch 32 — Visual layout assistance tools** (status: Planned)
+## Most recently completed
+
+- **Batch 32 — Visual layout assistance tools** (status: Completed)
   Goal: make building and maintaining large trees faster without replacing explicit
   administrator control.
 
@@ -806,6 +804,22 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
 
   Dependency: Batch 31.
 
+  Result: added an Edit-mode-only layout toolbar with presentation-only drag
+  snapping, bounded same-rank multi-selection (maximum 12 entries), selection
+  nudging, row/column alignment, and vertical distribution. Occupied logical
+  cells, drag targets, folder relationships, and root-coordinate collisions now
+  receive live visual feedback. Multi-entry positions save through the existing
+  per-entry coordinate API after the Admin client verifies draft membership,
+  same-rank scope, non-negative integer coordinates, and the final root-cell
+  collision invariant. Published snapshots and Publisher-only views remain
+  read-only. No API contract, database schema, migration, dependency, automatic
+  layout, or free-form coordinate model was added.
+  Verification: JavaScript syntax check; solution build with zero warnings and
+  errors; all 344 API and 205 Admin tests pass (549 total), including new layout
+  toolbar, bounded persistence, same-rank guard, and existing read-only coverage.
+
+
+## Next
 
 - **Batch 33 — Shared public research-tree experience** (status: Planned)
   Goal: expose the same canonical visual research-tree representation to players so

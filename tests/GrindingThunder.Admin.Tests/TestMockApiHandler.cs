@@ -537,6 +537,18 @@ public class TestMockApiHandler : HttpMessageHandler
             });
         }
 
+        // PUT /api/admin/drafts/{versionId}/entries/{entryId}/coordinates
+        if (segments.Length == 7 &&
+            segments[4].Equals("entries", StringComparison.OrdinalIgnoreCase) &&
+            segments[6].Equals("coordinates", StringComparison.OrdinalIgnoreCase) &&
+            request.Method == HttpMethod.Put)
+        {
+            var body = await ReadJsonAsync(request);
+            if (body.GetPropertyIgnoreCase("TreeColumn").GetInt32() < 0 || body.GetPropertyIgnoreCase("TreeRow").GetInt32() < 0)
+                return TextResponse(HttpStatusCode.BadRequest, "TreeColumn and TreeRow must be non-negative.");
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        }
+
         // PUT/DELETE /api/admin/drafts/{versionId}/entries/{entryId}
         if (segments.Length == 6 && segments[4].Equals("entries", StringComparison.OrdinalIgnoreCase))
         {

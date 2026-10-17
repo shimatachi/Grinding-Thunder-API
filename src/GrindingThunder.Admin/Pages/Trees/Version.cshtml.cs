@@ -55,6 +55,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
     [BindProperty] public AddEntryInputModel AddEntry { get; set; } = new();
     [BindProperty] public AddPrerequisiteInputModel AddPrerequisite { get; set; } = new();
     [BindProperty] public VisualEntryInputModel VisualEntry { get; set; } = new();
+    [BindProperty] public List<LayoutPositionInputModel> LayoutPositions { get; set; } = [];
     [BindProperty] public CreateVehicleEntryInputModel CreateEntry { get; set; } = new();
     [BindProperty] public bool VisualEdgeMode { get; set; }
     [BindProperty] public bool VisualEdgeSelection { get; set; }
@@ -388,6 +389,17 @@ public class VersionModel(IApiClient apiClient) : PageModel
             ModelState.AddModelError("VisualEntry.AcquisitionType", "Select a valid acquisition type.");
         }
 
+        if (VisualEntry.FolderParentEntryId is null && Draft.Entries.Any(entry =>
+                entry.Id != VisualEntry.EntryId &&
+                entry.FolderParentEntryId is null &&
+                entry.TreeRankId == VisualEntry.TreeRankId &&
+                entry.TreeColumn == VisualEntry.TreeColumn &&
+                entry.TreeRow == VisualEntry.TreeRow))
+        {
+            ModelState.AddModelError(string.Empty,
+                $"Coordinate collision at column {VisualEntry.TreeColumn}, row {VisualEntry.TreeRow}. Root entries must occupy distinct cells within a rank.");
+        }
+
         if (!ModelState.IsValid)
         {
             return Page();
@@ -414,6 +426,76 @@ public class VersionModel(IApiClient apiClient) : PageModel
         }
 
         TempData["SuccessMessage"] = "Vehicle tree entry was updated from the visual editor.";
+        return RedirectToPage("/Trees/Version", new { versionId });
+    }
+
+    public async Task<IActionResult> OnPostUpdateLayoutAsync(Guid versionId, CancellationToken cancellationToken)
+    {
+        VersionId = versionId;
+        var guard = await EnsureEditableAsync(cancellationToken);
+        if (guard is not null) return guard;
+
+        if (LayoutPositions.Count is < 1 or > 12)
+        {
+            ModelState.AddModelError(string.Empty, "Select between 1 and 12 vehicle entries for a layout update.");
+            return Page();
+        }
+
+        if (LayoutPositions.Any(position => position.TreeColumn < 0 || position.TreeRow < 0))
+        {
+            ModelState.AddModelError(string.Empty, "Tree coordinates must be non-negative integers.");
+            return Page();
+        }
+
+        var duplicateIds = LayoutPositions.GroupBy(position => position.EntryId).Any(group => group.Count() > 1);
+        var draftEntries = Draft!.Entries.ToDictionary(entry => entry.Id);
+        if (duplicateIds || LayoutPositions.Any(position => position.EntryId == Guid.Empty || !draftEntries.ContainsKey(position.EntryId)))
+        {
+            ModelState.AddModelError(string.Empty, "Every layout entry must belong to this draft exactly once.");
+            return Page();
+        }
+
+        var selectedEntries = LayoutPositions.Select(position => draftEntries[position.EntryId]).ToList();
+        if (selectedEntries.Select(entry => entry.TreeRankId).Distinct().Count() != 1)
+        {
+            ModelState.AddModelError(string.Empty, "Layout assistance can update entries from only one rank at a time.");
+            return Page();
+        }
+
+        var proposed = LayoutPositions.ToDictionary(position => position.EntryId);
+        var rootCollisions = Draft.Entries
+            .Where(entry => entry.FolderParentEntryId is null)
+            .Select(entry => proposed.TryGetValue(entry.Id, out var position)
+                ? (entry.Id, entry.TreeRankId, position.TreeColumn, position.TreeRow)
+                : (entry.Id, entry.TreeRankId, entry.TreeColumn, entry.TreeRow))
+            .GroupBy(entry => (entry.TreeRankId, entry.TreeColumn, entry.TreeRow))
+            .FirstOrDefault(group => group.Count() > 1);
+        if (rootCollisions is not null)
+        {
+            ModelState.AddModelError(string.Empty,
+                $"Coordinate collision at column {rootCollisions.Key.TreeColumn}, row {rootCollisions.Key.TreeRow}. Root entries must occupy distinct cells within a rank.");
+            return Page();
+        }
+
+        foreach (var position in LayoutPositions)
+        {
+            var response = await apiClient.UpdateVehicleTreeEntryCoordinatesAsync(
+                versionId,
+                position.EntryId,
+                new UpdateEntryCoordinatesRequest(position.TreeColumn, position.TreeRow),
+                cancellationToken);
+            if (response.IsForbidden) return RedirectToPage("/AccessDenied");
+            if (!response.IsSuccess)
+            {
+                ModelState.AddModelError(string.Empty, response.ErrorMessage ?? "Unable to update the selected layout.");
+                var reload = await LoadAsync(versionId, cancellationToken);
+                return reload ?? Page();
+            }
+        }
+
+        TempData["SuccessMessage"] = LayoutPositions.Count == 1
+            ? "Vehicle position was updated."
+            : $"Layout positions for {LayoutPositions.Count} vehicles were updated.";
         return RedirectToPage("/Trees/Version", new { versionId });
     }
 

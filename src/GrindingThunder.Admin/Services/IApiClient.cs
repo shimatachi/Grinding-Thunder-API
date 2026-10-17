@@ -98,6 +98,7 @@ public interface IApiClient
 
     Task<ApiResponse<VehicleTreeEntryDto>> AddVehicleTreeEntryAsync(Guid versionId, AddVehicleTreeEntryRequest request, CancellationToken cancellationToken = default);
     Task<ApiResponse> UpdateVehicleTreeEntryAsync(Guid versionId, Guid entryId, UpdateVehicleTreeEntryRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> UpdateVehicleTreeEntryCoordinatesAsync(Guid versionId, Guid entryId, UpdateEntryCoordinatesRequest request, CancellationToken cancellationToken = default);
     Task<ApiResponse> DeleteVehicleTreeEntryAsync(Guid versionId, Guid entryId, CancellationToken cancellationToken = default);
 
     Task<ApiResponse<VehiclePrerequisiteDto>> AddVehiclePrerequisiteAsync(Guid versionId, AddPrerequisiteRequest request, CancellationToken cancellationToken = default);

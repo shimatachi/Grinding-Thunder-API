@@ -171,6 +171,97 @@ public class VisualTreeIntegrationTests
         Assert.Contains("previewInspectorState", javascript);
     }
 
+    [Fact]
+    public async Task DraftEditor_RendersBoundedLayoutAssistanceAndClientCollisionFeedback()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+
+        var html = await client.GetStringAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var javascript = await client.GetStringAsync("/js/visual-tree.js");
+        var css = await client.GetStringAsync("/css/admin.css");
+
+        Assert.Contains("data-tree-layout-toolbar", html);
+        Assert.Contains("data-tree-grid-snap", html);
+        Assert.Contains("data-tree-layout-action=\"align-column\"", html);
+        Assert.Contains("data-tree-layout-action=\"align-row\"", html);
+        Assert.Contains("data-tree-layout-action=\"distribute-vertical\"", html);
+        Assert.Contains("handler=UpdateLayout", html);
+        Assert.Contains("data-tree-collision-warning", html);
+        Assert.Contains("up to 12 entries in one rank", html);
+        Assert.Contains("const refreshCollisionState", javascript);
+        Assert.Contains("const refreshOccupiedCells", javascript);
+        Assert.Contains("const showPlacementPreview", javascript);
+        Assert.Contains("const toggleNodeSelection", javascript);
+        Assert.Contains("visual-tree-placement-preview", css);
+        Assert.Contains("is-coordinate-collision", css);
+        Assert.Contains("is-folder-related", css);
+    }
+
+    [Fact]
+    public async Task LayoutAssistance_PersistsBoundedSameRankCoordinatesThroughExistingApiEndpoints()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+        var page = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(page);
+
+        var response = await client.PostAsync(
+            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}?handler=UpdateLayout",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["LayoutPositions[0].EntryId"] = TestMockApiHandler.SquadronEntryId.ToString(),
+                ["LayoutPositions[0].TreeColumn"] = "5",
+                ["LayoutPositions[0].TreeRow"] = "7",
+                ["LayoutPositions[1].EntryId"] = TestMockApiHandler.EventEntryId.ToString(),
+                ["LayoutPositions[1].TreeColumn"] = "6",
+                ["LayoutPositions[1].TreeRow"] = "7",
+                ["__RequestVerificationToken"] = token
+            }));
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var coordinateUpdates = factory.MockApiHandler.RecordedJsonRequests
+            .Where(request => request.Path.EndsWith("/coordinates", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        Assert.Equal(2, coordinateUpdates.Count);
+        Assert.Contains(coordinateUpdates, request => request.Path.Contains(TestMockApiHandler.SquadronEntryId.ToString()));
+        Assert.Contains(coordinateUpdates, request => request.Path.Contains(TestMockApiHandler.EventEntryId.ToString()));
+        using var firstPayload = JsonDocument.Parse(coordinateUpdates[0].Body);
+        Assert.Equal(7, firstPayload.RootElement.GetProperty("TreeRow").GetInt32());
+    }
+
+    [Fact]
+    public async Task LayoutAssistance_RejectsCrossRankSelectionBeforeCallingMutationEndpoints()
+    {
+        using var factory = new AdminWebApplicationFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        await LoginAsync(client, "editor");
+        var page = await client.GetAsync($"/Trees/Version/{TestMockApiHandler.DraftVersionId}");
+        var token = await AdminWebApplicationFactory.ExtractAntiforgeryTokenAsync(page);
+        factory.MockApiHandler.RecordedJsonRequests.Clear();
+
+        var response = await client.PostAsync(
+            $"/Trees/Version/{TestMockApiHandler.DraftVersionId}?handler=UpdateLayout",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["LayoutPositions[0].EntryId"] = TestMockApiHandler.EntryId.ToString(),
+                ["LayoutPositions[0].TreeColumn"] = "2",
+                ["LayoutPositions[0].TreeRow"] = "0",
+                ["LayoutPositions[1].EntryId"] = TestMockApiHandler.SquadronEntryId.ToString(),
+                ["LayoutPositions[1].TreeColumn"] = "2",
+                ["LayoutPositions[1].TreeRow"] = "4",
+                ["__RequestVerificationToken"] = token
+            }));
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Layout assistance can update entries from only one rank at a time.", html);
+        Assert.DoesNotContain(factory.MockApiHandler.RecordedJsonRequests,
+            request => request.Path.EndsWith("/coordinates", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Theory]
     [InlineData("admin")]
     [InlineData("editor")]
@@ -438,6 +529,8 @@ public class VisualTreeIntegrationTests
         Assert.DoesNotContain("handler=DeleteRank", html);
         Assert.DoesNotContain("handler=DeleteEntry", html);
         Assert.DoesNotContain("data-tree-edit-toggle", html);
+        Assert.DoesNotContain("data-tree-layout-toolbar", html);
+        Assert.DoesNotContain("data-tree-grid-snap", html);
         Assert.DoesNotContain("data-tree-edge-toggle", html);
         Assert.DoesNotContain("data-tree-edge-remove-form", html);
         Assert.DoesNotContain("Entry inspector", html);
@@ -468,6 +561,8 @@ public class VisualTreeIntegrationTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("data-visual-tree", html);
         Assert.DoesNotContain("data-tree-edit-toggle", html);
+        Assert.DoesNotContain("data-tree-layout-toolbar", html);
+        Assert.DoesNotContain("data-tree-grid-snap", html);
         Assert.DoesNotContain("data-tree-edge-toggle", html);
         Assert.DoesNotContain("data-tree-edge-remove-form", html);
         Assert.DoesNotContain("Entry inspector", html);

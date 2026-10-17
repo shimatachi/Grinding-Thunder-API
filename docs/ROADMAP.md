@@ -1301,10 +1301,6 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   `npm --prefix src/GrindingThunder.Web run build` pass; all 588 C# tests pass
   (355 API + 233 Admin).
 
-
-## Next
-
-
 - **Batch 42 — Player account, profile, and public UX polish** (status: Completed)
   Goal: complete the player-facing product experience around the new
   GrindingThunder.Web application.
@@ -1389,6 +1385,77 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   Dependency: Batches 40–42.
   Result: defined canonical strongly typed DTO `VehicleTreeResponseDto` in `src/GrindingThunder.Api/Application/Models/VehicleTreeDtos.cs` containing all 19 catalog and layout properties, replacing the anonymous projection in `VehiclesController.GetVehicleTree` while maintaining exact wire compatibility and camelCase JSON contract. Aligned Admin models (`PublicVehicleTreeEntryDto`, `VehicleTreeResponseDto`) and Web TypeScript interfaces (`src/GrindingThunder.Web/lib/api/types.ts`). Standardized relative row positioning across frontends: Web's `tree-layout.ts` computes `minRowByRankId` and normalizes `rowOffset = treeRow - minRow`, matching Admin's `VisualTreeMapper` `RowOffset = node.TreeRow - minimumRow` and preventing multi-row blank gaps on non-contiguous or sparse row assignments. Aligned defensive folder parent resolution (`isFolderParent || folderParentIds.has(entry.id)`), identical 6-type acquisition styling, Roman numeral rank labels, and rank unlock quota displays. Optimized Web rendering performance without DOM virtualization: precomputed SVG connector bezier paths in `tree-layout.ts` and extracted memoized `TreeNodeCard` (`React.memo`) with stable callbacks in `research-tree-canvas.tsx` to eliminate re-renders across 100+ vehicle nodes during viewport panning or selection changes. Optimized Admin `visual-tree.js` `drawConnectors`: cached stage rectangle and per-node bounding client rects in a single pass to eliminate forced reflow / layout thrashing over dense prerequisite checks. Preserved responsive mobile viewport layouts with touch-friendly bottom drawer and panning. Added automated contract test `VehicleTreeContractTests.cs` in `GrindingThunder.Api.Tests` (verifying strongly typed returns, all 19 camelCase wire properties, acquisition types, and folder/prerequisite serialization) and consistency tests `VisualTreeConsistencyTests.cs` in `GrindingThunder.Admin.Tests` (verifying sparse row offset normalization, folder parent resolution, Draft vs Public equivalence, and 200-vehicle large-tree mapping performance in < 50ms).
   Verification: `dotnet build` succeeds with 0 warnings/errors; `dotnet test` passes all 593 tests (356 API + 237 Admin); `npm --prefix src/GrindingThunder.Web run typecheck` passes; `npm --prefix src/GrindingThunder.Web run build` passes.
+
+- **Batch 44 — Production Docker deployment** (status: Completed)
+  Goal: make Grinding Thunder deployable to a single Linux VPS using Docker
+  Compose behind an existing host-managed Nginx reverse proxy.
+
+  Production topology:
+
+  Native Nginx
+    -> GrindingThunder.Web
+    -> GrindingThunder.Admin
+    -> GrindingThunder.Api
+
+  Docker network:
+    Web
+    Admin
+    Api
+    PostgreSQL
+
+  Scope:
+  - add production Dockerfile for GrindingThunder.Admin;
+  - add production multi-stage Dockerfile for GrindingThunder.Web;
+  - review/harden existing GrindingThunder.Api Dockerfile;
+  - configure Next.js standalone production output;
+  - add root `docker-compose.prod.yml`;
+  - run PostgreSQL as a Docker Compose service;
+  - persist PostgreSQL data in a named Docker volume;
+  - do not expose PostgreSQL publicly;
+  - expose Web/API/Admin only through localhost-bound host ports for Nginx;
+  - add `.env.example` containing required production variable names without secrets;
+  - keep actual `.env` gitignored;
+  - move production database credentials, JWT signing key, bootstrap admin
+    credentials, and similar secrets to environment variables;
+  - make API CORS origins configuration-driven;
+  - configure ASP.NET Core forwarded headers for Nginx TLS termination;
+  - configure production cookie/security behavior appropriately;
+  - add container health checks where practical;
+  - define an explicit production EF Core migration procedure;
+  - do not silently run destructive migrations on every container restart;
+  - add PostgreSQL backup/restore documentation using `pg_dump`;
+  - add example Nginx reverse-proxy configuration for:
+    - `grindthunder.mydomain.com` -> Web
+    - `api.grindthunder.mydomain.com` -> API
+    - `admin.grindthunder.mydomain.com` -> Admin
+  - document TLS/Certbot integration with the existing native Nginx;
+  - document first deployment, normal update deployment, logs, restart, rollback,
+    database backup, and restore procedures.
+
+  PostgreSQL:
+  - run PostgreSQL in Docker;
+  - use a named persistent volume;
+  - database is reachable only through the private Compose network;
+  - use a strong externally supplied password;
+  - maintain regular off-container backups.
+
+  Redis:
+  - do not add Redis in this batch;
+  - add it later only if a concrete feature requires distributed caching,
+    queues, rate-limit state, sessions, or similar shared ephemeral state.
+
+  Out of scope:
+  - Kubernetes;
+  - Dockerizing the host Nginx;
+  - Redis without a current requirement;
+  - CI/CD deployment automation;
+  - managed cloud databases;
+  - multi-server/high-availability deployment.
+
+  Dependency: Batch 43.
+
+  Result: added hardened multi-stage, non-root production images for API, Admin, and standalone Next.js Web; a four-service production Compose topology with localhost-only application ports, private PostgreSQL 17, persistent database and Admin data-protection volumes, dependency health checks, and externalized production configuration; forwarded-header, cookie, CORS, health, and API-client hosting configuration; an explicit one-shot `--migrate` API mode that keeps production schema changes out of normal startup; native Nginx examples for all three public hostnames; and a production runbook covering prerequisites, Certbot TLS, initial bootstrap, routine deployment, rollback, logs, `pg_dump`, and `pg_restore`. Added anonymous health endpoint integration tests for API and Admin.
+  Verification: `dotnet build GrindingThunder.sln --no-restore` succeeds with 0 warnings/errors; `dotnet test GrindingThunder.sln --no-build` passes all 595 tests (357 API + 238 Admin); `npm --prefix src/GrindingThunder.Web run typecheck` passes; `npm --prefix src/GrindingThunder.Web run build` passes and emits `.next/standalone/server.js`; `docker compose --env-file .env.example -f docker-compose.prod.yml config --quiet` validates successfully.
 
 ## Later
 

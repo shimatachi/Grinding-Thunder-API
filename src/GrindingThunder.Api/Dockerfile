@@ -1,24 +1,30 @@
-# Stage 1: Build
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-env
-WORKDIR /app
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
 
-# Copy csproj and restore dependencies
 COPY src/GrindingThunder.Api/GrindingThunder.Api.csproj src/GrindingThunder.Api/
 RUN dotnet restore src/GrindingThunder.Api/GrindingThunder.Api.csproj
 
-# Copy source code and publish
 COPY src/GrindingThunder.Api/ src/GrindingThunder.Api/
-RUN dotnet publish src/GrindingThunder.Api/GrindingThunder.Api.csproj -c Release -o /app/out
+RUN dotnet publish src/GrindingThunder.Api/GrindingThunder.Api.csproj \
+    --configuration Release \
+    --no-restore \
+    --property:UseAppHost=false \
+    --output /app/publish
 
-# Stage 2: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 
-# Copy published output
-COPY --from=build-env /app/out .
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Expose port and configure ASP.NET Core
-EXPOSE 8080
+COPY --from=build --chown=app:app /app/publish .
+
 ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+USER app
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl --fail --silent --show-error http://127.0.0.1:8080/health || exit 1
 
 ENTRYPOINT ["dotnet", "GrindingThunder.Api.dll"]

@@ -1,5 +1,15 @@
 # Architecture
 
+## Production deployment architecture
+
+Production uses a single-host modular deployment defined by `docker-compose.prod.yml`. Native host Nginx and Certbot remain outside Docker and terminate TLS for the public Web, API, and Admin hostnames. Nginx proxies to localhost-only published ports (`3000`, `5034`, and `5035` by default); forwarded client and scheme headers are processed by both ASP.NET Core applications before security and routing middleware.
+
+The Compose bridge network contains four services: the standalone Next.js `web` server, the ASP.NET Core Razor Pages `admin`, the ASP.NET Core `api`, and PostgreSQL 17 `db`. PostgreSQL has no published host port and persists in the `db_data` named volume. Admin calls API over the private `http://api:8080` address, while browser code calls the public HTTPS API origin compiled from `NEXT_PUBLIC_API_URL`. Admin data-protection keys persist separately in `admin_keys`, so authentication and antiforgery cookies survive container replacement.
+
+All application images use multi-stage builds and non-root runtime users. API and Admin listen on container port 8080; Web listens on 3000. Lightweight anonymous health endpoints support container dependency checks. Production secrets and host-specific origins come from an ignored `.env` file, with `.env.example` documenting the required contract.
+
+Database schema deployment is deliberately separate from application startup. Normal Production API startup neither migrates the database nor runs development seeders. Operators run the API image once with `--migrate`, then start the HTTP services. The existing idempotent first-Admin bootstrap runs only during normal API startup when externally supplied bootstrap credentials exist and no Admin-role account has ever existed. Operational setup, TLS, update, rollback, backup, recovery, and troubleshooting procedures live in `docs/DEPLOYMENT.md`.
+
 ## CURRENT — repository structure
 
 The backend is one ASP.NET Core `.NET 10` project located under `src/GrindingThunder.Api` with `Controllers`, `Application`, `Domain`, and `Infrastructure` folders, accompanied by two separate HTTP-only frontends: the Razor Pages administrative back office and the Next.js player application described below. The backend folders organize code but do **not** create strict Clean Architecture or compile-time dependency boundaries.

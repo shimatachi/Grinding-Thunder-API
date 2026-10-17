@@ -4,10 +4,19 @@ using GrindingThunder.Api.Infrastructure.Persistence;
 using GrindingThunder.Api.Infrastructure.Security;
 using GrindingThunder.Api.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // The host firewall and localhost-only published ports define the trusted proxy boundary.
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+builder.Services.AddHealthChecks();
 
 if (!builder.Environment.IsEnvironment("Testing"))
 {
@@ -31,13 +40,21 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5035")
+        policy.WithOrigins(GetAllowedOrigins(builder.Configuration))
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
 });
 
 var app = builder.Build();
+
+if (args.Contains("--migrate", StringComparer.OrdinalIgnoreCase))
+{
+    using var migrationScope = app.Services.CreateScope();
+    var migrationDbContext = migrationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await migrationDbContext.Database.MigrateAsync();
+    return;
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -76,14 +93,38 @@ if (!app.Environment.IsEnvironment("Testing"))
 
 // app.UseHttpsRedirection();
 
+app.UseForwardedHeaders();
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllers();
 
 app.Run();
+
+static string[] GetAllowedOrigins(IConfiguration configuration)
+{
+    var section = configuration.GetSection("Cors:AllowedOrigins");
+    var origins = section.GetChildren()
+        .Select(child => child.Value)
+        .Where(value => !string.IsNullOrWhiteSpace(value))
+        .Select(value => value!.Trim().TrimEnd('/'))
+        .ToArray();
+
+    if (origins.Length == 0 && !string.IsNullOrWhiteSpace(section.Value))
+    {
+        origins = section.Value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(origin => origin.TrimEnd('/'))
+            .ToArray();
+    }
+
+    return origins.Length > 0
+        ? origins
+        : ["http://localhost:3000", "http://localhost:5035"];
+}
 
 public partial class Program { }
 

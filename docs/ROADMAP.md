@@ -1149,10 +1149,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   the solution continues to build and all 588 C# tests pass.
 
 
-## Next
-
-
-- **Batch 40 — Public visual research-tree browser** (status: Planned)
+- **Batch 40 — Public visual research-tree browser** (status: Completed)
   Goal: rebuild the player-facing tree experience in GrindingThunder.Web using
   React while preserving the same canonical tree data and layout semantics authored
   in the Admin editor.
@@ -1210,6 +1207,24 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - admin features.
 
   Dependency: Batch 39.
+
+  Result:
+  - replaced the `/tree` tabular manifest with a deterministic React research-tree
+    canvas that renders every version-owned rank (including empty and sparse ranks),
+    unlock quotas, acquisition-styled vehicle cards, images/fallbacks, exact logical
+    coordinates, folder stacks, and explicit prerequisite/folder SVG connectors;
+  - added pointer panning, toolbar and Ctrl/Command-wheel zoom, fit/reset actions,
+    responsive viewport behavior, accessible node selection, and a vehicle details
+    drawer with costs, prerequisites, folder context, and external Wiki links;
+  - retained the publication boundary through the anonymous publication-filtered API
+    plus defensive client filtering, and introduced no ownership, calculator, editing,
+    backend, persistence, migration, or third-party dependency changes.
+
+  Verification: `npm run typecheck` and `npm run build` pass; solution build succeeds
+  with zero warnings and all 588 C# tests pass (355 API + 233 Admin).
+
+
+## Next
 
 
 - **Batch 41 — Player calculator and progression experience** (status: Planned)

@@ -365,3 +365,10 @@ Append new entries at the end. Keep each entry to the decisions and tradeoffs th
 - Stored the dedicated player JWT in a namespaced browser local-storage key and revalidated it through `GET /api/player/auth/me`. This gives a simple client-only session suitable for the foundation and remains strictly separate from Admin cookies, credentials, and endpoints; the tradeoff is that local storage is script-readable, so a future production hardening pass may prefer a same-site HTTP-only cookie/BFF boundary if deployment requirements justify it.
 - Kept `/tree` to cascading Published snapshot selection and a loaded manifest. This proves exact-version API integration without implementing Batch 40's SVG canvas early or duplicating backend progression rules in React.
 
+## 2026 — Batch 40: React public research-tree canvas
+
+- Added a small deterministic layout module instead of a graph-layout dependency. Each version-owned `TreeRank` becomes an ordered band, and every vehicle is rooted directly at its persisted `TreeColumn` / `TreeRow`; a small stable offset is applied only when folder entries intentionally share the same rank cell, matching the authored grouping without changing the underlying coordinates.
+- Used HTML vehicle cards over a React-rendered SVG connector layer. Solid arrowed paths come only from explicit `prerequisiteIds`, while dashed amber paths come only from `folderParentId`; visual proximity never creates progression data and React does not duplicate backend traversal, cycle detection, rank-gate evaluation, or publication validation.
+- Kept the public boundary defense-in-depth: `/tree` consumes the existing anonymous publication-filtered endpoints and also discards any non-Published version in the received catalog before it can become selectable. No admin endpoint, backend contract, schema, or migration changed.
+- Limited interaction state to viewport navigation and presentation-only vehicle selection. The drawer exposes snapshot details, prerequisite/folder navigation, and stable Wiki links, while ownership toggling, saved progress, calculator execution, and route highlighting remain reserved for Batch 41.
+

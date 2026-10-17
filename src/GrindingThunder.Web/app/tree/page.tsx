@@ -2,11 +2,31 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api/client";
-import { formatNumber } from "@/lib/format";
-import type { NationSummary, VehicleTreeEntry } from "@/lib/api/types";
+import {
+  ResearchTreeVersionStatus,
+  type NationSummary,
+  type VehicleTreeEntry,
+} from "@/lib/api/types";
+import { ResearchTreeCanvas } from "./research-tree-canvas";
 
 function messageFrom(error: unknown): string {
   return error instanceof Error ? error.message : "The API request failed.";
+}
+
+function onlyPublished(catalog: NationSummary[]): NationSummary[] {
+  return catalog
+    .map((nation) => ({
+      ...nation,
+      researchTrees: nation.researchTrees
+        .map((tree) => ({
+          ...tree,
+          versions: tree.versions.filter(
+            (version) => version.status === ResearchTreeVersionStatus.Published,
+          ),
+        }))
+        .filter((tree) => tree.versions.length > 0),
+    }))
+    .filter((nation) => nation.researchTrees.length > 0);
 }
 
 export default function TreePage() {
@@ -19,25 +39,31 @@ export default function TreePage() {
   const [treeLoading, setTreeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const nation = useMemo(() => nations.find((item) => item.id === nationId), [nations, nationId]);
-  const tree = useMemo(() => nation?.researchTrees.find((item) => item.id === treeId), [nation, treeId]);
-  const version = useMemo(() => tree?.versions.find((item) => item.id === versionId), [tree, versionId]);
-  const rankById = useMemo(
-    () => new Map(version?.treeRanks.map((rank) => [rank.id, rank.rankNumber]) ?? []),
-    [version],
+  const nation = useMemo(
+    () => nations.find((item) => item.id === nationId),
+    [nations, nationId],
+  );
+  const tree = useMemo(
+    () => nation?.researchTrees.find((item) => item.id === treeId),
+    [nation, treeId],
+  );
+  const version = useMemo(
+    () => tree?.versions.find((item) => item.id === versionId),
+    [tree, versionId],
   );
 
   useEffect(() => {
     const controller = new AbortController();
     api.getNations(controller.signal)
       .then((catalog) => {
-        setNations(catalog);
-        const firstNation = catalog[0];
+        const publishedCatalog = onlyPublished(catalog);
+        setNations(publishedCatalog);
+        const firstNation = publishedCatalog[0];
         const firstTree = firstNation?.researchTrees[0];
-        const firstVersion = firstTree?.versions[0];
+        const latestPublishedVersion = firstTree?.versions[0];
         setNationId(firstNation?.id ?? "");
         setTreeId(firstTree?.id ?? "");
-        setVersionId(firstVersion?.id ?? "");
+        setVersionId(latestPublishedVersion?.id ?? "");
       })
       .catch((requestError) => {
         if (!controller.signal.aborted) setError(messageFrom(requestError));
@@ -49,13 +75,14 @@ export default function TreePage() {
   }, []);
 
   useEffect(() => {
-    if (!nation || !tree || !version) {
+    if (!nation || !tree || !version || version.status !== ResearchTreeVersionStatus.Published) {
       setEntries([]);
       return;
     }
 
     const controller = new AbortController();
     setTreeLoading(true);
+    setEntries([]);
     setError(null);
     api.getVehicleTree(
       {
@@ -90,24 +117,25 @@ export default function TreePage() {
   }
 
   return (
-    <div className="page-shell py-12 sm:py-16">
+    <div className="page-shell py-10 sm:py-14">
       <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
         <div>
-          <p className="eyebrow">Published intelligence</p>
+          <p className="eyebrow">Published research intelligence</p>
           <h1 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">Tech-tree browser</h1>
           <p className="mt-4 max-w-2xl text-steel">
-            Choose an exact published snapshot. The visual research canvas arrives in Batch 40; this foundation already verifies and loads the canonical API data.
+            Explore the exact layout, rank gates, folders, and prerequisite lines authored for a published War Thunder snapshot.
           </p>
         </div>
         {version && (
           <div className="border-l-2 border-signal pl-4">
             <p className="text-xs uppercase tracking-widest text-steel">Active snapshot</p>
             <p className="mt-1 font-mono text-lg font-bold text-white">{version.updateVersion}</p>
+            <p className="mt-1 text-xs uppercase tracking-wider text-emerald-300">Published</p>
           </div>
         )}
       </div>
 
-      <section className="panel mt-10 grid gap-5 p-5 sm:grid-cols-3 sm:p-7" aria-label="Tree selection">
+      <section className="panel mt-9 grid gap-5 p-5 sm:grid-cols-3 sm:p-7" aria-label="Tree selection">
         <label>
           <span className="field-label">Nation</span>
           <select className="field" value={nationId} onChange={(event) => changeNation(event.target.value)} disabled={catalogLoading || nations.length === 0}>
@@ -134,10 +162,10 @@ export default function TreePage() {
         <div className="panel mt-6 p-8 text-center text-steel">No published research-tree snapshots are available yet.</div>
       )}
 
-      <section className="panel mt-6 min-h-[25rem] overflow-hidden">
+      <section className="panel mt-6 overflow-hidden" aria-label="Visual research tree">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-7">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-steel">Snapshot manifest</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-steel">Visual research tree</p>
             <h2 className="mt-1 text-lg font-bold">{nation?.name ?? "Nation"} · {tree?.vehicleTypeName ?? "Category"}</h2>
           </div>
           <div className="flex gap-5 text-sm text-steel">
@@ -147,32 +175,16 @@ export default function TreePage() {
         </div>
 
         {catalogLoading || treeLoading ? (
-          <div className="grid min-h-80 place-items-center text-sm uppercase tracking-[0.2em] text-steel">Loading published data…</div>
-        ) : entries.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[46rem] text-left text-sm">
-              <thead className="bg-white/[0.03] text-xs uppercase tracking-wider text-steel">
-                <tr><th className="px-6 py-4">Vehicle</th><th className="px-4 py-4">Rank</th><th className="px-4 py-4">RP</th><th className="px-4 py-4">SL</th><th className="px-4 py-4">Grid</th><th className="px-6 py-4 text-right">Links</th></tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {entries
-                  .slice()
-                  .sort((a, b) => (rankById.get(a.treeRankId) ?? 0) - (rankById.get(b.treeRankId) ?? 0) || a.treeColumn - b.treeColumn || a.treeRow - b.treeRow)
-                  .map((entry) => (
-                    <tr key={entry.id} className="hover:bg-white/[0.025]">
-                      <td className="px-6 py-4 font-semibold text-white">{entry.name}</td>
-                      <td className="px-4 py-4 text-steel">{rankById.get(entry.treeRankId) ?? "—"}</td>
-                      <td className="px-4 py-4 font-mono text-steel">{formatNumber(entry.rpCost)}</td>
-                      <td className="px-4 py-4 font-mono text-steel">{formatNumber(entry.slCost)}</td>
-                      <td className="px-4 py-4 font-mono text-steel">{entry.treeColumn}, {entry.treeRow}</td>
-                      <td className="px-6 py-4 text-right font-mono text-xs text-steel">{entry.prerequisiteIds.length} prereq.</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+          <div className="tree-loading">
+            <span />
+            Loading published snapshot…
           </div>
         ) : version && !error ? (
-          <div className="grid min-h-80 place-items-center text-steel">This published snapshot contains no vehicle entries.</div>
+          <ResearchTreeCanvas
+            ranks={version.treeRanks}
+            entries={entries}
+            snapshotKey={version.id}
+          />
         ) : null}
       </section>
     </div>

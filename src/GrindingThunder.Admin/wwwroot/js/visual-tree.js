@@ -18,6 +18,8 @@
         const selectionEmpty = tree.querySelector("[data-tree-selection-empty]");
         const previousButton = tree.querySelector("[data-tree-previous]");
         const nextButton = tree.querySelector("[data-tree-next]");
+        const undoButton = tree.querySelector("[data-tree-undo]");
+        const redoButton = tree.querySelector("[data-tree-redo]");
         const snapToggle = tree.querySelector("[data-tree-grid-snap]");
         const selectionCount = tree.querySelector("[data-tree-selection-count]");
         const layoutForm = tree.querySelector("[data-tree-layout-form]");
@@ -25,6 +27,10 @@
         const layoutSave = tree.querySelector("[data-tree-layout-save]");
         const layoutDiscard = tree.querySelector("[data-tree-layout-discard]");
         const collisionWarning = tree.querySelector("[data-tree-collision-warning]");
+        const collisionList = tree.querySelector("[data-tree-collision-list]");
+        const undoStack = [];
+        const redoStack = [];
+        const maxHistorySize = 50;
         const readonlyPanel = tree.querySelector("[data-tree-readonly-inspector]");
         const readonlyEmpty = tree.querySelector("[data-tree-readonly-empty]");
         const readonlyDetails = tree.querySelector("[data-tree-readonly-details]");
@@ -263,7 +269,10 @@
                     selectedEdge?.to === edgeData.dataset.toNode;
                 const isRoute = kind === "prerequisite" &&
                     activeRouteEdges.has(`${edgeData.dataset.fromNode}->${edgeData.dataset.toNode}`);
-                appendVisiblePath(from, to, kind, `${isSelected ? "is-selected" : ""} ${isRoute ? "is-progression-route" : ""}`.trim());
+                const fromRank = Number.parseInt(from.dataset.treeRankNumber || "0", 10);
+                const toRank = Number.parseInt(to.dataset.treeRankNumber || "0", 10);
+                const isRankInversion = kind === "prerequisite" && fromRank > toRank && toRank > 0;
+                appendVisiblePath(from, to, kind, `${isSelected ? "is-selected" : ""} ${isRoute ? "is-progression-route" : ""} ${isRankInversion ? "is-validation-warning" : ""}`.trim());
                 if (kind === "folder") renderedFolderTargets.add(edgeData.dataset.toNode);
                 if (kind === "prerequisite" && canEdit) appendEdgeHitTarget(from, to);
             });
@@ -358,9 +367,18 @@
         };
 
         const refreshCollisionState = () => {
-            tree.querySelectorAll("[data-tree-node]").forEach(node => node.classList.remove("is-coordinate-collision"));
-            const rootGroups = new Map();
             tree.querySelectorAll("[data-tree-node]").forEach(node => {
+                node.classList.remove("is-coordinate-collision", "is-out-of-bounds");
+            });
+            const rootGroups = new Map();
+            const outOfBoundsNodes = new Set();
+            tree.querySelectorAll("[data-tree-node]").forEach(node => {
+                const col = Number.parseInt(node.dataset.treeColumn || "0", 10);
+                const row = Number.parseInt(node.dataset.treeRow || "0", 10);
+                if (col < 0 || row < 0 || Number.isNaN(col) || Number.isNaN(row)) {
+                    node.classList.add("is-out-of-bounds");
+                    outOfBoundsNodes.add(node);
+                }
                 if (node.dataset.folderParentId) return;
                 const key = cellKey(node);
                 if (!rootGroups.has(key)) rootGroups.set(key, []);
@@ -374,8 +392,30 @@
                     collidingNodes.add(node);
                 });
             });
-            const selectedCollision = selectedNodeList().some(node => collidingNodes.has(node));
-            collisionWarning?.classList.toggle("d-none", !selectedCollision);
+            const hasIssue = collidingNodes.size > 0 || outOfBoundsNodes.size > 0;
+            const selectedCollision = selectedNodeList().some(node => collidingNodes.has(node) || outOfBoundsNodes.has(node));
+            collisionWarning?.classList.toggle("d-none", !hasIssue);
+            if (collisionList) {
+                collisionList.replaceChildren();
+                collidingNodes.forEach(node => {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "btn btn-xs btn-outline-danger py-0 px-2";
+                    btn.dataset.jumpToNode = node.dataset.treeNode || "";
+                    btn.textContent = `${nodeName(node)} (Overlap: Col ${node.dataset.treeColumn}, Row ${node.dataset.treeRow})`;
+                    btn.title = `Focus ${nodeName(node)} on canvas`;
+                    collisionList.appendChild(btn);
+                });
+                outOfBoundsNodes.forEach(node => {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "btn btn-xs btn-outline-danger py-0 px-2";
+                    btn.dataset.jumpToNode = node.dataset.treeNode || "";
+                    btn.textContent = `${nodeName(node)} (Out-of-bounds: Col ${node.dataset.treeColumn}, Row ${node.dataset.treeRow})`;
+                    btn.title = `Focus ${nodeName(node)} on canvas`;
+                    collisionList.appendChild(btn);
+                });
+            }
             return selectedCollision;
         };
 
@@ -493,17 +533,143 @@
             requestAnimationFrame(() => inspector.rank?.focus({ preventScroll: true }));
         };
 
-        const moveSelectedNodeToRank = rankId => {
-            if (!selectedNode || !rankId) return;
-            const oldRank = selectedNode.closest("[data-tree-rank]");
+        const moveNodeToRank = (node, rankId) => {
+            if (!node || !rankId) return;
+            const oldRank = node.closest("[data-tree-rank]");
             const newRank = [...tree.querySelectorAll("[data-tree-rank]")]
                 .find(rank => rank.dataset.treeRankId === rankId);
             if (!newRank || newRank === oldRank) return;
-            newRank.querySelector(".visual-tree-rank-grid")?.appendChild(selectedNode);
-            selectedNode.dataset.treeRankId = rankId;
-            selectedNode.dataset.treeRankNumber = newRank.dataset.treeRank || "";
+            newRank.querySelector(".visual-tree-rank-grid")?.appendChild(node);
+            node.dataset.treeRankId = rankId;
+            node.dataset.treeRankNumber = newRank.dataset.treeRank || "";
             layoutRank(oldRank);
             layoutRank(newRank);
+        };
+
+        const moveSelectedNodeToRank = rankId => {
+            if (!selectedNode || !rankId) return;
+            moveNodeToRank(selectedNode, rankId);
+        };
+
+        const updateUndoRedoControls = () => {
+            if (undoButton) {
+                undoButton.disabled = !isEditing() || undoStack.length === 0;
+                undoButton.setAttribute("title", undoStack.length > 0
+                    ? `Undo ${undoStack[undoStack.length - 1].action} (Ctrl+Z)`
+                    : "Undo (Ctrl+Z)");
+            }
+            if (redoButton) {
+                redoButton.disabled = !isEditing() || redoStack.length === 0;
+                redoButton.setAttribute("title", redoStack.length > 0
+                    ? `Redo ${redoStack[redoStack.length - 1].action} (Ctrl+Y)`
+                    : "Redo (Ctrl+Y)");
+            }
+        };
+
+        const pushHistory = (actionName, mutations) => {
+            if (!isEditing()) return;
+            const actualChanges = mutations.filter(m =>
+                m.from.column !== m.to.column ||
+                m.from.row !== m.to.row ||
+                (m.from.rankId && m.to.rankId && m.from.rankId !== m.to.rankId)
+            );
+            if (actualChanges.length === 0) return;
+
+            undoStack.push({
+                action: actionName,
+                mutations: actualChanges
+            });
+            if (undoStack.length > maxHistorySize) {
+                undoStack.shift();
+            }
+            redoStack.length = 0;
+            updateUndoRedoControls();
+        };
+
+        const undo = () => {
+            if (!isEditing() || undoStack.length === 0) return;
+            const entry = undoStack.pop();
+            entry.mutations.forEach(m => {
+                if (m.from.rankId && m.to.rankId && m.from.rankId !== m.to.rankId) {
+                    moveNodeToRank(m.node, m.from.rankId);
+                }
+                setNodeCoordinates(m.node, m.from.column, m.from.row);
+                if (m.node === selectedNode && inspector.column && inspector.row) {
+                    inspector.column.value = m.from.column.toString();
+                    inspector.row.value = m.from.row.toString();
+                    if (inspector.coordinate) {
+                        inspector.coordinate.textContent = `Column ${m.from.column} · Row ${m.from.row}`;
+                    }
+                }
+            });
+            redoStack.push(entry);
+
+            updateDirty();
+            isLayoutDirty = selectedNodeList().some(node => {
+                const original = layoutOriginalPositions.get(node);
+                const current = nodePosition(node);
+                return original && (original.column !== current.column || original.row !== current.row);
+            });
+
+            refreshLayoutPresentation();
+            drawConnectors();
+            updateUndoRedoControls();
+        };
+
+        const redo = () => {
+            if (!isEditing() || redoStack.length === 0) return;
+            const entry = redoStack.pop();
+            entry.mutations.forEach(m => {
+                if (m.from.rankId && m.to.rankId && m.from.rankId !== m.to.rankId) {
+                    moveNodeToRank(m.node, m.to.rankId);
+                }
+                setNodeCoordinates(m.node, m.to.column, m.to.row);
+                if (m.node === selectedNode && inspector.column && inspector.row) {
+                    inspector.column.value = m.to.column.toString();
+                    inspector.row.value = m.to.row.toString();
+                    if (inspector.coordinate) {
+                        inspector.coordinate.textContent = `Column ${m.to.column} · Row ${m.to.row}`;
+                    }
+                }
+            });
+            undoStack.push(entry);
+
+            updateDirty();
+            isLayoutDirty = selectedNodeList().some(node => {
+                const original = layoutOriginalPositions.get(node);
+                const current = nodePosition(node);
+                return original && (original.column !== current.column || original.row !== current.row);
+            });
+
+            refreshLayoutPresentation();
+            drawConnectors();
+            updateUndoRedoControls();
+        };
+
+        const jumpToNode = nodeId => {
+            const node = nodeById(nodeId);
+            if (!node) return;
+
+            const visualTreeTab = document.getElementById("visual-tree-tab");
+            if (visualTreeTab && window.bootstrap?.Tab) {
+                const tabInstance = window.bootstrap.Tab.getOrCreateInstance(visualTreeTab);
+                tabInstance.show();
+            } else if (visualTreeTab && !visualTreeTab.classList.contains("active")) {
+                visualTreeTab.click();
+            }
+
+            if (isEditing()) {
+                selectNode(node, true);
+            } else if (!canEdit) {
+                selectReadonlyNode(node);
+            }
+
+            node.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+
+            node.classList.remove("is-jump-highlighted");
+            void node.offsetWidth;
+            node.classList.add("is-jump-highlighted");
+            setTimeout(() => node.classList.remove("is-jump-highlighted"), 1500);
         };
 
         const previewInspectorState = () => {
@@ -1335,9 +1501,17 @@
             if (help) help.textContent = isEditing()
                 ? "Select a node, then drag it or use the arrow keys or inspector buttons"
                 : "Drag empty space to pan · enable Move entries to reposition nodes";
-            if (!isEditing()) clearEntrySelection();
+            if (!isEditing()) {
+                clearEntrySelection();
+                undoStack.length = 0;
+                redoStack.length = 0;
+            }
+            updateUndoRedoControls();
             requestAnimationFrame(() => applyScale(scale));
         });
+
+        undoButton?.addEventListener("click", undo);
+        redoButton?.addEventListener("click", redo);
 
         edgeToggle?.addEventListener("click", () => {
             if (isEdgeMode()) deactivateEdgeMode();
@@ -1399,6 +1573,19 @@
                 }
                 suppressNodeClick = completedDrag.moved;
                 if (node.hasPointerCapture(event.pointerId)) node.releasePointerCapture(event.pointerId);
+
+                if (completedDrag.moved) {
+                    const mutations = [];
+                    completedDrag.positions.forEach((startPos, n) => {
+                        const endPos = nodePosition(n);
+                        if (startPos.column !== endPos.column || startPos.row !== endPos.row) {
+                            mutations.push({ node: n, from: startPos, to: endPos });
+                        }
+                    });
+                    if (mutations.length > 0) {
+                        pushHistory("Move vehicle", mutations);
+                    }
+                }
             };
             node.addEventListener("pointerup", stopDragging);
             node.addEventListener("pointercancel", stopDragging);
@@ -1494,7 +1681,10 @@
                 if (button.dataset.treeNudge === "right") column++;
                 if (button.dataset.treeNudge === "up") row--;
                 if (button.dataset.treeNudge === "down") row++;
+                if (column < 0 || row < 0) return;
+                const from = nodePosition(selectedNode);
                 setCoordinates(column, row);
+                pushHistory("Nudge", [{ node: selectedNode, from, to: { column, row } }]);
             });
         });
         tree.querySelectorAll("[data-tree-layout-nudge]").forEach(button => {
@@ -1505,10 +1695,17 @@
                 if (button.dataset.treeLayoutNudge === "right") delta.column++;
                 if (button.dataset.treeLayoutNudge === "up") delta.row--;
                 if (button.dataset.treeLayoutNudge === "down") delta.row++;
-                moveSelectedNodes(selectedNodeList().map(node => {
+                const nodes = selectedNodeList();
+                if (!nodes.every(n => {
+                    const pos = nodePosition(n);
+                    return pos.column + delta.column >= 0 && pos.row + delta.row >= 0;
+                })) return;
+                const fromSnapshots = nodes.map(n => ({ node: n, from: nodePosition(n) }));
+                moveSelectedNodes(nodes.map(node => {
                     const current = nodePosition(node);
                     return { node, column: current.column + delta.column, row: current.row + delta.row };
                 }));
+                pushHistory("Nudge selection", fromSnapshots.map(s => ({ node: s.node, from: s.from, to: nodePosition(s.node) })));
             });
         });
         tree.querySelectorAll("[data-tree-layout-action]").forEach(button => {
@@ -1516,14 +1713,19 @@
                 const nodes = selectedNodeList();
                 if (nodes.length < 2) return;
                 const primary = nodePosition(selectedNode || nodes[0]);
+                const fromSnapshots = nodes.map(n => ({ node: n, from: nodePosition(n) }));
+                let actionName = "Align";
                 if (button.dataset.treeLayoutAction === "align-column") {
+                    actionName = "Align column";
                     moveSelectedNodes(nodes.map(node => ({ node, column: primary.column, row: nodePosition(node).row })));
                 }
                 if (button.dataset.treeLayoutAction === "align-row") {
+                    actionName = "Align row";
                     moveSelectedNodes(nodes.map(node => ({ node, column: nodePosition(node).column, row: primary.row })));
                 }
                 if (button.dataset.treeLayoutAction === "distribute-vertical" && nodes.length >= 3) {
-                    const ordered = nodes.sort((left, right) => nodePosition(left).row - nodePosition(right).row || nodeName(left).localeCompare(nodeName(right)));
+                    actionName = "Distribute vertically";
+                    const ordered = [...nodes].sort((left, right) => nodePosition(left).row - nodePosition(right).row || nodeName(left).localeCompare(nodeName(right)));
                     const firstRow = nodePosition(ordered[0]).row;
                     const lastRow = Math.max(nodePosition(ordered[ordered.length - 1]).row, firstRow + ordered.length - 1);
                     moveSelectedNodes(ordered.map((node, index) => ({
@@ -1532,9 +1734,15 @@
                         row: Math.round(firstRow + ((lastRow - firstRow) * index / (ordered.length - 1)))
                     })));
                 }
+                pushHistory(actionName, fromSnapshots.map(s => ({ node: s.node, from: s.from, to: nodePosition(s.node) })));
             });
         });
-        layoutDiscard?.addEventListener("click", restoreLayoutPreview);
+        layoutDiscard?.addEventListener("click", () => {
+            restoreLayoutPreview();
+            undoStack.length = 0;
+            redoStack.length = 0;
+            updateUndoRedoControls();
+        });
         layoutForm?.addEventListener("submit", event => {
             if (!isLayoutDirty || refreshCollisionState()) {
                 event.preventDefault();
@@ -1543,6 +1751,31 @@
             rebuildLayoutFields();
             isSubmitting = true;
             isLayoutDirty = false;
+            undoStack.length = 0;
+            redoStack.length = 0;
+            updateUndoRedoControls();
+        });
+        let inspectorCoordFocus = null;
+        [inspector.column, inspector.row].forEach(input => {
+            if (!input) return;
+            input.addEventListener("focus", () => {
+                if (selectedNode) {
+                    inspectorCoordFocus = nodePosition(selectedNode);
+                }
+            });
+            input.addEventListener("change", () => {
+                if (selectedNode && inspectorCoordFocus) {
+                    const current = nodePosition(selectedNode);
+                    if (inspectorCoordFocus.column !== current.column || inspectorCoordFocus.row !== current.row) {
+                        pushHistory("Change coordinates", [{
+                            node: selectedNode,
+                            from: inspectorCoordFocus,
+                            to: current
+                        }]);
+                        inspectorCoordFocus = { ...current };
+                    }
+                }
+            });
         });
         inspectorForm?.querySelectorAll("[data-dirty-field]").forEach(field => {
             field.addEventListener("input", previewInspectorState);
@@ -1551,6 +1784,9 @@
         inspectorForm?.addEventListener("submit", () => {
             isSubmitting = true;
             setDirty(false);
+            undoStack.length = 0;
+            redoStack.length = 0;
+            updateUndoRedoControls();
         });
         removeForm?.addEventListener("submit", () => { isSubmitting = true; });
 
@@ -1602,34 +1838,129 @@
         viewport?.addEventListener("pointercancel", stopPanning);
 
         document.addEventListener("keydown", event => {
-            if (event.key === "Escape" && isEdgeMode()) {
-                deactivateEdgeMode();
+            if (event.key === "Escape") {
+                if (dragState) {
+                    event.preventDefault();
+                    dragState.positions.forEach((pos, n) => setNodeCoordinates(n, pos.column, pos.row));
+                    selectedNodeList().forEach(selected => {
+                        selected.classList.remove("is-dragging");
+                        selected.style.removeProperty("transform");
+                    });
+                    tree.querySelectorAll(".visual-tree-placement-preview").forEach(preview => preview.remove());
+                    if (dragState.node && dragState.pointerId && dragState.node.hasPointerCapture(dragState.pointerId)) {
+                        dragState.node.releasePointerCapture(dragState.pointerId);
+                    }
+                    dragState = null;
+                    suppressNodeClick = true;
+                    refreshLayoutPresentation();
+                    drawConnectors();
+                    return;
+                }
+                if (isEdgeMode()) {
+                    deactivateEdgeMode();
+                    return;
+                }
+                if (isEditing() && selectedNode) {
+                    if (!confirmDiscardChanges()) return;
+                    if (isLayoutDirty) restoreLayoutPreview();
+                    restoreSelectedPreview();
+                    clearEntrySelection();
+                    return;
+                }
+            }
+
+            if (!isEditing()) return;
+
+            const isInputTarget = event.target instanceof HTMLElement &&
+                (event.target.isContentEditable || event.target.matches("input, select, textarea"));
+
+            if (event.ctrlKey || event.metaKey) {
+                if (!isInputTarget) {
+                    if ((event.key === "z" || event.key === "Z") && !event.shiftKey) {
+                        event.preventDefault();
+                        undo();
+                        return;
+                    }
+                    if ((event.key === "y" || event.key === "Y") || ((event.key === "z" || event.key === "Z") && event.shiftKey)) {
+                        event.preventDefault();
+                        redo();
+                        return;
+                    }
+                }
+            }
+
+            if ((event.key === "Delete" || event.key === "Backspace") && !isInputTarget && selectedNode) {
+                event.preventDefault();
+                const removeBtn = removeForm?.querySelector("button[type='submit']");
+                if (removeBtn && !removeForm.classList.contains("d-none")) {
+                    removeBtn.click();
+                }
                 return;
             }
-            if (event.key === "Escape" && isEditing() && selectedNode) {
-                if (!confirmDiscardChanges()) return;
-                if (isLayoutDirty) restoreLayoutPreview();
-                restoreSelectedPreview();
-                clearEntrySelection();
-                return;
-            }
-            if (!isEditing() || !selectedNode || event.altKey || event.ctrlKey || event.metaKey || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+
+            if (event.altKey || event.ctrlKey || event.metaKey || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
             const target = event.target;
             if (target instanceof HTMLElement && (target.isContentEditable || target.matches("input, select, textarea, button"))) return;
+            if (!selectedNode) return;
+
             event.preventDefault();
             const delta = { column: 0, row: 0 };
             if (event.key === "ArrowLeft") delta.column--;
             if (event.key === "ArrowRight") delta.column++;
             if (event.key === "ArrowUp") delta.row--;
             if (event.key === "ArrowDown") delta.row++;
+
             if (selectedNodes.size > 1) {
-                moveSelectedNodes(selectedNodeList().map(node => {
+                const nodes = selectedNodeList();
+                if (!nodes.every(n => {
+                    const pos = nodePosition(n);
+                    return pos.column + delta.column >= 0 && pos.row + delta.row >= 0;
+                })) return;
+                const fromSnapshots = nodes.map(n => ({ node: n, from: nodePosition(n) }));
+                moveSelectedNodes(nodes.map(node => {
                     const current = nodePosition(node);
                     return { node, column: current.column + delta.column, row: current.row + delta.row };
                 }));
+                pushHistory("Arrow nudge", fromSnapshots.map(s => ({ node: s.node, from: s.from, to: nodePosition(s.node) })));
             } else {
                 const current = nodePosition(selectedNode);
-                setCoordinates(current.column + delta.column, current.row + delta.row);
+                const targetCol = current.column + delta.column;
+                const targetRow = current.row + delta.row;
+                if (targetCol < 0 || targetRow < 0) return;
+                const from = { ...current };
+                setCoordinates(targetCol, targetRow);
+                pushHistory("Arrow nudge", [{ node: selectedNode, from, to: { column: targetCol, row: targetRow } }]);
+            }
+        });
+
+        const initValidationJumpLinks = () => {
+            const messages = document.querySelectorAll("[data-validation-message]");
+            if (messages.length === 0) return;
+            const nodes = Array.from(tree.querySelectorAll("[data-tree-node]"));
+            messages.forEach(msgEl => {
+                if (msgEl.dataset.jumpInitialized === "true") return;
+                msgEl.dataset.jumpInitialized = "true";
+                const text = msgEl.textContent || "";
+                nodes.forEach(node => {
+                    const name = node.dataset.vehicleName;
+                    if (name && text.includes(name)) {
+                        const jumpBtn = document.createElement("button");
+                        jumpBtn.type = "button";
+                        jumpBtn.className = "btn btn-xs btn-outline-danger ms-2 py-0 px-2";
+                        jumpBtn.dataset.jumpToNode = node.dataset.treeNode || "";
+                        jumpBtn.textContent = `Jump to ${name}`;
+                        jumpBtn.title = `Focus ${name} on visual tree`;
+                        msgEl.appendChild(jumpBtn);
+                    }
+                });
+            });
+        };
+
+        document.addEventListener("click", event => {
+            const jumpBtn = event.target.closest("[data-jump-to-node]");
+            if (jumpBtn) {
+                event.preventDefault();
+                jumpToNode(jumpBtn.dataset.jumpToNode);
             }
         });
 
@@ -1645,6 +1976,8 @@
         document.addEventListener("shown.bs.tab", drawConnectors);
         refreshOccupiedCells();
         refreshLayoutTools();
+        updateUndoRedoControls();
+        initValidationJumpLinks();
         applyScale(1);
 
         if (!canEdit) {

@@ -28,8 +28,8 @@
 @if (Model.ErrorMessage is not null) { <div class="alert alert-danger mt-3">@Model.ErrorMessage</div> }
 @if (Model.Validation is not null) {
     <div class="alert @(Model.Validation.IsValid ? "alert-success" : "alert-danger") mt-3"><strong>@(Model.Validation.IsValid ? "Validation passed" : "Validation failed")</strong></div>
-    @foreach (var error in Model.Validation.Errors) { <div class="alert alert-danger">@error</div> }
-    @foreach (var warning in Model.Validation.Warnings) { <div class="alert alert-warning">@warning</div> }
+    @foreach (var error in Model.Validation.Errors) { <div class="alert alert-danger d-flex align-items-center justify-content-between flex-wrap gap-2" data-validation-message><span>@error</span></div> }
+    @foreach (var warning in Model.Validation.Warnings) { <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2" data-validation-message><span>@warning</span></div> }
 }
 @if (Model.IsDraft && Model.CanPublish) {
     <div class="card mt-3"><div class="card-body"><h3>Publish Version</h3>

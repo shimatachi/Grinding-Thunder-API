@@ -206,3 +206,63 @@ body { min-height: 100vh; }
     border-left: 4px solid var(--tblr-primary);
     box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .08);
 }
+
+/* Batch 35: Visual Editor Productivity and Safety */
+.visual-tree-node.is-coordinate-collision {
+    outline: 3px solid var(--tblr-danger) !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--tblr-danger) 40%, transparent), 0 .35rem 1rem rgba(214, 57, 57, .3) !important;
+}
+.visual-tree-node.is-coordinate-collision::before {
+    content: "⚠️ Overlap";
+    position: absolute;
+    bottom: .35rem;
+    left: .35rem;
+    z-index: 10;
+    padding: .1rem .35rem;
+    border-radius: 3px;
+    background: var(--tblr-danger);
+    color: #fff;
+    font-size: .65rem;
+    font-weight: 700;
+    line-height: 1.2;
+    pointer-events: none;
+}
+
+.visual-tree-node.is-out-of-bounds {
+    outline: 3px dashed var(--tblr-danger) !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--tblr-danger) 40%, transparent) !important;
+}
+.visual-tree-node.is-out-of-bounds::before {
+    content: "⚠️ Out of bounds";
+    position: absolute;
+    bottom: .35rem;
+    left: .35rem;
+    z-index: 10;
+    padding: .1rem .35rem;
+    border-radius: 3px;
+    background: var(--tblr-danger);
+    color: #fff;
+    font-size: .65rem;
+    font-weight: 700;
+    line-height: 1.2;
+    pointer-events: none;
+}
+
+.visual-tree-edge.is-validation-warning {
+    stroke: var(--tblr-danger) !important;
+    stroke-dasharray: 6 4 !important;
+    filter: drop-shadow(0 0 5px rgba(214, 57, 57, .9)) !important;
+}
+
+@keyframes visual-tree-node-focus-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); box-shadow: 0 0 20px rgba(32, 107, 196, .85); }
+    100% { transform: scale(1); }
+}
+.visual-tree-node.is-jump-highlighted {
+    z-index: 50 !important;
+    animation: visual-tree-node-focus-pulse 0.5s ease-in-out 2;
+}
+

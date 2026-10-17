@@ -95,6 +95,10 @@
             @if (Model.CanEdit)
             {
                 <div class="card-body py-2 visual-tree-layout-toolbar" data-tree-layout-toolbar aria-label="Layout assistance tools">
+                    <div class="btn-list" role="group" aria-label="History actions">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-undo title="Undo (Ctrl+Z)" disabled>Undo</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-redo title="Redo (Ctrl+Y)" disabled>Redo</button>
+                    </div>
                     <label class="form-check form-switch mb-0">
                         <input class="form-check-input" type="checkbox" role="switch" checked data-tree-grid-snap />
                         <span class="form-check-label">Snap while dragging</span>
@@ -116,8 +120,9 @@
                         <button type="submit" class="btn btn-sm btn-primary" data-tree-layout-save disabled>Save layout</button>
                     </form>
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-tree-layout-discard disabled>Discard layout</button>
-                    <div class="alert alert-danger py-1 px-2 mb-0 d-none" role="alert" data-tree-collision-warning aria-live="assertive">
-                        Resolve highlighted root-cell collisions before saving.
+                    <div class="alert alert-danger py-1 px-2 mb-0 d-none d-flex align-items-center flex-wrap gap-2" role="alert" data-tree-collision-warning aria-live="assertive">
+                        <span>Resolve highlighted layout issues:</span>
+                        <span data-tree-collision-list class="d-inline-flex flex-wrap gap-1"></span>
                     </div>
                     <span class="text-secondary small ms-auto">Ctrl/Command or Shift-click up to 12 entries in one rank.</span>
                 </div>
@@ -363,7 +368,7 @@
                                 }
                             </select>
                         </div>
-                        <div class="form-hint">Drag the selected card, use the arrow buttons, or press an arrow key. Ctrl/Command or Shift-click adds entries from the same rank to a bounded selection. Coordinates are persisted only when saved.</div>
+                        <div class="form-hint">Drag the selected card, use the arrow buttons, or press an arrow key. Ctrl+Z/Ctrl+Y undo/redo, Esc deselects, Del/Backspace removes. Ctrl/Command or Shift-click adds entries from the same rank to a bounded selection. Coordinates are persisted only when saved.</div>
                         </section>
                     </div>
                     <div class="card-footer"><button type="submit" class="btn btn-primary w-100">Save Changes</button></div>

@@ -22,6 +22,8 @@ Development seed data currently contains USA, USSR, Germany, and Great Britain g
 - Estimate RP and SL matches independently with ceiling division, then report the greater value as the combined estimate.
 - Manage persistent administrator accounts with PBKDF2 hashing, role assignments (`Admin`, `Publisher`, `Editor`), security-stamp invalidation, and Razor Pages admin UI.
 - Manage player accounts with PBKDF2 credentials, separate JWT token audience, saved vehicle ownership by stable `VehicleId`, and full-set progress synchronization with optimistic concurrency.
+- Interactive visual research tree editor for Draft versions with drag-and-drop, layout alignment, vertical distribution, client-side undo/redo history, keyboard navigation, and spatial validation warnings with clickable jump-to-node focus.
+- Public read-only research tree browser with persistent player progression overlay, target vehicle route highlighting, and live progression estimation HUD.
 
 See [Product](docs/PRODUCT.md) for the implemented scope, intended behavior, and future direction.
 
@@ -209,7 +211,7 @@ The image listens on port `8080`. A running container still requires a reachable
 
 ## Testing
 
-The solution includes an xUnit test project (`GrindingThunder.Api.Tests`) located under `tests/GrindingThunder.Api.Tests` covering the research calculator, lifecycle services, tabular import, authentication, and persistence behavior. SQLite in-memory databases are used so tests do not require PostgreSQL:
+The solution includes xUnit test suites covering both the HTTP REST API backend (`GrindingThunder.Api.Tests`) and the Razor Pages visual tree admin/public web host (`GrindingThunder.Admin.Tests`):
 
 ```console
 dotnet test
@@ -220,25 +222,33 @@ dotnet test
 ```text
 .
 |-- src/
-|   `-- GrindingThunder.Api/
-|       |-- Application/                 # Calculation request and result models
-|       |-- Controllers/                 # HTTP API controllers
-|       |-- Domain/                      # Entities and calculator contract
-|       |-- Infrastructure/
-|       |   |-- Persistence/             # DbContext, mappings, migrations, and seed data
-|       |   `-- Services/                # Research calculator, lifecycle, and import implementations
-|       |-- Properties/                  # Launch profiles
-|       |-- Program.cs                   # Application composition and middleware
-|       |-- appsettings.json
-|       |-- appsettings.Development.json
-|       |-- GrindingThunder.Api.csproj   # Project and NuGet dependencies
-|       `-- Dockerfile                   # Production image build
+|   |-- GrindingThunder.Api/             # Core ASP.NET Core REST API backed by PostgreSQL
+|   |   |-- Application/                 # Calculation request and result models
+|   |   |-- Controllers/                 # HTTP API controllers
+|   |   |-- Domain/                      # Entities and calculator contract
+|   |   |-- Infrastructure/
+|   |   |   |-- Persistence/             # DbContext, mappings, migrations, and seed data
+|   |   |   `-- Services/                # Research calculator, lifecycle, and import implementations
+|   |   |-- Properties/                  # Launch profiles
+|   |   |-- Program.cs                   # Application composition and middleware
+|   |   |-- appsettings.json
+|   |   |-- appsettings.Development.json
+|   |   |-- GrindingThunder.Api.csproj   # Project and NuGet dependencies
+|   |   `-- Dockerfile                   # Production image build
+|   `-- GrindingThunder.Admin/           # ASP.NET Core Razor Pages web client & visual research tree
+|       |-- Pages/                       # Tabler Razor Pages (tree management, player tree, accounts)
+|       |-- Services/                    # Strongly-typed API client and cookie/bearer auth handlers
+|       |-- Models/                      # Visual tree and form input view models
+|       |-- wwwroot/                     # Shared visual tree CSS, JS, and Tabler UI assets
+|       `-- GrindingThunder.Admin.csproj
 |-- tests/
-|   `-- GrindingThunder.Api.Tests/       # xUnit tests (calculator, lifecycle, import, and auth)
-|       `-- GrindingThunder.Api.Tests.csproj
+|   |-- GrindingThunder.Api.Tests/       # xUnit API tests (calculator, lifecycle, import, and auth)
+|   |   `-- GrindingThunder.Api.Tests.csproj
+|   `-- GrindingThunder.Admin.Tests/     # xUnit integration & UI tests (trees, progression, productivity)
+|       `-- GrindingThunder.Admin.Tests.csproj
 |-- docs/                                # Canonical product and design documentation
 |-- tools/                               # Tooling and external reference data
-|-- GrindingThunder.sln                  # Solution (API + test projects)
+|-- GrindingThunder.sln                  # Solution (API, Admin, and test projects)
 |-- AGENTS.md                            # Project instructions
 |-- .clinerules                          # Agent instructions
 |-- .gitignore                           # Git ignore rules

@@ -890,27 +890,24 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
 
 ## Next
 
-- **Batch 35 — Visual editor productivity and safety** (status: Planned)
+- **Batch 35 — Visual editor productivity and safety** (status: Completed)
   Goal: add advanced editing conveniences only after the core WYSIWYG workflow has
   proven stable through real content maintenance.
-
-  Candidate scope:
-  - undo/redo for visual Draft mutations;
-  - bulk selection improvements;
-  - copy/paste or duplicate layout operations where domain-safe;
-  - stronger validation overlays on nodes/edges;
-  - navigation directly from validation errors to the offending visual node;
-  - optional change highlighting against the previous Published version;
-  - keyboard shortcuts;
-  - improved accessibility;
-  - large-tree rendering/performance improvements based on measurements.
-
-  Requirements:
-  - undo/redo must not undermine backend validation;
-  - Published versions remain immutable;
-  - no speculative complexity unless supported by real admin usage.
-
-  Dependency: Batches 29-34.
+  Delivered:
+  - Client-side bounded Undo/Redo history stack in `visual-tree.js` (`undoStack`, `redoStack`, `maxHistorySize = 50`) for unsaved visual Draft mutations (drag/drop moves, inspector coordinate changes/nudges, layout toolbar nudges, column/row alignment, and vertical distribution). Reverting restores node coordinates, updates SVG connectors, recalculates layout heights, updates inspector preview fields/dirty tracking, and refreshes toolbar states.
+  - Dedicated Undo and Redo toolbar buttons (`data-tree-undo`, `data-tree-redo`) with live disabled state management and contextual shortcut tooltips (`Undo (Ctrl+Z)`, `Redo (Ctrl+Y)`).
+  - Context-aware keyboard shortcuts in visual draft edit mode:
+    - `Ctrl+Z` / `Ctrl+Y` (or `Ctrl+Shift+Z`) for canvas undo/redo while bypassing active form inputs.
+    - `Escape` to cancel active pointer dragging (restoring pre-drag coordinates and clearing preview), deactivate edge mode, or deselect entries with discard guards.
+    - `Delete` / `Backspace` to open remove entry confirmation when a vehicle node is selected outside form inputs.
+    - `Arrow keys` (`ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`) for fine-grained 1-cell nudging of selected nodes, preserving non-negative coordinate constraints (`TreeColumn >= 0`, `TreeRow >= 0`).
+  - Visual validation warnings on nodes and connectors:
+    - Highlight coordinate overlaps (`.is-coordinate-collision` with `⚠️ Overlap` badge) and out-of-bounds nodes (`.is-out-of-bounds` with `⚠️ Out of bounds` badge).
+    - Highlight invalid prerequisite edges violating rank order (`prerequisite.RankNumber > dependent.RankNumber`) with `.is-validation-warning` dashed danger strokes.
+    - Actionable clickable jump navigation: populated `data-tree-collision-list` and page-level `data-validation-message` hooks with `[data-jump-to-node]` buttons that switch tabs, center offending nodes in the viewport, and trigger a focus pulse animation (`.is-jump-highlighted`).
+  - Strictly immutable Published snapshots: all undo/redo operations and editing shortcuts are guarded by `isEditing()`; public `/Tree` and Published admin views omit all edit controls.
+  - Comprehensive unit and integration test coverage in `VisualEditorProductivityTests.cs` (CSS badges, JS history/shortcut hooks, draft toolbar buttons, published/public read-only exclusion, server validation message hooks, and Node.js state machine simulation).
+  Verification: 0 warnings, 0 errors, all 567 tests pass across the entire solution (346 API + 221 Admin).
 
 
 ## Later

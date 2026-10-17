@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  memo,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -83,6 +85,85 @@ function VehicleImage({ src, name, compact = false }: { src: string | null; name
 
   return <img src={src} alt={name} loading="lazy" onError={() => setFailed(true)} />;
 }
+
+interface TreeNodeCardProps {
+  node: TreeLayoutNode;
+  selectedNode: boolean;
+  relatedNode: boolean;
+  ownedNode: boolean;
+  targetNode: boolean;
+  requiredVehicle: boolean;
+  fillerNode: boolean;
+  onSetRef: (id: string, el: HTMLButtonElement | null) => void;
+  onSelect: (id: string) => void;
+  onNavigate: (event: ReactKeyboardEvent<HTMLButtonElement>, node: TreeLayoutNode) => void;
+  onSelectTarget: (id: string) => void;
+}
+
+const TreeNodeCard = memo(function TreeNodeCard({
+  node,
+  selectedNode,
+  relatedNode,
+  ownedNode,
+  targetNode,
+  requiredVehicle,
+  fillerNode,
+  onSetRef,
+  onSelect,
+  onNavigate,
+  onSelectTarget,
+}: TreeNodeCardProps) {
+  const acquisition = acquisitionPresentation[node.acquisitionType] ?? {
+    label: "Unknown",
+    color: "#8c98a6",
+  };
+  const nodeStyle = {
+    left: node.x,
+    top: node.y,
+    width: NODE_WIDTH,
+    height: NODE_HEIGHT,
+    zIndex: 10 + node.stackIndex,
+    "--acquisition-accent": acquisition.color,
+  } as CSSProperties;
+
+  return (
+    <button
+      ref={(element) => onSetRef(node.id, element)}
+      type="button"
+      data-tree-node
+      className={`tree-node ${selectedNode ? "tree-node-selected" : ""} ${relatedNode ? "tree-node-related" : ""} ${ownedNode ? "tree-node-owned" : ""} ${targetNode ? "tree-node-target" : ""} ${requiredVehicle ? "tree-node-required" : ""} ${fillerNode ? "tree-node-filler" : ""} ${node.folderParentId ? "tree-node-folder-child" : ""} ${node.acquisitionType === VehicleAcquisitionType.Hidden ? "tree-node-hidden" : ""}`}
+      style={nodeStyle}
+      onClick={() => onSelect(node.id)}
+      onKeyDown={(event) => onNavigate(event, node)}
+      onDoubleClick={() => {
+        if (node.acquisitionType === VehicleAcquisitionType.Researchable) onSelectTarget(node.id);
+      }}
+      aria-pressed={selectedNode}
+      aria-label={`${node.name}, Rank ${node.rankLabel}, ${acquisition.label}, ${formatNumber(node.rpCost)} RP, ${formatNumber(node.slCost)} SL${node.acquisitionType === VehicleAcquisitionType.Researchable ? ", double-click to set as calculator target" : ""}`}
+    >
+      <span className="tree-node-image"><VehicleImage src={node.imageUrl} name={node.name} compact /></span>
+      <span className="tree-node-content">
+        <span className="tree-node-name" title={node.name}>{node.name}</span>
+        <span className="tree-node-meta">
+          <span>Rank {node.rankLabel}</span>
+          <span className="tree-acquisition-badge">{acquisition.label}</span>
+        </span>
+        <span className="tree-node-costs">
+          <span><small>RP</small>{formatNumber(node.rpCost)}</span>
+          <span><small>SL</small>{formatNumber(node.slCost)}</span>
+        </span>
+        {(node.isFolderParent || node.folderParentId) && (
+          <span className="tree-folder-badge">{node.isFolderParent ? "Folder" : "Folder member"}</span>
+        )}
+        {(targetNode || fillerNode || requiredVehicle || ownedNode) && (
+          <span className={`tree-progression-badge ${targetNode ? "tree-progression-target" : fillerNode ? "tree-progression-filler" : requiredVehicle ? "tree-progression-required" : "tree-progression-owned"}`}>
+            {targetNode ? "Target" : fillerNode ? "Filler" : requiredVehicle ? "Required" : "✓ Owned"}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+});
 
 function ZoomOutIcon() {
   return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 10h10" /></svg>;
@@ -203,7 +284,7 @@ export function ResearchTreeCanvas({
     });
   }
 
-  function navigateNodes(event: ReactKeyboardEvent<HTMLButtonElement>, node: TreeLayoutNode) {
+  const navigateNodes = useCallback((event: ReactKeyboardEvent<HTMLButtonElement>, node: TreeLayoutNode) => {
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
     event.preventDefault();
     const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
@@ -222,7 +303,14 @@ export function ResearchTreeCanvas({
     });
     const next = candidates[0];
     if (next) nodeRefs.current.get(next.id)?.focus();
-  }
+  }, [layout.nodes]);
+
+  const handleSetRef = useCallback((id: string, el: HTMLButtonElement | null) => {
+    if (el) nodeRefs.current.set(id, el);
+    else nodeRefs.current.delete(id);
+  }, []);
+  const handleSelect = useCallback((id: string) => setSelectedId(id), []);
+  const handleSelectTarget = useCallback((id: string) => onSelectTarget(id), [onSelectTarget]);
 
   function zoomTo(value: number) {
     const viewport = viewportRef.current;
@@ -353,7 +441,7 @@ export function ResearchTreeCanvas({
                   <p>{rank.entryCount} {rank.entryCount === 1 ? "vehicle" : "vehicles"}</p>
                   {rank.requiredVehiclesUnlocked > 0 && (
                     <p className="tree-rank-quota">
-                      Unlock {rank.requiredVehiclesUnlocked} vehicles to open this rank
+                      Requires <strong>{rank.requiredVehiclesUnlocked}</strong> vehicles to unlock Rank {rank.label}
                     </p>
                   )}
                 </header>
@@ -384,7 +472,7 @@ export function ResearchTreeCanvas({
                 return (
                   <path
                     key={`${edge.kind}:${edge.fromId}:${edge.toId}`}
-                    d={connectorPath(edge, layout.nodesById)}
+                    d={edge.path}
                     className={`tree-edge tree-edge-${edge.kind} ${touchesSelection ? "tree-edge-active" : ""} ${connectsCalculatedPath ? "tree-edge-route" : ""}`}
                   />
                 );
@@ -392,65 +480,28 @@ export function ResearchTreeCanvas({
             </svg>
 
             {layout.nodes.map((node) => {
-              const acquisition = acquisitionPresentation[node.acquisitionType] ?? {
-                label: "Unknown",
-                color: "#8c98a6",
-              };
               const selectedNode = selectedId === node.id;
               const relatedNode = selectedRelatedIds.has(node.id);
               const ownedNode = ownedVehicleIds.has(node.id);
               const targetNode = targetVehicleId === node.id;
               const requiredVehicle = requiredVehicles.get(node.id);
               const fillerNode = requiredVehicle?.isRankGateFiller === true;
-              const nodeStyle = {
-                left: node.x,
-                top: node.y,
-                width: NODE_WIDTH,
-                height: NODE_HEIGHT,
-                zIndex: 10 + node.stackIndex,
-                "--acquisition-accent": acquisition.color,
-              } as CSSProperties;
 
               return (
-                <button
+                <TreeNodeCard
                   key={node.id}
-                  ref={(element) => {
-                    if (element) nodeRefs.current.set(node.id, element);
-                    else nodeRefs.current.delete(node.id);
-                  }}
-                  type="button"
-                  data-tree-node
-                  className={`tree-node ${selectedNode ? "tree-node-selected" : ""} ${relatedNode ? "tree-node-related" : ""} ${ownedNode ? "tree-node-owned" : ""} ${targetNode ? "tree-node-target" : ""} ${requiredVehicle ? "tree-node-required" : ""} ${fillerNode ? "tree-node-filler" : ""} ${node.folderParentId ? "tree-node-folder-child" : ""} ${node.acquisitionType === VehicleAcquisitionType.Hidden ? "tree-node-hidden" : ""}`}
-                  style={nodeStyle}
-                  onClick={() => setSelectedId(node.id)}
-                  onKeyDown={(event) => navigateNodes(event, node)}
-                  onDoubleClick={() => {
-                    if (node.acquisitionType === VehicleAcquisitionType.Researchable) onSelectTarget(node.id);
-                  }}
-                  aria-pressed={selectedNode}
-                  aria-label={`${node.name}, Rank ${node.rankLabel}, ${acquisition.label}, ${formatNumber(node.rpCost)} RP, ${formatNumber(node.slCost)} SL${node.acquisitionType === VehicleAcquisitionType.Researchable ? ", double-click to set as calculator target" : ""}`}
-                >
-                  <span className="tree-node-image"><VehicleImage src={node.imageUrl} name={node.name} compact /></span>
-                  <span className="tree-node-content">
-                    <span className="tree-node-name" title={node.name}>{node.name}</span>
-                    <span className="tree-node-meta">
-                      <span>Rank {node.rankLabel}</span>
-                      <span className="tree-acquisition-badge">{acquisition.label}</span>
-                    </span>
-                    <span className="tree-node-costs">
-                      <span><small>RP</small>{formatNumber(node.rpCost)}</span>
-                      <span><small>SL</small>{formatNumber(node.slCost)}</span>
-                    </span>
-                    {(node.isFolderParent || node.folderParentId) && (
-                      <span className="tree-folder-badge">{node.isFolderParent ? "Folder" : "Folder member"}</span>
-                    )}
-                    {(targetNode || fillerNode || requiredVehicle || ownedNode) && (
-                      <span className={`tree-progression-badge ${targetNode ? "tree-progression-target" : fillerNode ? "tree-progression-filler" : requiredVehicle ? "tree-progression-required" : "tree-progression-owned"}`}>
-                        {targetNode ? "Target" : fillerNode ? "Filler" : requiredVehicle ? "Required" : "✓ Owned"}
-                      </span>
-                    )}
-                  </span>
-                </button>
+                  node={node}
+                  selectedNode={selectedNode}
+                  relatedNode={relatedNode}
+                  ownedNode={ownedNode}
+                  targetNode={targetNode}
+                  requiredVehicle={Boolean(requiredVehicle)}
+                  fillerNode={Boolean(fillerNode)}
+                  onSetRef={handleSetRef}
+                  onSelect={handleSelect}
+                  onNavigate={navigateNodes}
+                  onSelectTarget={handleSelectTarget}
+                />
               );
             })}
           </div>

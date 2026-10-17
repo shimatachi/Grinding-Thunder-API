@@ -382,10 +382,10 @@ public class TestMockApiHandler : HttpMessageHandler
         {
             return JsonResponse(HttpStatusCode.OK, new object[]
             {
-                new { id = VehicleId, treeRankId = Rank2Id, researchTreeVersionId = PublishedVersionId, name = "F-16A", imageUrl = (string?)null, rpCost = 210000, slCost = 330000, acquisitionType = 0, isFolderParent = false, folderParentId = (Guid?)null, treeColumn = 0, treeRow = 0, prerequisiteIds = Array.Empty<Guid>() },
-                new { id = VehicleId2, treeRankId = Rank2Id, researchTreeVersionId = PublishedVersionId, name = "F-4E", imageUrl = (string?)null, rpCost = 180000, slCost = 290000, acquisitionType = 1, isFolderParent = false, folderParentId = (Guid?)VehicleId, treeColumn = 1, treeRow = 0, prerequisiteIds = new[] { VehicleId } },
+                new { id = VehicleId, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation", treeRankId = Rank2Id, researchTreeVersionId = PublishedVersionId, name = "F-16A", imageUrl = (string?)null, wikiUrl = (string?)null, rpCost = 210000, slCost = 330000, acquisitionType = 0, isFolderParent = false, folderParentId = (Guid?)null, treeColumn = 0, treeRow = 0, prerequisiteIds = Array.Empty<Guid>() },
+                new { id = VehicleId2, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation", treeRankId = Rank2Id, researchTreeVersionId = PublishedVersionId, name = "F-4E", imageUrl = (string?)null, wikiUrl = (string?)null, rpCost = 180000, slCost = 290000, acquisitionType = 1, isFolderParent = false, folderParentId = (Guid?)VehicleId, treeColumn = 1, treeRow = 0, prerequisiteIds = new[] { VehicleId } },
                 // Same tree and stable vehicle, different snapshot: must never leak into the selected published view.
-                new { id = VehicleId, treeRankId = RankId, researchTreeVersionId = DraftVersionId, name = "Other snapshot entry", imageUrl = (string?)null, rpCost = 987654, slCost = 987655, acquisitionType = 0, isFolderParent = false, folderParentId = (Guid?)null, treeColumn = 0, treeRow = 0, prerequisiteIds = Array.Empty<Guid>() }
+                new { id = VehicleId, researchTreeId = ResearchTreeId, nationId = NationId, nationName = "USA", vehicleTypeId = VehicleTypeId, vehicleTypeName = "Aviation", treeRankId = RankId, researchTreeVersionId = DraftVersionId, name = "Other snapshot entry", imageUrl = (string?)null, wikiUrl = (string?)null, rpCost = 987654, slCost = 987655, acquisitionType = 0, isFolderParent = false, folderParentId = (Guid?)null, treeColumn = 0, treeRow = 0, prerequisiteIds = Array.Empty<Guid>() }
             });
         }
 

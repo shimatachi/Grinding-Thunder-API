@@ -26,6 +26,7 @@ export interface TreeLayoutRank extends TreeRankSummary {
 export interface TreeLayoutNode extends VehicleTreeEntry {
   x: number;
   y: number;
+  rowOffset: number;
   stackIndex: number;
   rankNumber: number;
   rankLabel: string;
@@ -37,6 +38,7 @@ export interface TreeLayoutEdge {
   fromId: string;
   toId: string;
   kind: TreeEdgeKind;
+  path: string;
 }
 
 export interface TreeLayout {
@@ -75,6 +77,10 @@ export function createTreeLayout(
   const rankById = new Map(orderedRanks.map((rank) => [rank.id, rank]));
   const validEntries = entries.filter((entry) => rankById.has(entry.treeRankId));
 
+  const folderParentIds = new Set(
+    validEntries.filter((e) => e.folderParentId).map((e) => e.folderParentId!),
+  );
+
   const stackIndexById = new Map<string, number>();
   const coordinateGroups = new Map<string, VehicleTreeEntry[]>();
   for (const entry of validEntries) {
@@ -92,15 +98,24 @@ export function createTreeLayout(
       .forEach((entry, index) => stackIndexById.set(entry.id, index));
   }
 
+  const minRowByRankId = new Map<string, number>();
+  for (const rank of orderedRanks) {
+    const rankEntries = validEntries.filter((entry) => entry.treeRankId === rank.id);
+    const minRow = rankEntries.length === 0 ? 0 : Math.min(...rankEntries.map((e) => e.treeRow));
+    minRowByRankId.set(rank.id, minRow);
+  }
+
   const layoutRanks: TreeLayoutRank[] = [];
   let bandTop = 0;
   for (const rank of orderedRanks) {
     const rankEntries = validEntries.filter((entry) => entry.treeRankId === rank.id);
+    const minRow = minRowByRankId.get(rank.id) ?? 0;
     const greatestBottom = rankEntries.reduce((maximum, entry) => {
       const stackIndex = stackIndexById.get(entry.id) ?? 0;
+      const rowOffset = entry.treeRow - minRow;
       return Math.max(
         maximum,
-        BAND_NODE_TOP + (entry.treeRow * ROW_STEP) + (stackIndex * STACK_Y_OFFSET) + NODE_HEIGHT,
+        BAND_NODE_TOP + (rowOffset * ROW_STEP) + (stackIndex * STACK_Y_OFFSET) + NODE_HEIGHT,
       );
     }, 0);
     const height = Math.max(EMPTY_BAND_HEIGHT, greatestBottom + BAND_BOTTOM_PADDING);
@@ -119,10 +134,14 @@ export function createTreeLayout(
     .map((entry): TreeLayoutNode => {
       const rank = layoutRankById.get(entry.treeRankId)!;
       const stackIndex = stackIndexById.get(entry.id) ?? 0;
+      const minRow = minRowByRankId.get(entry.treeRankId) ?? 0;
+      const rowOffset = entry.treeRow - minRow;
       return {
         ...entry,
+        isFolderParent: Boolean(entry.isFolderParent || folderParentIds.has(entry.id)),
         x: GRID_ORIGIN_X + (entry.treeColumn * COLUMN_STEP) + (stackIndex * STACK_X_OFFSET),
-        y: rank.top + BAND_NODE_TOP + (entry.treeRow * ROW_STEP) + (stackIndex * STACK_Y_OFFSET),
+        y: rank.top + BAND_NODE_TOP + (rowOffset * ROW_STEP) + (stackIndex * STACK_Y_OFFSET),
+        rowOffset,
         stackIndex,
         rankNumber: rank.rankNumber,
         rankLabel: rank.label,
@@ -130,7 +149,7 @@ export function createTreeLayout(
     })
     .sort((left, right) =>
       left.rankNumber - right.rankNumber ||
-      left.treeRow - right.treeRow ||
+      left.rowOffset - right.rowOffset ||
       left.treeColumn - right.treeColumn ||
       left.stackIndex - right.stackIndex ||
       left.name.localeCompare(right.name),
@@ -144,7 +163,7 @@ export function createTreeLayout(
     const key = `${kind}:${fromId}:${toId}`;
     if (edgeKeys.has(key)) return;
     edgeKeys.add(key);
-    edges.push({ fromId, toId, kind });
+    edges.push({ fromId, toId, kind, path: "" });
   };
 
   for (const node of nodes) {
@@ -152,6 +171,10 @@ export function createTreeLayout(
     for (const prerequisiteId of node.prerequisiteIds) {
       addEdge(prerequisiteId, node.id, "prerequisite");
     }
+  }
+
+  for (const edge of edges) {
+    edge.path = connectorPath(edge, nodesById);
   }
 
   const greatestRight = nodes.reduce(
@@ -174,7 +197,7 @@ export function createTreeLayout(
 }
 
 export function connectorPath(
-  edge: TreeLayoutEdge,
+  edge: { fromId: string; toId: string; kind: TreeEdgeKind },
   nodesById: Map<string, TreeLayoutNode>,
 ): string {
   const source = nodesById.get(edge.fromId);

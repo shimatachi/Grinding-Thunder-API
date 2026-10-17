@@ -134,7 +134,56 @@ public record PublicVehicleTreeEntryDto(
     int TreeColumn,
     int TreeRow,
     List<Guid> PrerequisiteIds,
-    string? WikiUrl = null);
+    string? WikiUrl = null,
+    Guid ResearchTreeId = default,
+    Guid NationId = default,
+    string NationName = "",
+    Guid VehicleTypeId = default,
+    string VehicleTypeName = "");
+
+/// <summary>
+/// Canonical strongly typed response model matching the public GET /api/vehicles/tree contract.
+/// </summary>
+public record VehicleTreeResponseDto(
+    Guid Id,
+    Guid ResearchTreeId,
+    Guid NationId,
+    string NationName,
+    Guid VehicleTypeId,
+    string VehicleTypeName,
+    Guid TreeRankId,
+    Guid ResearchTreeVersionId,
+    string Name,
+    string? ImageUrl,
+    string? WikiUrl,
+    int RpCost,
+    int SlCost,
+    VehicleAcquisitionType AcquisitionType,
+    bool IsFolderParent,
+    Guid? FolderParentId,
+    int TreeColumn,
+    int TreeRow,
+    List<Guid> PrerequisiteIds)
+    : PublicVehicleTreeEntryDto(
+        Id,
+        TreeRankId,
+        ResearchTreeVersionId,
+        Name,
+        ImageUrl,
+        RpCost,
+        SlCost,
+        AcquisitionType,
+        IsFolderParent,
+        FolderParentId,
+        TreeColumn,
+        TreeRow,
+        PrerequisiteIds,
+        WikiUrl,
+        ResearchTreeId,
+        NationId,
+        NationName,
+        VehicleTypeId,
+        VehicleTypeName);
 
 // Form input models for the version editor pages.
 public class AddRankInputModel

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using GrindingThunder.Api.Application.Models;
 using GrindingThunder.Api.Domain.Entities;
 using GrindingThunder.Api.Infrastructure.Persistence;
 
@@ -97,6 +98,9 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
     }
 
     [HttpGet("tree")]
+    [ProducesResponseType(typeof(List<VehicleTreeResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetVehicleTree(
         [FromQuery] Guid nationId,
         [FromQuery] Guid researchTreeVersionId,
@@ -148,14 +152,13 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
         }
 
         var entries = await query
-            .Select(e => new
-            {
+            .Select(e => new VehicleTreeResponseDto(
                 e.Vehicle.Id,
                 e.Vehicle.ResearchTreeId,
                 e.Vehicle.ResearchTree.NationId,
-                NationName = e.Vehicle.ResearchTree.Nation.Name,
+                e.Vehicle.ResearchTree.Nation.Name,
                 e.Vehicle.ResearchTree.VehicleTypeId,
-                VehicleTypeName = e.Vehicle.ResearchTree.VehicleType.Name,
+                e.Vehicle.ResearchTree.VehicleType.Name,
                 e.TreeRankId,
                 e.TreeRank.ResearchTreeVersionId,
                 e.Vehicle.Name,
@@ -164,16 +167,16 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
                 e.RpCost,
                 e.SlCost,
                 e.AcquisitionType,
-                IsFolderParent = e.FolderChildren.Any(),
-                FolderParentId = e.FolderParentEntry == null
+                e.FolderChildren.Any(),
+                e.FolderParentEntry == null
                     ? (Guid?)null
                     : e.FolderParentEntry.VehicleId,
                 e.TreeColumn,
                 e.TreeRow,
-                PrerequisiteIds = e.Prerequisites
+                e.Prerequisites
                     .Select(p => p.PrerequisiteVehicleTreeEntry.VehicleId)
                     .ToList()
-            })
+            ))
             .ToListAsync(cancellationToken);
 
         return Ok(entries);

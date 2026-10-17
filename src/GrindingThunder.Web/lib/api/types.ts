@@ -75,6 +75,8 @@ export interface VehicleTreeEntry {
   prerequisiteIds: Guid[];
 }
 
+export type VehicleTreeResponseDto = VehicleTreeEntry;
+
 export interface PlayerRegisterRequest {
   username: string;
   email: string;

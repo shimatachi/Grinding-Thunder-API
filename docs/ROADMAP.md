@@ -1361,7 +1361,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   (355 API + 233 Admin).
 
 
-- **Batch 43 — Cross-frontend visual consistency and performance** (status: Planned)
+- **Batch 43 — Cross-frontend visual consistency and performance** (status: Completed)
   Goal: harden the shared visual-tree contract so Admin and player frontend remain
   consistent as both evolve.
 
@@ -1387,6 +1387,8 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - optimize without measurements.
 
   Dependency: Batches 40–42.
+  Result: defined canonical strongly typed DTO `VehicleTreeResponseDto` in `src/GrindingThunder.Api/Application/Models/VehicleTreeDtos.cs` containing all 19 catalog and layout properties, replacing the anonymous projection in `VehiclesController.GetVehicleTree` while maintaining exact wire compatibility and camelCase JSON contract. Aligned Admin models (`PublicVehicleTreeEntryDto`, `VehicleTreeResponseDto`) and Web TypeScript interfaces (`src/GrindingThunder.Web/lib/api/types.ts`). Standardized relative row positioning across frontends: Web's `tree-layout.ts` computes `minRowByRankId` and normalizes `rowOffset = treeRow - minRow`, matching Admin's `VisualTreeMapper` `RowOffset = node.TreeRow - minimumRow` and preventing multi-row blank gaps on non-contiguous or sparse row assignments. Aligned defensive folder parent resolution (`isFolderParent || folderParentIds.has(entry.id)`), identical 6-type acquisition styling, Roman numeral rank labels, and rank unlock quota displays. Optimized Web rendering performance without DOM virtualization: precomputed SVG connector bezier paths in `tree-layout.ts` and extracted memoized `TreeNodeCard` (`React.memo`) with stable callbacks in `research-tree-canvas.tsx` to eliminate re-renders across 100+ vehicle nodes during viewport panning or selection changes. Optimized Admin `visual-tree.js` `drawConnectors`: cached stage rectangle and per-node bounding client rects in a single pass to eliminate forced reflow / layout thrashing over dense prerequisite checks. Preserved responsive mobile viewport layouts with touch-friendly bottom drawer and panning. Added automated contract test `VehicleTreeContractTests.cs` in `GrindingThunder.Api.Tests` (verifying strongly typed returns, all 19 camelCase wire properties, acquisition types, and folder/prerequisite serialization) and consistency tests `VisualTreeConsistencyTests.cs` in `GrindingThunder.Admin.Tests` (verifying sparse row offset normalization, folder parent resolution, Draft vs Public equivalence, and 200-vehicle large-tree mapping performance in < 50ms).
+  Verification: `dotnet build` succeeds with 0 warnings/errors; `dotnet test` passes all 593 tests (356 API + 237 Admin); `npm --prefix src/GrindingThunder.Web run typecheck` passes; `npm --prefix src/GrindingThunder.Web run build` passes.
 
 ## Later
 

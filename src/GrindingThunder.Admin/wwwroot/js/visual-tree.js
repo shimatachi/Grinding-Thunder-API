@@ -254,15 +254,26 @@
             element.textContent = message;
         };
 
+        let activeStageRect = null;
+        let activeGeometryCache = null;
+
         const nodeGeometry = node => {
+            if (activeGeometryCache) {
+                const cached = activeGeometryCache.get(node);
+                if (cached) return cached;
+            }
             const nodeRect = node.getBoundingClientRect();
-            const stageRect = stage.getBoundingClientRect();
-            return {
+            const stageRect = activeStageRect || stage.getBoundingClientRect();
+            const geom = {
                 left: (nodeRect.left - stageRect.left) / scale,
                 top: (nodeRect.top - stageRect.top) / scale,
                 width: nodeRect.width / scale,
                 height: nodeRect.height / scale
             };
+            if (activeGeometryCache) {
+                activeGeometryCache.set(node, geom);
+            }
+            return geom;
         };
 
         const connectorPath = (from, to, kind) => {
@@ -318,43 +329,50 @@
 
         const drawConnectors = () => {
             if (!stage || !svg || !paths) return;
-            const width = stage.offsetWidth;
-            const height = stage.offsetHeight;
-            svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-            svg.setAttribute("width", width);
-            svg.setAttribute("height", height);
-            paths.replaceChildren();
-            const renderedFolderTargets = new Set();
+            activeStageRect = stage.getBoundingClientRect();
+            activeGeometryCache = new Map();
+            try {
+                const width = stage.offsetWidth;
+                const height = stage.offsetHeight;
+                svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+                svg.setAttribute("width", width);
+                svg.setAttribute("height", height);
+                paths.replaceChildren();
+                const renderedFolderTargets = new Set();
 
-            tree.querySelectorAll("[data-tree-edge]").forEach(edgeData => {
-                const from = nodeById(edgeData.dataset.fromNode);
-                const to = nodeById(edgeData.dataset.toNode);
-                if (!from || !to) return;
+                tree.querySelectorAll("[data-tree-edge]").forEach(edgeData => {
+                    const from = nodeById(edgeData.dataset.fromNode);
+                    const to = nodeById(edgeData.dataset.toNode);
+                    if (!from || !to) return;
 
-                const kind = edgeData.dataset.edgeKind;
-                if (kind === "folder" && to === selectedNode &&
-                    edgeData.dataset.fromNode !== selectedNode.dataset.folderParentId) return;
-                const isSelected = kind === "prerequisite" &&
-                    selectedEdge?.from === edgeData.dataset.fromNode &&
-                    selectedEdge?.to === edgeData.dataset.toNode;
-                const isRoute = kind === "prerequisite" &&
-                    activeRouteEdges.has(`${edgeData.dataset.fromNode}->${edgeData.dataset.toNode}`);
-                const fromRank = Number.parseInt(from.dataset.treeRankNumber || "0", 10);
-                const toRank = Number.parseInt(to.dataset.treeRankNumber || "0", 10);
-                const isRankInversion = kind === "prerequisite" && fromRank > toRank && toRank > 0;
-                appendVisiblePath(from, to, kind, `${isSelected ? "is-selected" : ""} ${isRoute ? "is-progression-route" : ""} ${isRankInversion ? "is-validation-warning" : ""}`.trim());
-                if (kind === "folder") renderedFolderTargets.add(edgeData.dataset.toNode);
-                if (kind === "prerequisite" && canEdit) appendEdgeHitTarget(from, to);
-            });
+                    const kind = edgeData.dataset.edgeKind;
+                    if (kind === "folder" && to === selectedNode &&
+                        edgeData.dataset.fromNode !== selectedNode.dataset.folderParentId) return;
+                    const isSelected = kind === "prerequisite" &&
+                        selectedEdge?.from === edgeData.dataset.fromNode &&
+                        selectedEdge?.to === edgeData.dataset.toNode;
+                    const isRoute = kind === "prerequisite" &&
+                        activeRouteEdges.has(`${edgeData.dataset.fromNode}->${edgeData.dataset.toNode}`);
+                    const fromRank = Number.parseInt(from.dataset.treeRankNumber || "0", 10);
+                    const toRank = Number.parseInt(to.dataset.treeRankNumber || "0", 10);
+                    const isRankInversion = kind === "prerequisite" && fromRank > toRank && toRank > 0;
+                    appendVisiblePath(from, to, kind, `${isSelected ? "is-selected" : ""} ${isRoute ? "is-progression-route" : ""} ${isRankInversion ? "is-validation-warning" : ""}`.trim());
+                    if (kind === "folder") renderedFolderTargets.add(edgeData.dataset.toNode);
+                    if (kind === "prerequisite" && canEdit) appendEdgeHitTarget(from, to);
+                });
 
-            if (selectedNode?.dataset.folderParentId &&
-                !renderedFolderTargets.has(selectedNode.dataset.treeNode || "")) {
-                const folderParent = nodeById(selectedNode.dataset.folderParentId);
-                if (folderParent) appendVisiblePath(folderParent, selectedNode, "folder", "is-pending");
-            }
+                if (selectedNode?.dataset.folderParentId &&
+                    !renderedFolderTargets.has(selectedNode.dataset.treeNode || "")) {
+                    const folderParent = nodeById(selectedNode.dataset.folderParentId);
+                    if (folderParent) appendVisiblePath(folderParent, selectedNode, "folder", "is-pending");
+                }
 
-            if (pendingDependent && pendingPrerequisite) {
-                appendVisiblePath(pendingPrerequisite, pendingDependent, "prerequisite", "is-pending");
+                if (pendingDependent && pendingPrerequisite) {
+                    appendVisiblePath(pendingPrerequisite, pendingDependent, "prerequisite", "is-pending");
+                }
+            } finally {
+                activeStageRect = null;
+                activeGeometryCache = null;
             }
         };
 

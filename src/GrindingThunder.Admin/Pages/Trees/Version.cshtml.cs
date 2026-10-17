@@ -286,6 +286,38 @@ public class VersionModel(IApiClient apiClient) : PageModel
         return RedirectToPage("/Trees/Version", new { versionId = VersionId });
     }
 
+    private async Task<IActionResult?> EnsureEditableJsonAsync(Guid versionId, CancellationToken cancellationToken)
+    {
+        VersionId = versionId;
+        if (!CanEdit) return Forbid();
+
+        var load = await LoadAsync(versionId, cancellationToken);
+        if (load is RedirectToPageResult) return Forbid();
+        if (Summary is null)
+            return JsonFailure(NotFoundMessage ?? $"Research tree version '{versionId}' was not found.", StatusCodes.Status404NotFound);
+        if (!IsDraft)
+            return JsonFailure("Published versions are immutable and cannot be edited.", StatusCodes.Status409Conflict);
+        if (Draft is null)
+            return JsonFailure(ErrorMessage ?? "Unable to load draft details.", StatusCodes.Status502BadGateway);
+
+        return null;
+    }
+
+    private JsonResult JsonModelFailure(string fallbackError) =>
+        JsonFailure(
+            ModelState.Values.SelectMany(value => value.Errors)
+                .Select(error => error.ErrorMessage)
+                .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message)) ?? fallbackError,
+            StatusCodes.Status400BadRequest);
+
+    private JsonResult JsonApiFailure(ApiResponse response, string fallbackError) =>
+        JsonFailure(response.ErrorMessage ?? fallbackError, (int)response.StatusCode);
+
+    private static JsonResult JsonFailure(string error, int statusCode) => new(new { success = false, error })
+    {
+        StatusCode = statusCode
+    };
+
     public Task<IActionResult> OnPostAddRankAsync(Guid versionId, CancellationToken cancellationToken)
     {
         VersionId = versionId;
@@ -355,6 +387,21 @@ public class VersionModel(IApiClient apiClient) : PageModel
             "Vehicle tree entry was deleted.",
             "Unable to delete vehicle tree entry.",
             cancellationToken);
+    }
+
+    public async Task<IActionResult> OnPostDeleteEntryJsonAsync(Guid versionId, Guid entryId, CancellationToken cancellationToken)
+    {
+        var guard = await EnsureEditableJsonAsync(versionId, cancellationToken);
+        if (guard is not null) return guard;
+
+        if (entryId == Guid.Empty || Draft!.Entries.All(entry => entry.Id != entryId))
+            return JsonFailure("Select a vehicle entry from this draft before removing it.", StatusCodes.Status400BadRequest);
+
+        var response = await apiClient.DeleteVehicleTreeEntryAsync(versionId, entryId, cancellationToken);
+        if (response.IsForbidden) return Forbid();
+        if (!response.IsSuccess) return JsonApiFailure(response, "Unable to delete vehicle tree entry.");
+
+        return new JsonResult(new { success = true, entryId });
     }
 
     public async Task<IActionResult> OnPostUpdateVisualEntryAsync(Guid versionId, CancellationToken cancellationToken)
@@ -429,6 +476,83 @@ public class VersionModel(IApiClient apiClient) : PageModel
         return RedirectToPage("/Trees/Version", new { versionId });
     }
 
+    public async Task<IActionResult> OnPostUpdateVisualEntryJsonAsync(Guid versionId, CancellationToken cancellationToken)
+    {
+        var guard = await EnsureEditableJsonAsync(versionId, cancellationToken);
+        if (guard is not null) return guard;
+
+        var existingEntry = Draft!.Entries.FirstOrDefault(entry => entry.Id == VisualEntry.EntryId);
+        if (VisualEntry.EntryId == Guid.Empty || existingEntry is null)
+            ModelState.AddModelError(string.Empty, "Select a vehicle entry from the visual tree before saving.");
+
+        var rank = Draft.TreeRanks.FirstOrDefault(candidate => candidate.Id == VisualEntry.TreeRankId);
+        if (rank is null)
+            ModelState.AddModelError("VisualEntry.TreeRankId", "Select a rank from this draft.");
+
+        if (VisualEntry.FolderParentEntryId == VisualEntry.EntryId)
+        {
+            ModelState.AddModelError("VisualEntry.FolderParentEntryId", "An entry cannot be its own folder parent.");
+        }
+        else if (VisualEntry.FolderParentEntryId.HasValue &&
+                 Draft.Entries.All(entry => entry.Id != VisualEntry.FolderParentEntryId.Value))
+        {
+            ModelState.AddModelError("VisualEntry.FolderParentEntryId", "Select a folder parent from this draft.");
+        }
+
+        if (!Enum.IsDefined(VisualEntry.AcquisitionType))
+            ModelState.AddModelError("VisualEntry.AcquisitionType", "Select a valid acquisition type.");
+
+        if (VisualEntry.FolderParentEntryId is null && Draft.Entries.Any(entry =>
+                entry.Id != VisualEntry.EntryId &&
+                entry.FolderParentEntryId is null &&
+                entry.TreeRankId == VisualEntry.TreeRankId &&
+                entry.TreeColumn == VisualEntry.TreeColumn &&
+                entry.TreeRow == VisualEntry.TreeRow))
+        {
+            ModelState.AddModelError(string.Empty,
+                $"Coordinate collision at column {VisualEntry.TreeColumn}, row {VisualEntry.TreeRow}. Root entries must occupy distinct cells within a rank.");
+        }
+
+        if (!ModelState.IsValid || existingEntry is null || rank is null)
+            return JsonModelFailure("Unable to update vehicle tree entry.");
+
+        var response = await apiClient.UpdateVehicleTreeEntryAsync(
+            versionId,
+            VisualEntry.EntryId,
+            new UpdateVehicleTreeEntryRequest(
+                VisualEntry.RpCost,
+                VisualEntry.SlCost,
+                VisualEntry.TreeColumn,
+                VisualEntry.TreeRow,
+                VisualEntry.TreeRankId,
+                VisualEntry.AcquisitionType,
+                VisualEntry.FolderParentEntryId),
+            cancellationToken);
+
+        if (response.IsForbidden) return Forbid();
+        if (!response.IsSuccess) return JsonApiFailure(response, "Unable to update vehicle tree entry.");
+
+        return new JsonResult(new
+        {
+            success = true,
+            entry = new
+            {
+                id = existingEntry.Id,
+                existingEntry.VehicleId,
+                existingEntry.VehicleName,
+                treeRankId = VisualEntry.TreeRankId,
+                rankNumber = rank.RankNumber,
+                rankName = $"Rank {rank.RankNumber}",
+                rpCost = VisualEntry.RpCost,
+                slCost = VisualEntry.SlCost,
+                treeColumn = VisualEntry.TreeColumn,
+                treeRow = VisualEntry.TreeRow,
+                acquisitionType = VisualEntry.AcquisitionType,
+                folderParentEntryId = VisualEntry.FolderParentEntryId
+            }
+        });
+    }
+
     public async Task<IActionResult> OnPostUpdateLayoutAsync(Guid versionId, CancellationToken cancellationToken)
     {
         VersionId = versionId;
@@ -497,6 +621,71 @@ public class VersionModel(IApiClient apiClient) : PageModel
             ? "Vehicle position was updated."
             : $"Layout positions for {LayoutPositions.Count} vehicles were updated.";
         return RedirectToPage("/Trees/Version", new { versionId });
+    }
+
+    public async Task<IActionResult> OnPostUpdateLayoutJsonAsync(Guid versionId, CancellationToken cancellationToken)
+    {
+        var guard = await EnsureEditableJsonAsync(versionId, cancellationToken);
+        if (guard is not null) return guard;
+
+        if (LayoutPositions.Count is < 1 or > 12)
+            ModelState.AddModelError(string.Empty, "Select between 1 and 12 vehicle entries for a layout update.");
+
+        if (LayoutPositions.Any(position => position.TreeColumn < 0 || position.TreeRow < 0))
+            ModelState.AddModelError(string.Empty, "Tree coordinates must be non-negative integers.");
+
+        var duplicateIds = LayoutPositions.GroupBy(position => position.EntryId).Any(group => group.Count() > 1);
+        var draftEntries = Draft!.Entries.ToDictionary(entry => entry.Id);
+        if (duplicateIds || LayoutPositions.Any(position => position.EntryId == Guid.Empty || !draftEntries.ContainsKey(position.EntryId)))
+            ModelState.AddModelError(string.Empty, "Every layout entry must belong to this draft exactly once.");
+
+        var selectedEntries = LayoutPositions
+            .Where(position => draftEntries.ContainsKey(position.EntryId))
+            .Select(position => draftEntries[position.EntryId])
+            .ToList();
+        if (selectedEntries.Count > 0 && selectedEntries.Select(entry => entry.TreeRankId).Distinct().Count() != 1)
+            ModelState.AddModelError(string.Empty, "Layout assistance can update entries from only one rank at a time.");
+
+        if (ModelState.IsValid)
+        {
+            var proposed = LayoutPositions.ToDictionary(position => position.EntryId);
+            var rootCollisions = Draft.Entries
+                .Where(entry => entry.FolderParentEntryId is null)
+                .Select(entry => proposed.TryGetValue(entry.Id, out var position)
+                    ? (entry.Id, entry.TreeRankId, position.TreeColumn, position.TreeRow)
+                    : (entry.Id, entry.TreeRankId, entry.TreeColumn, entry.TreeRow))
+                .GroupBy(entry => (entry.TreeRankId, entry.TreeColumn, entry.TreeRow))
+                .FirstOrDefault(group => group.Count() > 1);
+            if (rootCollisions is not null)
+            {
+                ModelState.AddModelError(string.Empty,
+                    $"Coordinate collision at column {rootCollisions.Key.TreeColumn}, row {rootCollisions.Key.TreeRow}. Root entries must occupy distinct cells within a rank.");
+            }
+        }
+
+        if (!ModelState.IsValid) return JsonModelFailure("Unable to update the selected layout.");
+
+        foreach (var position in LayoutPositions)
+        {
+            var response = await apiClient.UpdateVehicleTreeEntryCoordinatesAsync(
+                versionId,
+                position.EntryId,
+                new UpdateEntryCoordinatesRequest(position.TreeColumn, position.TreeRow),
+                cancellationToken);
+            if (response.IsForbidden) return Forbid();
+            if (!response.IsSuccess) return JsonApiFailure(response, "Unable to update the selected layout.");
+        }
+
+        return new JsonResult(new
+        {
+            success = true,
+            positions = LayoutPositions.Select(position => new
+            {
+                entryId = position.EntryId,
+                treeColumn = position.TreeColumn,
+                treeRow = position.TreeRow
+            })
+        });
     }
 
     public async Task<IActionResult> OnPostCreateAndAddEntryAsync(Guid versionId, CancellationToken cancellationToken)
@@ -588,6 +777,32 @@ public class VersionModel(IApiClient apiClient) : PageModel
             cancellationToken);
     }
 
+    public async Task<IActionResult> OnPostAddPrerequisiteJsonAsync(Guid versionId, CancellationToken cancellationToken)
+    {
+        var guard = await EnsureEditableJsonAsync(versionId, cancellationToken);
+        if (guard is not null) return guard;
+        if (!ModelState.IsValid) return JsonModelFailure("Unable to add prerequisite.");
+
+        if (AddPrerequisite.VehicleTreeEntryId == Guid.Empty ||
+            AddPrerequisite.PrerequisiteVehicleTreeEntryId == Guid.Empty ||
+            Draft!.Entries.All(entry => entry.Id != AddPrerequisite.VehicleTreeEntryId) ||
+            Draft.Entries.All(entry => entry.Id != AddPrerequisite.PrerequisiteVehicleTreeEntryId))
+        {
+            return JsonFailure("Both prerequisite endpoints must belong to this draft.", StatusCodes.Status400BadRequest);
+        }
+
+        var response = await apiClient.AddVehiclePrerequisiteAsync(
+            versionId,
+            new AddPrerequisiteRequest(
+                AddPrerequisite.VehicleTreeEntryId,
+                AddPrerequisite.PrerequisiteVehicleTreeEntryId),
+            cancellationToken);
+        if (response.IsForbidden) return Forbid();
+        if (!response.IsSuccess) return JsonApiFailure(response, "Unable to add prerequisite.");
+
+        return new JsonResult(new { success = true, edge = response.Value });
+    }
+
     public Task<IActionResult> OnPostRemovePrerequisiteAsync(Guid versionId, Guid entryId, Guid prerequisiteEntryId, CancellationToken cancellationToken)
     {
         VersionId = versionId;
@@ -596,5 +811,28 @@ public class VersionModel(IApiClient apiClient) : PageModel
             "Prerequisite edge was removed.",
             "Unable to remove prerequisite.",
             cancellationToken);
+    }
+
+    public async Task<IActionResult> OnPostRemovePrerequisiteJsonAsync(
+        Guid versionId,
+        Guid entryId,
+        Guid prerequisiteEntryId,
+        CancellationToken cancellationToken)
+    {
+        var guard = await EnsureEditableJsonAsync(versionId, cancellationToken);
+        if (guard is not null) return guard;
+
+        if (entryId == Guid.Empty || prerequisiteEntryId == Guid.Empty ||
+            Draft!.Entries.All(entry => entry.Id != entryId) ||
+            Draft.Entries.All(entry => entry.Id != prerequisiteEntryId))
+        {
+            return JsonFailure("Both prerequisite endpoints must belong to this draft.", StatusCodes.Status400BadRequest);
+        }
+
+        var response = await apiClient.DeleteVehiclePrerequisiteAsync(versionId, entryId, prerequisiteEntryId, cancellationToken);
+        if (response.IsForbidden) return Forbid();
+        if (!response.IsSuccess) return JsonApiFailure(response, "Unable to remove prerequisite.");
+
+        return new JsonResult(new { success = true, entryId, prerequisiteEntryId });
     }
 }

@@ -310,3 +310,33 @@ Append new entries at the end. Keep each entry to the decisions and tradeoffs th
 - Exposed `WikiUrl` across back-office CRUD, visual tree inspectors, and public tree projections:
   - Admin catalog forms and endpoints support creating and editing `WikiUrl` with conservative URL length validation.
   - Public tree vehicle details display a "View on War Thunder Wiki ↗" external link opening safely in a new tab (`target="_blank" rel="noopener noreferrer"`), which is conditionally hidden when `WikiUrl` is null or empty.
+
+## 2026 — Batch 37: seamless fullscreen visual editor
+
+- Kept Razor Pages as the authenticated page shell and retained the existing
+  synchronous POST/redirect handlers for table and no-JavaScript fallback use.
+  Companion JSON handlers bind the same input models, repeat role and Draft
+  guards, use normal Razor Pages antiforgery validation, and route every mutation
+  through `IApiClient`. JSON-suffixed authentication challenges return HTTP 403
+  instead of a login/access-denied redirect so `fetch` callers receive an
+  actionable authorization result.
+- Used a full-window CSS overlay on the existing workspace DOM rather than the
+  browser Fullscreen API. Because the canvas and inspector are not recreated,
+  zoom, pan, selection, edit/prerequisite mode, dirty fields, history, and active
+  tab survive focus-mode entry and exit. The visible exit control restores access
+  to the surrounding navigation and action shell.
+- Treated an accepted API update as authoritative while avoiding a new backend
+  contract: the JSON handler returns the exact validated values accepted by the
+  existing update endpoint together with rank metadata already loaded from the
+  Draft. The client reconciles node data attributes, rank membership and height,
+  coordinates, folder edges, prerequisite edges, and inspector fields in place.
+- Extended the in-memory history memento for committed inspector changes from
+  coordinate-only deltas to the full versioned entry state. Undo after saving is
+  intentionally client-side: it recreates an Unsaved pre-commit preview but does
+  not silently reverse the authoritative server mutation. A failed save restores
+  the canvas to the last authoritative state while leaving the attempted form
+  values available for correction.
+- Preserved the existing non-transactional tradeoff for bounded multi-entry
+  layout saves: validation completes before the first coordinate call, but the
+  API still receives one coordinate update per entry because Batch 37 does not
+  add or change API controllers.

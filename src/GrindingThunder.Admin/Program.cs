@@ -26,6 +26,28 @@ builder.Services.AddAuthentication(options =>
     options.AccessDeniedPath = "/AccessDenied";
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
     options.SlidingExpiration = true;
+    options.Events.OnRedirectToLogin = context =>
+    {
+        if (context.Request.Query["handler"].ToString().EndsWith("Json", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        if (context.Request.Query["handler"].ToString().EndsWith("Json", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
 })
 .AddCookie("PlayerAuth", options =>
 {

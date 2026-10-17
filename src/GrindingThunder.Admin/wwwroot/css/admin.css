@@ -109,6 +109,23 @@ body { min-height: 100vh; }
 .visual-tree-inspector-image img { width: 100%; height: 100%; object-fit: contain; }
 .visual-tree-identity code { overflow-wrap: anywhere; }
 
+body.visual-tree-focus-active { overflow: hidden; }
+.visual-tree-workspace.is-focus-mode {
+    position: fixed;
+    inset: 0;
+    z-index: 1055;
+    height: 100dvh;
+    padding: 1rem;
+    overflow: hidden;
+    background: var(--tblr-body-bg);
+}
+.visual-tree-workspace.is-focus-mode .visual-tree-main,
+.visual-tree-workspace.is-focus-mode .visual-tree-card { height: calc(100dvh - 2rem); min-height: 0; }
+.visual-tree-workspace.is-focus-mode .visual-tree-card { display: flex; flex-direction: column; }
+.visual-tree-workspace.is-focus-mode .visual-tree-viewport { flex: 1 1 auto; height: auto; min-height: 0; }
+.visual-tree-workspace.is-focus-mode .visual-tree-sidebar { top: 0; max-height: calc(100dvh - 2rem); }
+.visual-tree-workspace.is-focus-mode [data-tree-focus-toggle] { color: #fff; background: var(--tblr-primary); border-color: var(--tblr-primary); }
+
 @keyframes visual-tree-pending-edge {
     from { opacity: .45; }
     to { opacity: 1; }
@@ -124,6 +141,7 @@ body { min-height: 100vh; }
     .visual-tree-layout-toolbar .ms-auto { width: 100%; margin-left: 0 !important; }
     .visual-tree-workspace.is-editing, .visual-tree-workspace.is-edge-creating, .visual-tree-workspace.is-inspecting { grid-template-columns: minmax(0, 1fr); }
     .visual-tree-sidebar { position: static; max-height: none; overflow: visible; }
+    .visual-tree-workspace.is-focus-mode .visual-tree-sidebar { position: fixed; top: 1rem; right: 1rem; bottom: 1rem; z-index: 1060; width: min(22rem, calc(100vw - 2rem)); max-height: none; overflow-y: auto; }
     .visual-tree-edit-toggle { width: 100%; padding-right: 0; border-right: 0; }
 }
 

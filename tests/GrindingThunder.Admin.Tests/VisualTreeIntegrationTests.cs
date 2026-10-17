@@ -161,7 +161,7 @@ public class VisualTreeIntegrationTests
         Assert.Contains("Version-specific entry data", html);
         Assert.Contains("data-dirty-track=\"vehicle-entry\"", html);
         Assert.Contains("data-inspector-dirty", html);
-        Assert.Contains("Unsaved changes", html);
+        Assert.Contains("data-inspector-save-status", html);
         Assert.Contains("data-dirty-field=\"treeColumn\"", html);
         Assert.Contains("data-dirty-field=\"treeRow\"", html);
         Assert.Contains("data-tree-previous", html);
@@ -169,6 +169,8 @@ public class VisualTreeIntegrationTests
         Assert.Contains("confirmDiscardChanges", javascript);
         Assert.Contains("beforeunload", javascript);
         Assert.Contains("previewInspectorState", javascript);
+        Assert.Contains("UpdateVisualEntryJson", javascript);
+        Assert.Contains("Save failed", javascript);
     }
 
     [Fact]

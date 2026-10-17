@@ -915,9 +915,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - Created 10 Python unit tests in `test_scraper.py` and comprehensive C# integration tests in `Batch36ScraperIntegrationTests.cs` verifying entity storage, migration safety, CRUD operations, public projections, import auto-creation/update/preservation policies, tree scoping isolation, and full import preview validation of representative Israel Aviation fixtures.
   Verification: 0 warnings, 0 errors, all 574 C# tests pass across the solution (353 API + 221 Admin) and all 10 Python scraper tests pass.
 
-## Next
-
-- **Batch 37 — Seamless fullscreen visual editor** (status: Planned)
+- **Batch 37 — Seamless fullscreen visual editor** (status: Completed)
   Goal: make the visual research-tree editor the primary back-office editing
   workspace by eliminating full-page refreshes during ordinary Draft mutations
   and providing a focused fullscreen editing mode.
@@ -973,6 +971,25 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
 
   Dependency: Batch 36.
 
+  Result:
+  - added a full-window focus overlay that preserves the live canvas, viewport,
+    selection, inspector, active mode, and tab state, with an in-workspace exit
+    control that restores the surrounding page shell;
+  - added antiforgery-protected JSON Razor Page handlers for visual entry saves,
+    multi-entry layout saves, prerequisite add/remove, and entry removal while
+    retaining every existing redirect-based form handler as a fallback;
+  - reconciled accepted entry, coordinate, folder, rank-band, and connector state
+    in the existing vanilla JavaScript editor without a page reload;
+  - added explicit Unsaved, Saving, Saved, and Save failed inspector states and
+    extended undo/redo with a full pre-save entry memento;
+  - preserved Editor/Admin mutation rules, Publisher/anonymous rejection,
+    Published snapshot immutability, and the `IApiClient` boundary.
+
+  Verification: 0 warnings, 0 errors, all 582 C# tests pass across the solution
+  (353 API + 229 Admin).
+
+
+## Next
 
 - **Batch 38 — Human-friendly visual coordinates** (status: Planned)
   Goal: present layout coordinates as one-based values to administrators while

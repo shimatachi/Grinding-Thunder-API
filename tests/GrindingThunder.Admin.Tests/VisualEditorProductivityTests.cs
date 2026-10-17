@@ -43,6 +43,12 @@ public class VisualEditorProductivityTests
         Assert.Contains("event.key === \"z\" || event.key === \"Z\"", javascript);
         Assert.Contains("event.key === \"y\" || event.key === \"Y\"", javascript);
         Assert.Contains("[\"ArrowLeft\", \"ArrowRight\", \"ArrowUp\", \"ArrowDown\"]", javascript);
+        Assert.Contains("is-focus-mode", css);
+        Assert.Contains("data-tree-focus-toggle", javascript);
+        Assert.Contains("UpdateLayoutJson", javascript);
+        Assert.Contains("AddPrerequisiteJson", javascript);
+        Assert.Contains("RemovePrerequisiteJson", javascript);
+        Assert.Contains("DeleteEntryJson", javascript);
     }
 
     [Theory]
@@ -65,6 +71,8 @@ public class VisualEditorProductivityTests
         Assert.Contains("data-tree-layout-toolbar", html);
         Assert.Contains("data-tree-collision-list", html);
         Assert.Contains("data-tree-collision-warning", html);
+        Assert.Contains("data-tree-focus-toggle", html);
+        Assert.Contains("Focus mode", html);
         Assert.Contains("Ctrl+Z/Ctrl+Y undo/redo, Esc deselects, Del/Backspace removes", html);
         Assert.Contains("press an arrow key", html);
     }

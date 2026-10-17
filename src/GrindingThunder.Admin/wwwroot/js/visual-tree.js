@@ -10,6 +10,7 @@
         const editToggle = tree.querySelector("[data-tree-edit-toggle]");
         const edgeToggle = tree.querySelector("[data-tree-edge-toggle]");
         const edgeModeIndicator = tree.querySelector("[data-tree-edge-mode-indicator]");
+        const focusToggle = tree.querySelector("[data-tree-focus-toggle]");
         const help = tree.querySelector("[data-tree-help]");
         const inspectorCard = tree.querySelector("[data-tree-inspector]");
         const inspectorForm = tree.querySelector("[data-tree-inspector-form]");
@@ -26,6 +27,7 @@
         const layoutFields = tree.querySelector("[data-tree-layout-fields]");
         const layoutSave = tree.querySelector("[data-tree-layout-save]");
         const layoutDiscard = tree.querySelector("[data-tree-layout-discard]");
+        const layoutStatus = tree.querySelector("[data-tree-layout-status]");
         const collisionWarning = tree.querySelector("[data-tree-collision-warning]");
         const collisionList = tree.querySelector("[data-tree-collision-list]");
         const undoStack = [];
@@ -94,7 +96,8 @@
             coordinate: tree.querySelector("[data-inspector-coordinate]"),
             acquisition: tree.querySelector("[data-inspector-acquisition]"),
             folder: tree.querySelector("[data-inspector-folder]"),
-            dirty: tree.querySelector("[data-inspector-dirty]")
+            dirty: tree.querySelector("[data-inspector-dirty]"),
+            status: tree.querySelector("[data-inspector-save-status]")
         };
         const edgeUi = {
             panel: tree.querySelector("[data-tree-edge-panel]"),
@@ -112,8 +115,13 @@
             removeDependent: tree.querySelector("[data-tree-edge-remove-dependent]"),
             removePrerequisite: tree.querySelector("[data-tree-edge-remove-prerequisite]"),
             selectedDependentInput: tree.querySelector("[data-tree-edge-selected-dependent-input]"),
-            selectedPrerequisiteInput: tree.querySelector("[data-tree-edge-selected-prerequisite-input]")
+            selectedPrerequisiteInput: tree.querySelector("[data-tree-edge-selected-prerequisite-input]"),
+            status: tree.querySelector("[data-tree-edge-status]")
         };
+        // Keep inline confirmation for the no-JavaScript fallback, but let the
+        // asynchronous handlers own confirmation once this state machine loads.
+        removeForm?.removeAttribute("onsubmit");
+        edgeUi.removeForm?.removeAttribute("onsubmit");
 
         const viewport = tree.querySelector("[data-tree-viewport]");
         const surface = tree.querySelector("[data-tree-surface]");
@@ -136,6 +144,7 @@
         let isDirty = false;
         let isLayoutDirty = false;
         let isSubmitting = false;
+        let inspectorStatus = "none";
 
         const isEditing = () => canEdit && editToggle?.checked === true;
         const isEdgeMode = () => canEdit && edgeMode;
@@ -162,11 +171,26 @@
         });
         const stateMatches = (left, right) => left && right &&
             Object.keys(left).every(key => left[key] === right[key]);
+        const setInspectorStatus = (status, message = "") => {
+            inspectorStatus = status;
+            if (!inspector.status) return;
+            inspector.status.classList.remove("alert-warning", "alert-info", "alert-success", "alert-danger");
+            const states = {
+                unsaved: ["alert-warning", "Unsaved"],
+                saving: ["alert-info", "Saving\u2026"],
+                saved: ["alert-success", "Saved"],
+                failed: ["alert-danger", `Save failed \u2014 ${message || "Unknown error"}`]
+            };
+            const state = states[status];
+            inspector.status.classList.toggle("d-none", !state);
+            inspector.status.textContent = state?.[1] || "";
+        };
         const setDirty = value => {
             isDirty = Boolean(value);
-            inspector.dirty?.classList.toggle("d-none", !isDirty);
             inspectorCard?.classList.toggle("is-dirty", isDirty);
             if (inspectorForm) inspectorForm.dataset.dirty = isDirty.toString();
+            if (isDirty) setInspectorStatus("unsaved");
+            else if (inspectorStatus === "unsaved") setInspectorStatus("none");
         };
         const updateDirty = () => setDirty(Boolean(selectedNode && originalEntry) && !stateMatches(entryStateFromForm(), originalEntry));
         const confirmDiscardChanges = () => (!isDirty && !isLayoutDirty) ||
@@ -187,6 +211,48 @@
         };
         const acquisitionNodeClasses = Object.values(acquisitionClasses)
             .map(className => className.replace("visual-tree-acquisition-", "visual-tree-node-acquisition-"));
+        const acquisitionLabels = {
+            "0": "Researchable",
+            "1": "Premium",
+            "2": "Squadron",
+            "3": "Event",
+            "4": "Pack",
+            "5": "Hidden"
+        };
+
+        const jsonAction = (form, handler) => {
+            const url = new URL(form.action, window.location.href);
+            url.searchParams.set("handler", handler);
+            return url;
+        };
+
+        const postFormJson = async (form, handler) => {
+            const response = await fetch(jsonAction(form, handler), {
+                method: "POST",
+                body: new FormData(form),
+                credentials: "same-origin",
+                headers: {
+                    "Accept": "application/json",
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.success !== true) {
+                const fallback = response.status === 403
+                    ? "Your session does not have permission to edit this draft."
+                    : `Request failed (HTTP ${response.status}).`;
+                throw new Error(payload?.error || fallback);
+            }
+            return payload;
+        };
+
+        const setTransientStatus = (element, message, kind = "info") => {
+            if (!element) return;
+            element.classList.remove("d-none", "text-secondary", "text-success", "text-danger", "alert-info", "alert-success", "alert-danger");
+            if (element.classList.contains("alert")) element.classList.add(`alert-${kind}`);
+            else element.classList.add(kind === "success" ? "text-success" : kind === "danger" ? "text-danger" : "text-secondary");
+            element.textContent = message;
+        };
 
         const nodeGeometry = node => {
             const nodeRect = node.getBoundingClientRect();
@@ -573,9 +639,11 @@
         const pushHistory = (actionName, mutations) => {
             if (!isEditing()) return;
             const actualChanges = mutations.filter(m =>
-                m.from.column !== m.to.column ||
-                m.from.row !== m.to.row ||
-                (m.from.rankId && m.to.rankId && m.from.rankId !== m.to.rankId)
+                m.entryState
+                    ? !stateMatches(m.from, m.to)
+                    : m.from.column !== m.to.column ||
+                      m.from.row !== m.to.row ||
+                      (m.from.rankId && m.to.rankId && m.from.rankId !== m.to.rankId)
             );
             if (actualChanges.length === 0) return;
 
@@ -593,7 +661,16 @@
         const undo = () => {
             if (!isEditing() || undoStack.length === 0) return;
             const entry = undoStack.pop();
+            const isEntryStateHistory = entry.mutations.some(mutation => mutation.entryState);
             entry.mutations.forEach(m => {
+                if (m.entryState) {
+                    applyEntryStateToNode(m.node, m.from);
+                    if (m.node === selectedNode) {
+                        setInspectorState(m.from);
+                        if (inspector.coordinate) inspector.coordinate.textContent = `Column ${m.from.treeColumn} Â· Row ${m.from.treeRow}`;
+                    }
+                    return;
+                }
                 if (m.from.rankId && m.to.rankId && m.from.rankId !== m.to.rankId) {
                     moveNodeToRank(m.node, m.from.rankId);
                 }
@@ -608,8 +685,9 @@
             });
             redoStack.push(entry);
 
+            rebuildFolderState();
             updateDirty();
-            isLayoutDirty = selectedNodeList().some(node => {
+            isLayoutDirty = !isEntryStateHistory && selectedNodeList().some(node => {
                 const original = layoutOriginalPositions.get(node);
                 const current = nodePosition(node);
                 return original && (original.column !== current.column || original.row !== current.row);
@@ -623,7 +701,16 @@
         const redo = () => {
             if (!isEditing() || redoStack.length === 0) return;
             const entry = redoStack.pop();
+            const isEntryStateHistory = entry.mutations.some(mutation => mutation.entryState);
             entry.mutations.forEach(m => {
+                if (m.entryState) {
+                    applyEntryStateToNode(m.node, m.to);
+                    if (m.node === selectedNode) {
+                        setInspectorState(m.to);
+                        if (inspector.coordinate) inspector.coordinate.textContent = `Column ${m.to.treeColumn} Â· Row ${m.to.treeRow}`;
+                    }
+                    return;
+                }
                 if (m.from.rankId && m.to.rankId && m.from.rankId !== m.to.rankId) {
                     moveNodeToRank(m.node, m.to.rankId);
                 }
@@ -638,8 +725,9 @@
             });
             undoStack.push(entry);
 
+            rebuildFolderState();
             updateDirty();
-            isLayoutDirty = selectedNodeList().some(node => {
+            isLayoutDirty = !isEntryStateHistory && selectedNodeList().some(node => {
                 const original = layoutOriginalPositions.get(node);
                 const current = nodePosition(node);
                 return original && (original.column !== current.column || original.row !== current.row);
@@ -676,34 +764,95 @@
             setTimeout(() => node.classList.remove("is-jump-highlighted"), 1500);
         };
 
-        const previewInspectorState = () => {
-            if (!selectedNode) return;
-            const state = entryStateFromForm();
-            moveSelectedNodeToRank(state.treeRankId);
-            selectedNode.dataset.rpCost = state.rpCost;
-            selectedNode.dataset.slCost = state.slCost;
-            selectedNode.dataset.acquisitionType = state.acquisitionType;
-            selectedNode.dataset.folderParentId = state.folderParentId;
+        const entryStateFromPayload = entry => ({
+            treeRankId: entry?.treeRankId?.toString() || "",
+            rpCost: entry?.rpCost?.toString() || "0",
+            slCost: entry?.slCost?.toString() || "0",
+            treeColumn: entry?.treeColumn?.toString() || "0",
+            treeRow: entry?.treeRow?.toString() || "0",
+            acquisitionType: entry?.acquisitionType?.toString() || "0",
+            folderParentId: entry?.folderParentEntryId?.toString() || ""
+        });
 
-            const rpPreview = selectedNode.querySelector("[data-tree-rp-preview]");
-            const slPreview = selectedNode.querySelector("[data-tree-sl-preview]");
-            const acquisitionPreview = selectedNode.querySelector("[data-tree-acquisition-preview]");
+        const applyEntryStateToNode = (node, state) => {
+            if (!node || !state) return;
+            moveNodeToRank(node, state.treeRankId);
+            node.dataset.rpCost = state.rpCost;
+            node.dataset.slCost = state.slCost;
+            node.dataset.acquisitionType = state.acquisitionType;
+            node.dataset.folderParentId = state.folderParentId;
+            const column = state.treeColumn === "" ? Number.NaN : Number(state.treeColumn);
+            const row = state.treeRow === "" ? Number.NaN : Number(state.treeRow);
+            if (Number.isFinite(column) && Number.isFinite(row)) setNodeCoordinates(node, column, row);
+
+            const rpPreview = node.querySelector("[data-tree-rp-preview]");
+            const slPreview = node.querySelector("[data-tree-sl-preview]");
+            const acquisitionPreview = node.querySelector("[data-tree-acquisition-preview]");
             if (rpPreview) rpPreview.textContent = `${formatCost(state.rpCost)} RP`;
             if (slPreview) slPreview.textContent = `${formatCost(state.slCost)} SL`;
             if (acquisitionPreview) {
                 Object.values(acquisitionClasses).forEach(className => acquisitionPreview.classList.remove(className));
                 acquisitionPreview.classList.add(acquisitionClasses[state.acquisitionType] || "visual-tree-acquisition-hidden");
-                acquisitionPreview.textContent = inspector.acquisition?.selectedOptions[0]?.textContent || "Unknown";
+                acquisitionPreview.textContent = acquisitionLabels[state.acquisitionType] || "Unknown";
             }
-            acquisitionNodeClasses.forEach(className => selectedNode.classList.remove(className));
-            const nodeAcquisitionClass = (acquisitionClasses[state.acquisitionType] || "visual-tree-acquisition-hidden")
-                .replace("visual-tree-acquisition-", "visual-tree-node-acquisition-");
-            selectedNode.classList.add(nodeAcquisitionClass);
-            const rankPreview = selectedNode.querySelector("[data-tree-rank-preview]");
-            const currentRank = selectedNode.closest("[data-tree-rank]");
-            if (rankPreview) rankPreview.textContent = `Rank ${currentRank?.dataset.treeRankLabel || selectedNode.dataset.treeRankNumber}`;
-            selectedNode.classList.toggle("visual-tree-node-folder-child", Boolean(state.folderParentId));
-            selectedNode.classList.toggle("visual-tree-node-folder-parent", selectedNode.dataset.isFolderParent === "true");
+            acquisitionNodeClasses.forEach(className => node.classList.remove(className));
+            node.classList.add((acquisitionClasses[state.acquisitionType] || "visual-tree-acquisition-hidden")
+                .replace("visual-tree-acquisition-", "visual-tree-node-acquisition-"));
+
+            const rankPreview = node.querySelector("[data-tree-rank-preview]");
+            const currentRank = node.closest("[data-tree-rank]");
+            if (rankPreview) rankPreview.textContent = `Rank ${currentRank?.dataset.treeRankLabel || node.dataset.treeRankNumber}`;
+            node.classList.toggle("visual-tree-node-folder-child", Boolean(state.folderParentId));
+        };
+
+        const rebuildFolderState = () => {
+            const edgeData = tree.querySelector("[data-tree-edge-data]");
+            edgeData?.querySelectorAll('[data-tree-edge][data-edge-kind="folder"]').forEach(edge => edge.remove());
+            const parentIds = new Set();
+            tree.querySelectorAll("[data-tree-node]").forEach(node => {
+                const parentId = node.dataset.folderParentId;
+                if (!parentId) return;
+                parentIds.add(parentId);
+                if (!edgeData) return;
+                const edge = document.createElement("span");
+                edge.dataset.treeEdge = "";
+                edge.dataset.fromNode = parentId;
+                edge.dataset.toNode = node.dataset.treeNode || "";
+                edge.dataset.edgeKind = "folder";
+                edgeData.appendChild(edge);
+            });
+            tree.querySelectorAll("[data-tree-node]").forEach(node => {
+                const isParent = parentIds.has(node.dataset.treeNode || "");
+                node.dataset.isFolderParent = isParent.toString();
+                node.classList.toggle("visual-tree-node-folder-parent", isParent);
+            });
+        };
+
+        const addPrerequisiteEdge = (prerequisiteId, dependentId) => {
+            const edgeData = tree.querySelector("[data-tree-edge-data]");
+            if (!edgeData || edgeData.querySelector(
+                `[data-tree-edge][data-edge-kind="prerequisite"][data-from-node="${prerequisiteId}"][data-to-node="${dependentId}"]`)) return;
+            const edge = document.createElement("span");
+            edge.dataset.treeEdge = "";
+            edge.dataset.fromNode = prerequisiteId;
+            edge.dataset.toNode = dependentId;
+            edge.dataset.edgeKind = "prerequisite";
+            edgeData.appendChild(edge);
+        };
+
+        const removePrerequisiteEdge = (prerequisiteId, dependentId) => {
+            tree.querySelector(
+                `[data-tree-edge][data-edge-kind="prerequisite"][data-from-node="${prerequisiteId}"][data-to-node="${dependentId}"]`
+            )?.remove();
+        };
+
+        const previewInspectorState = () => {
+            if (!selectedNode) return;
+            const state = entryStateFromForm();
+            const previousRank = selectedNode.closest("[data-tree-rank]");
+            applyEntryStateToNode(selectedNode, state);
+            layoutRank(previousRank);
+            layoutRank(selectedNode.closest("[data-tree-rank]"));
 
             const column = state.treeColumn === "" ? Number.NaN : Number(state.treeColumn);
             const row = state.treeRow === "" ? Number.NaN : Number(state.treeRow);
@@ -738,6 +887,7 @@
             layoutOriginalPositions.clear();
             isLayoutDirty = false;
             setDirty(false);
+            setInspectorStatus("none");
             selectionEmpty?.classList.remove("d-none");
             if (selectionEmpty) selectionEmpty.textContent = "Select a vehicle node to inspect and edit it.";
             inspectorForm?.classList.add("d-none");
@@ -1336,6 +1486,7 @@
             inspectorForm?.classList.remove("d-none");
             removeForm?.classList.remove("d-none");
             setDirty(false);
+            setInspectorStatus("none");
             updateNavigation();
             rememberLayoutPositions();
             refreshLayoutTools();
@@ -1389,6 +1540,7 @@
             selectedNode.classList.add("is-selected");
             originalEntry = null;
             setDirty(false);
+            setInspectorStatus("none");
             selectionEmpty?.classList.remove("d-none");
             if (selectionEmpty) selectionEmpty.textContent = "Multiple entries selected. Use the layout toolbar to align, distribute, move, save, or discard their positions.";
             inspectorForm?.classList.add("d-none");
@@ -1772,12 +1924,33 @@
                 event.preventDefault();
                 return;
             }
+            event.preventDefault();
             rebuildLayoutFields();
-            isSubmitting = true;
-            isLayoutDirty = false;
-            undoStack.length = 0;
-            redoStack.length = 0;
-            updateUndoRedoControls();
+            const save = async () => {
+                const originalLabel = layoutSave?.textContent || "Save layout";
+                if (layoutSave) {
+                    layoutSave.disabled = true;
+                    layoutSave.textContent = "Saving\u2026";
+                }
+                setTransientStatus(layoutStatus, "Saving\u2026");
+                try {
+                    const payload = await postFormJson(layoutForm, "UpdateLayoutJson");
+                    (payload.positions || []).forEach(position => {
+                        const node = nodeById(position.entryId);
+                        if (node) setNodeCoordinates(node, position.treeColumn, position.treeRow);
+                    });
+                    isLayoutDirty = false;
+                    rememberLayoutPositions();
+                    setTransientStatus(layoutStatus, "Saved", "success");
+                    refreshLayoutPresentation();
+                } catch (error) {
+                    setTransientStatus(layoutStatus, `Save failed \u2014 ${error.message}`, "danger");
+                    refreshLayoutTools();
+                } finally {
+                    if (layoutSave) layoutSave.textContent = originalLabel;
+                }
+            };
+            save();
         });
         let inspectorCoordFocus = null;
         [inspector.column, inspector.row].forEach(input => {
@@ -1805,14 +1978,112 @@
             field.addEventListener("input", previewInspectorState);
             field.addEventListener("change", previewInspectorState);
         });
-        inspectorForm?.addEventListener("submit", () => {
-            isSubmitting = true;
-            setDirty(false);
-            undoStack.length = 0;
-            redoStack.length = 0;
-            updateUndoRedoControls();
+        inspectorForm?.addEventListener("submit", event => {
+            event.preventDefault();
+            if (!selectedNode || !originalEntry || !isDirty) return;
+            const node = selectedNode;
+            const preSaveState = { ...originalEntry };
+            const save = async () => {
+                setInspectorStatus("saving");
+                if (inspectorSave) inspectorSave.disabled = true;
+                try {
+                    const payload = await postFormJson(inspectorForm, "UpdateVisualEntryJson");
+                    const authoritative = entryStateFromPayload(payload.entry);
+                    applyEntryStateToNode(node, authoritative);
+                    setInspectorState(authoritative);
+                    rebuildFolderState();
+                    originalEntry = authoritative;
+                    undoStack.length = 0;
+                    redoStack.length = 0;
+                    pushHistory("saved entry change", [{
+                        node,
+                        from: preSaveState,
+                        to: authoritative,
+                        entryState: true
+                    }]);
+                    setDirty(false);
+                    setInspectorStatus("saved");
+                    rememberLayoutPositions();
+                    refreshLayoutPresentation();
+                    updateNavigation();
+                } catch (error) {
+                    applyEntryStateToNode(node, originalEntry);
+                    rebuildFolderState();
+                    isDirty = true;
+                    inspectorCard?.classList.add("is-dirty");
+                    inspectorForm.dataset.dirty = "true";
+                    setInspectorStatus("failed", error.message);
+                    refreshLayoutPresentation();
+                    updateNavigation();
+                } finally {
+                    if (inspectorSave) inspectorSave.disabled = refreshCollisionState();
+                }
+            };
+            save();
         });
-        removeForm?.addEventListener("submit", () => { isSubmitting = true; });
+        removeForm?.addEventListener("submit", event => {
+            event.preventDefault();
+            if (!selectedNode || !window.confirm("Remove this vehicle from the draft?")) return;
+            const node = selectedNode;
+            const remove = async () => {
+                setInspectorStatus("saving");
+                try {
+                    await postFormJson(removeForm, "DeleteEntryJson");
+                    const rank = node.closest("[data-tree-rank]");
+                    const entryId = node.dataset.treeNode || "";
+                    tree.querySelectorAll(`[data-tree-edge][data-from-node="${entryId}"], [data-tree-edge][data-to-node="${entryId}"]`)
+                        .forEach(edge => edge.remove());
+                    tree.querySelectorAll(`option[value="${entryId}"]`).forEach(option => option.remove());
+                    node.remove();
+                    clearEntrySelection();
+                    rebuildFolderState();
+                    layoutRank(rank);
+                    refreshLayoutPresentation();
+                } catch (error) {
+                    setInspectorStatus("failed", error.message);
+                }
+            };
+            remove();
+        });
+
+        edgeUi.createForm?.addEventListener("submit", event => {
+            event.preventDefault();
+            if (!pendingDependent || !pendingPrerequisite) return;
+            const dependentId = pendingDependent.dataset.treeNode || "";
+            const prerequisiteId = pendingPrerequisite.dataset.treeNode || "";
+            const save = async () => {
+                setTransientStatus(edgeUi.status, "Saving\u2026");
+                try {
+                    await postFormJson(edgeUi.createForm, "AddPrerequisiteJson");
+                    addPrerequisiteEdge(prerequisiteId, dependentId);
+                    clearEdgeState(false);
+                    setTransientStatus(edgeUi.status, "Saved", "success");
+                    drawConnectors();
+                } catch (error) {
+                    setTransientStatus(edgeUi.status, `Save failed \u2014 ${error.message}`, "danger");
+                }
+            };
+            save();
+        });
+
+        edgeUi.removeForm?.addEventListener("submit", event => {
+            event.preventDefault();
+            if (!selectedEdge || !window.confirm("Remove this prerequisite edge?")) return;
+            const { from: prerequisiteId, to: dependentId } = selectedEdge;
+            const remove = async () => {
+                setTransientStatus(edgeUi.status, "Saving\u2026");
+                try {
+                    await postFormJson(edgeUi.removeForm, "RemovePrerequisiteJson");
+                    removePrerequisiteEdge(prerequisiteId, dependentId);
+                    clearEdgeState(false);
+                    setTransientStatus(edgeUi.status, "Saved", "success");
+                    drawConnectors();
+                } catch (error) {
+                    setTransientStatus(edgeUi.status, `Save failed \u2014 ${error.message}`, "danger");
+                }
+            };
+            remove();
+        });
 
         const navigateToInspectorNode = button => {
             const target = nodeById(button?.dataset.targetNode);
@@ -1833,6 +2104,13 @@
             const vertical = (viewport.clientHeight - 24) / stage.offsetHeight;
             applyScale(Math.min(horizontal, vertical, 1));
             viewport.scrollTo({ left: 0, top: 0, behavior: "smooth" });
+        });
+        focusToggle?.addEventListener("click", () => {
+            const active = tree.classList.toggle("is-focus-mode");
+            document.body.classList.toggle("visual-tree-focus-active", active);
+            focusToggle.setAttribute("aria-pressed", active.toString());
+            focusToggle.textContent = active ? "Exit focus" : "Focus mode";
+            requestAnimationFrame(() => applyScale(scale));
         });
 
         viewport?.addEventListener("wheel", event => {

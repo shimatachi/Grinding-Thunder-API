@@ -818,9 +818,6 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   errors; all 344 API and 205 Admin tests pass (549 total), including new layout
   toolbar, bounded persistence, same-rank guard, and existing read-only coverage.
 
-
-## Most recently completed
-
 - **Batch 33 — Shared public research-tree experience** (status: Completed)
   Goal: expose the same canonical visual research-tree representation to players so
   what administrators author is what users see.
@@ -918,10 +915,365 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - Created 10 Python unit tests in `test_scraper.py` and comprehensive C# integration tests in `Batch36ScraperIntegrationTests.cs` verifying entity storage, migration safety, CRUD operations, public projections, import auto-creation/update/preservation policies, tree scoping isolation, and full import preview validation of representative Israel Aviation fixtures.
   Verification: 0 warnings, 0 errors, all 574 C# tests pass across the solution (353 API + 221 Admin) and all 10 Python scraper tests pass.
 
+## Next
+
+- **Batch 37 — Seamless fullscreen visual editor** (status: Planned)
+  Goal: make the visual research-tree editor the primary back-office editing
+  workspace by eliminating full-page refreshes during ordinary Draft mutations
+  and providing a focused fullscreen editing mode.
+
+  Current problem:
+  - normal Razor Page POST/redirect workflows interrupt node editing;
+  - successful edits can reset zoom, pan, selection, inspector state, and editing
+    context.
+
+  Intended interaction:
+
+  `open visual editor
+    -> enter fullscreen/focus mode
+    -> select vehicle
+    -> edit
+    -> save asynchronously
+    -> update only affected node/edge
+    -> continue editing without full page refresh`
+
+  Scope:
+  - add fullscreen/focus mode for the visual editor;
+  - preserve zoom, pan, selected node, inspector state, active tab, and edit mode;
+  - convert common Draft mutations to asynchronous requests;
+  - keep Razor Pages as the page shell;
+  - JavaScript posts to authenticated GrindingThunder.Admin handlers;
+  - Admin handlers continue calling GrindingThunder.Api through `IApiClient`;
+  - preserve antiforgery and existing role authorization;
+  - show:
+    - Unsaved;
+    - Saving...;
+    - Saved;
+    - Save failed;
+  - reconcile successful saves with authoritative API values;
+  - keep Published versions read-only.
+
+  Initial async mutation scope:
+  - VehicleTreeEntry updates;
+  - TreeColumn / TreeRow movement;
+  - rank;
+  - RP / SL;
+  - acquisition type;
+  - folder parent;
+  - prerequisite add/remove;
+  - add/remove VehicleTreeEntry where practical;
+  - rank quota updates where practical.
+
+  Out of scope:
+  - WebSockets;
+  - collaborative editing;
+  - auto-save on every keystroke;
+  - replacing Razor Pages with React/Blazor;
+  - changing domain/version semantics.
+
+  Dependency: Batch 36.
+
+
+- **Batch 38 — Human-friendly visual coordinates** (status: Planned)
+  Goal: present layout coordinates as one-based values to administrators while
+  preserving the existing zero-based persistence model.
+
+  Product rule:
+
+  `displayed coordinate = persisted coordinate + 1`
+
+  Example:
+  - persisted: Column 0 / Row 0
+  - admin sees: Column 1 / Row 1
+
+  Scope:
+  - show one-based values in:
+    - inspector;
+    - coordinate badges;
+    - edit grid labels;
+    - drag/drop feedback;
+    - nudge controls;
+    - collision messages;
+    - occupied-cell indicators;
+  - accept one-based values in the UI;
+  - translate back to zero-based values before API calls;
+  - preserve current visual layout exactly.
+
+  Persistence:
+  - do not migrate existing TreeColumn / TreeRow values;
+  - do not modify Published versions;
+  - keep zero-based coordinates as internal canonical data;
+  - do not silently reinterpret existing import files.
+
+  Tests:
+  - persisted 0,0 displays as 1,1;
+  - entered 1,1 persists as 0,0;
+  - drag/nudge conversion remains correct;
+  - collisions still use canonical persisted coordinates.
+
+  Dependency: Batch 37.
+
+
+- **Batch 39 — Player frontend foundation (`GrindingThunder.Web`)** (status: Planned)
+  Goal: create a dedicated player-facing frontend separate from
+  `GrindingThunder.Admin`.
+
+  New application:
+
+  `src/GrindingThunder.Web`
+
+  Recommended stack:
+  - Next.js;
+  - React;
+  - TypeScript;
+  - Tailwind CSS.
+
+  Architectural direction:
+
+  Browser
+    -> GrindingThunder.Web
+    -> GrindingThunder.Api
+    -> PostgreSQL
+
+  GrindingThunder.Web must not depend on GrindingThunder.Admin or access the
+  database directly.
+
+  Admin remains:
+  - ASP.NET Core Razor Pages;
+  - Tabler;
+  - Bootstrap 5.
+
+  Public/player frontend becomes:
+  - Next.js;
+  - React;
+  - TypeScript;
+  - Tailwind.
+
+  Scope:
+  - create the new frontend project inside the existing monorepo;
+  - establish development/build configuration;
+  - define API base URL configuration;
+  - create shared frontend API client utilities;
+  - establish typed DTOs for the public API contracts used by the frontend;
+  - create basic application shell and routing;
+  - establish responsive layout and design tokens;
+  - keep player and admin authentication conceptually separate;
+  - prepare player session/auth handling without changing backend auth semantics;
+  - provide initial routes such as:
+    - `/`;
+    - `/tree`;
+    - `/login`;
+    - `/register`;
+    - `/profile` placeholder where useful.
+
+  Reuse:
+  - existing public API endpoints;
+  - existing Published-version visibility rules;
+  - existing player authentication/progress endpoints.
+
+  Do not:
+  - duplicate backend domain logic in Next.js;
+  - call PostgreSQL directly;
+  - expose admin JWT/session data to the public app;
+  - migrate Admin UI into Next.js;
+  - replace GrindingThunder.Admin.
+
+  Dependency: Batch 38.
+
+
+- **Batch 40 — Public visual research-tree browser** (status: Planned)
+  Goal: rebuild the player-facing tree experience in GrindingThunder.Web using
+  React while preserving the same canonical tree data and layout semantics authored
+  in the Admin editor.
+
+  Product rule:
+
+  `Admin-authored layout == Public player layout`
+
+  The rendering implementation may differ, but the data must remain identical:
+  - TreeRanks;
+  - TreeColumn;
+  - TreeRow;
+  - folder relationships;
+  - prerequisites;
+  - acquisition types;
+  - Published ResearchTreeVersion.
+
+  Scope:
+  - allow players to select:
+    - Nation;
+    - category / ResearchTree;
+    - Published version;
+  - default to the latest Published version where appropriate;
+  - render:
+    - rank bands;
+    - sparse/non-contiguous ranks;
+    - vehicle cards;
+    - RP / SL;
+    - acquisition styling;
+    - folder/group relationships;
+    - prerequisite edges;
+    - images;
+    - WikiUrl links;
+  - support:
+    - pan;
+    - zoom;
+    - fit-to-view;
+    - node selection;
+    - responsive layout;
+  - show vehicle detail panel/drawer;
+  - show only Published ResearchTreeVersions;
+  - never expose Draft versions in normal public browsing.
+
+  Technical direction:
+  - build the visual renderer in React;
+  - use existing API contracts as source of truth;
+  - do not duplicate progression validation logic client-side;
+  - preserve TreeColumn / TreeRow semantics;
+  - keep rendering deterministic.
+
+  Out of scope:
+  - ownership/progression overlays;
+  - calculator integration;
+  - editing;
+  - admin features.
+
+  Dependency: Batch 39.
+
+
+- **Batch 41 — Player calculator and progression experience** (status: Planned)
+  Goal: connect the existing calculator and player-progress backend to the new
+  Next.js visual research tree.
+
+  Existing backend capabilities to reuse:
+  - player registration/login;
+  - synchronized owned vehicles;
+  - calculator preferences;
+  - `POST /api/research/calculate`;
+  - optimization modes;
+  - RP / SL estimates;
+  - rank-gate fillers;
+  - prerequisite traversal;
+  - explicit ResearchTreeVersion selection.
+
+  Intended player flow:
+
+  `choose Nation
+    -> choose category
+    -> choose Published tree version
+    -> mark owned vehicles
+    -> choose target vehicle
+    -> enter average RP / match
+    -> enter average net SL / match
+    -> choose optimization mode
+    -> calculate
+    -> highlight route on visual tree
+    -> show result summary`
+
+  Scope:
+  - allow anonymous users to use the calculator;
+  - allow anonymous owned state to live client-side;
+  - allow signed-in players to load/sync owned vehicles;
+  - allow target selection directly from the visual tree;
+  - expose calculator controls:
+    - Average RP per match;
+    - Average net SL per match;
+    - optimization mode;
+  - display:
+    - remaining RP;
+    - remaining SL;
+    - RP match estimate;
+    - SL match estimate;
+    - combined match estimate;
+    - required prerequisite vehicles;
+    - rank-gate fillers;
+    - rank deficits;
+  - visually distinguish:
+    - owned;
+    - target;
+    - required route;
+    - rank-gate filler;
+  - highlight active prerequisite route edges;
+  - support reset/recalculate/change-target workflows;
+  - preserve calculator state while inspecting nodes.
+
+  Signed-in behavior:
+  - load saved ownership;
+  - load/save calculator preferences;
+  - synchronize progress without removing ownership from unrelated trees.
+
+  Public-data rule:
+  - calculations always target one explicit Published ResearchTreeVersion.
+
+  Dependency: Batch 40.
+
+
+- **Batch 42 — Player account, profile, and public UX polish** (status: Planned)
+  Goal: complete the player-facing product experience around the new
+  GrindingThunder.Web application.
+
+  Scope:
+  - polished login/register/logout flows;
+  - player profile page;
+  - saved progress summary;
+  - saved calculator preferences;
+  - clear signed-in / signed-out states;
+  - preserve local calculator/ownership state through login where practical;
+  - robust loading, empty, error, and retry states;
+  - responsive desktop/tablet/mobile layouts;
+  - mobile calculator drawer;
+  - accessible keyboard navigation;
+  - useful shareable URLs for:
+    - Nation;
+    - category;
+    - Published version;
+    - target vehicle where appropriate;
+  - improve vehicle detail presentation using:
+    - ImageUrl;
+    - WikiUrl;
+    - current version-specific RP / SL / rank metadata.
+
+  Out of scope:
+  - social features;
+  - leaderboards;
+  - subscriptions/payments;
+  - modification progression;
+  - new calculator algorithms.
+
+  Dependency: Batch 41.
+
+
+- **Batch 43 — Cross-frontend visual consistency and performance** (status: Planned)
+  Goal: harden the shared visual-tree contract so Admin and player frontend remain
+  consistent as both evolve.
+
+  Scope:
+  - compare Admin and Web rendering against identical Published fixtures;
+  - ensure:
+    - same node positions;
+    - same ranks;
+    - same folder relationships;
+    - same prerequisite graph;
+    - same acquisition semantics;
+  - define explicit frontend-facing tree DTO contracts where needed;
+  - reduce accidental coupling to legacy transitional projections;
+  - improve large-tree rendering performance based on measurements;
+  - consider virtualization/culling only if real profiling justifies it;
+  - add visual regression fixtures where practical;
+  - ensure public mobile rendering remains usable for large trees.
+
+  Do not:
+  - merge Admin and Web applications;
+  - introduce a shared frontend framework dependency between Razor and Next.js;
+  - duplicate domain rules in the frontend;
+  - optimize without measurements.
+
+  Dependency: Batches 40–42.
+
 ## Later
 
 - Vehicle modification progression
 - Advanced War Thunder economy/RP mechanics
-- Assisted scraping/data-conversion tooling
 - Audit/history improvements for admin operations
-- Performance/caching beyond the visual-tree work only when measurements justify it
+- deployment/CDN/image optimization for GrindingThunder.Web
+- performance/caching only when measurements justify it

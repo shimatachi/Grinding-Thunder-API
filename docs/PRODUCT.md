@@ -6,7 +6,7 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
 
 ## CURRENT — implemented backend behavior
 
-- The API lists nations with their research trees, vehicle types, versions, and version-owned ranks. Vehicle entries can be filtered by nation and optional vehicle-type name. Development seed data contains four nations with Ground research trees, a `dev-sample` published version for each seeded tree, and a small USA Ground vehicle sample. This does not establish support for all nations or trees.
+- The anonymous API catalog lists nations and research trees only when they have Published versions, including each Published version's update and version-owned ranks. `GET /api/vehicles/tree` requires an exact `researchTreeVersionId` plus nation (and optional vehicle-type name), returns only that Published snapshot, and treats Draft IDs as not found. Authenticated administrator requests can explicitly request the complete Draft/Published catalog for back-office workflows. Development seed data contains four nations with Ground research trees, a `dev-sample` published version for each seeded tree, and a small USA Ground vehicle sample. This does not establish support for all nations or trees.
 - A calculation selects one research-tree version and accepts a target vehicle, IDs treated as already unlocked, optional player-selected filler targets, average RP per match, average net SL per match, and an optional route optimization mode (`LeastRp` by default, `LeastSl`, `FewestVehicles`, or `FewestMatches`). Both averages must be greater than zero. Target, owned, and filler IDs must belong to the selected version. It follows that version's explicit prerequisite links, includes filler prerequisite lines, and totals the selected version's entry RP and vehicle-purchase SL costs.
 - The result exposes remaining RP and SL per required vehicle, total remaining RP and SL, separate ceiling-based RP and SL match estimates, and one combined estimate equal to the greater resource estimate. RP and SL are treated as earned concurrently; research modifiers and other economy costs are not simulated.
 - When a rank below the target has a quota that is not met by the mandatory prerequisite line, already-unlocked vehicles, and any explicit fillers, the calculator automatically selects eligible researchable vehicles in that rank according to the chosen optimization mode (`LeastRp` minimizes added RP; `LeastSl` minimizes vehicle purchase SL; `FewestVehicles` minimizes the count of added filler vehicles including transitive prerequisites; `FewestMatches` minimizes concurrent match requirements `max(ceil(RP/avgRP), ceil(SL/avgSL))`). Deterministic tie-breaking ends on vehicle name. Each auto-selected vehicle and its transitive prerequisite chain are gathered and marked `IsRankGateFiller = true`. Evaluation continues through all prerequisite ranks; any remaining deficit that cannot be resolved by available candidates is reported in `RankDeficits`. An already-unlocked vehicle is a traversal boundary, so prerequisites behind it are not charged again.
@@ -26,7 +26,13 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
   - Progress persistence (`PlayerUnlockedVehicles`) saves owned vehicles by stable `VehicleId` alongside calculator preferences (`OptimizationMode`, `AverageRpPerMatch`, `AverageNetSlPerMatch`).
   - Full-set ownership replacement (`PUT /api/player/progress`) with optimistic concurrency control via `progressStamp` (UUID).
   - Explicit calculator contract decoupling: the calculator API (`POST /api/research/calculate`) remains completely anonymous and decoupled from persistence. Saved player inventories are not automatically injected into calculations; clients pass explicit `unlockedVehicleIds` (intersected with the selected version's vehicle entries).
-- No user-facing client web UI for players or automated version selection is implemented in this repository (it is a backend REST API and separate admin client).
+- An anonymous, player-facing research-tree browser is available at `/Tree` in the Razor Pages web project. It defaults to the latest Published snapshot for the selected nation/category and never exposes Drafts or mutation actions. Player ownership and calculator overlays are not integrated into this page yet.
+
+## CURRENT — public research-tree browser
+
+- Anonymous users can choose a nation, category/ResearchTree, and Published version without being redirected to `/Login`. The latest Published version is selected by default.
+- The page uses the same `VisualResearchTreeViewModel`, `VisualTreeMapper.FromPublic`, `_VisualTree.cshtml`, CSS, JavaScript, and SVG connector routing as the admin visual tree. Rank bands and unlock quotas, integer coordinates, acquisition styling, folder groups, and explicit prerequisite edges therefore have one canonical renderer.
+- Public browsing is strictly read-only. It supports pan, zoom, fit, reset, keyboard/click card selection, and a details panel for stable identity, rank, RP/SL costs, acquisition type, coordinates, and folder membership. It contains no edit mode, layout tools, prerequisite editor, or POST mutation forms.
 
 ## CURRENT — admin back office
 
@@ -49,7 +55,7 @@ Plan the War Thunder vehicles, Research Points (RP), Silver Lions (SL), and esti
 
 ## FUTURE — direction without detailed rules yet
 
-- User-facing public/player web frontend.
+- Player ownership controls and calculator/progression overlays on the public tree.
 - Vehicle modification progression (a separate progression system out of scope for the initial vehicle research planner).
 - Advanced War Thunder economy and RP mechanics (premium account modifiers, talisman bonuses, vehicle research efficiency penalties).
 - Assisted scraping and data-conversion tools to transform external game data into the application's canonical import schema.

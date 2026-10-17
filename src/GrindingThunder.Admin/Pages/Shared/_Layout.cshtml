@@ -3,14 +3,14 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} - " : "")Grinding Thunder Admin</title>
+    <title>@(ViewData["Title"] != null ? $"{ViewData["Title"]} - " : "")@(User.Identity?.IsAuthenticated == true ? "Grinding Thunder Admin" : "Grinding Thunder")</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@tabler/core@@1.0.0/dist/css/tabler.min.css" />
     <link rel="stylesheet" href="~/css/admin.css" />
 </head>
 <body class="layout-fluid">
     <header class="navbar navbar-expand-md navbar-dark d-print-none">
         <div class="container-xl">
-            <a class="navbar-brand navbar-brand-autodark" asp-page="/Index">Grinding Thunder Admin</a>
+            <a class="navbar-brand navbar-brand-autodark" asp-page="@(User.Identity?.IsAuthenticated == true ? "/Index" : "/Tree")">Grinding Thunder</a>
             @if (User.Identity?.IsAuthenticated == true)
             {
                 <ul class="navbar-nav flex-row order-md-last ms-auto">
@@ -66,7 +66,7 @@
 
     <div class="page-wrapper">
         <main class="page-body"><div class="container-xl">@RenderBody()</div></main>
-        <footer class="footer footer-transparent d-print-none"><div class="container-xl text-secondary">Grinding Thunder Admin Back-Office</div></footer>
+        <footer class="footer footer-transparent d-print-none"><div class="container-xl text-secondary">@(User.Identity?.IsAuthenticated == true ? "Grinding Thunder Admin Back-Office" : "Grinding Thunder Research Trees")</div></footer>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@@tabler/core@@1.0.0/dist/js/tabler.min.js"></script>

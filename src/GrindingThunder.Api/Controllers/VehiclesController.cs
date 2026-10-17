@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using GrindingThunder.Api.Domain.Entities;
 using GrindingThunder.Api.Infrastructure.Persistence;
 
 namespace GrindingThunder.Api.Controllers;
@@ -96,6 +97,7 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
     [HttpGet("tree")]
     public async Task<IActionResult> GetVehicleTree(
         [FromQuery] Guid nationId,
+        [FromQuery] Guid researchTreeVersionId,
         [FromQuery] string? type,
         CancellationToken cancellationToken)
     {
@@ -104,15 +106,42 @@ public class VehiclesController(ApplicationDbContext context) : ControllerBase
             return BadRequest("nationId is required.");
         }
 
-        // TRANSITIONAL (Batch 3): rank/RP/SL now live on VehicleTreeEntry; the
-        // tree is filtered through the entry's rank and projected from the entry.
+        if (researchTreeVersionId == Guid.Empty)
+        {
+            return BadRequest("researchTreeVersionId is required.");
+        }
+
+        var normalizedType = string.IsNullOrWhiteSpace(type) ? null : type.Trim().ToLowerInvariant();
+
+        // Treat Draft snapshots as absent from the public resource space. This
+        // check happens before entry projection so an empty Draft cannot leak its
+        // existence through a distinguishable successful response.
+        var publishedVersionExists = await _context.ResearchTreeVersions
+            .AsNoTracking()
+            .AnyAsync(version =>
+                version.Id == researchTreeVersionId &&
+                version.Status == ResearchTreeVersionStatus.Published &&
+                version.ResearchTree.NationId == nationId &&
+                (normalizedType == null ||
+                 version.ResearchTree.VehicleType.Name.ToLower() == normalizedType),
+                cancellationToken);
+
+        if (!publishedVersionExists)
+        {
+            return NotFound();
+        }
+
+        // All snapshot-specific values come from entries owned by the exact
+        // Published version selected above.
         var query = _context.VehicleTreeEntries
             .AsNoTracking()
-            .Where(e => e.TreeRank.ResearchTreeVersion.ResearchTree.NationId == nationId);
+            .Where(e =>
+                e.ResearchTreeVersionId == researchTreeVersionId &&
+                e.TreeRank.ResearchTreeVersion.Status == ResearchTreeVersionStatus.Published &&
+                e.TreeRank.ResearchTreeVersion.ResearchTree.NationId == nationId);
 
-        if (!string.IsNullOrWhiteSpace(type))
+        if (normalizedType is not null)
         {
-            var normalizedType = type.ToLowerInvariant();
             query = query.Where(e => e.TreeRank.ResearchTreeVersion.ResearchTree.VehicleType.Name.ToLower() == normalizedType);
         }
 

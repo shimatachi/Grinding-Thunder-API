@@ -1,0 +1,74 @@
+@page "/Tree"
+@model GrindingThunder.Admin.Pages.TreeModel
+@{ ViewData["Title"] = "Research Trees"; }
+
+<div class="page-header">
+    <div class="row align-items-center g-3">
+        <div class="col">
+            <h1 class="page-title">Research Trees</h1>
+            <div class="text-secondary">Explore immutable War Thunder progression snapshots.</div>
+        </div>
+        @if (User.Identity?.IsAuthenticated != true)
+        {
+            <div class="col-auto"><a class="btn btn-outline-secondary" asp-page="/Login">Admin sign in</a></div>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mt-3" role="alert">@Model.ErrorMessage</div>
+}
+
+@if (Model.Nations.Count == 0)
+{
+    <div class="card mt-3"><div class="empty-message">No published research-tree versions are available yet.</div></div>
+}
+else
+{
+    <form method="get" class="card mt-3" aria-label="Research tree selection">
+        <div class="card-body row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label" for="public-tree-nation">Nation</label>
+                <select class="form-select" id="public-tree-nation" name="nationId" onchange="this.form.elements.researchTreeId.value=''; this.form.elements.versionId.value=''; this.form.submit()">
+                    @foreach (var nation in Model.Nations)
+                    {
+                        <option value="@nation.Id" selected="@(nation.Id == Model.NationId)">@nation.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="public-tree-category">Category</label>
+                <select class="form-select" id="public-tree-category" name="researchTreeId" onchange="this.form.elements.versionId.value=''; this.form.submit()">
+                    @foreach (var tree in Model.ResearchTrees)
+                    {
+                        <option value="@tree.Id" selected="@(tree.Id == Model.ResearchTreeId)">@tree.VehicleTypeName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="public-tree-version">Published version</label>
+                <select class="form-select" id="public-tree-version" name="versionId" onchange="this.form.submit()">
+                    @foreach (var version in Model.Versions)
+                    {
+                        <option value="@version.Id" selected="@(version.Id == Model.VersionId)">@version.UpdateVersion</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </form>
+
+    @if (Model.SelectedVersion is not null)
+    {
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mb-2">
+            <h2 class="h3 mb-0">@Model.SelectedNation?.Name — @Model.SelectedResearchTree?.VehicleTypeName</h2>
+            <span class="badge bg-green-lt">Published</span>
+            <span class="text-secondary">Game update @Model.SelectedVersion.UpdateVersion · @Model.Entries.Count vehicle(s)</span>
+        </div>
+        <partial name="/Pages/Trees/_VisualTree.cshtml" model="Model.VisualWorkspace" />
+    }
+}
+
+@section Scripts {
+    <script src="~/js/visual-tree.js"></script>
+}

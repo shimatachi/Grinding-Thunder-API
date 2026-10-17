@@ -25,6 +25,20 @@
         const layoutSave = tree.querySelector("[data-tree-layout-save]");
         const layoutDiscard = tree.querySelector("[data-tree-layout-discard]");
         const collisionWarning = tree.querySelector("[data-tree-collision-warning]");
+        const readonlyPanel = tree.querySelector("[data-tree-readonly-inspector]");
+        const readonlyEmpty = tree.querySelector("[data-tree-readonly-empty]");
+        const readonlyDetails = tree.querySelector("[data-tree-readonly-details]");
+        const readonlyInspector = {
+            name: tree.querySelector("[data-readonly-name]"),
+            vehicleId: tree.querySelector("[data-readonly-vehicle-id]"),
+            image: tree.querySelector("[data-readonly-image]"),
+            rank: tree.querySelector("[data-readonly-rank]"),
+            rp: tree.querySelector("[data-readonly-rp]"),
+            sl: tree.querySelector("[data-readonly-sl]"),
+            acquisition: tree.querySelector("[data-readonly-acquisition]"),
+            coordinate: tree.querySelector("[data-readonly-coordinate]"),
+            folder: tree.querySelector("[data-readonly-folder]")
+        };
         const inspector = {
             entryId: tree.querySelector("[data-inspector-entry-id]"),
             removeEntryId: tree.querySelector("[data-remove-entry-id]"),
@@ -529,6 +543,49 @@
             refreshLayoutTools();
         };
 
+        const clearReadonlySelection = () => {
+            selectedNode?.classList.remove("is-selected");
+            selectedNode = null;
+            tree.classList.remove("is-inspecting");
+            readonlyEmpty?.classList.remove("d-none");
+            readonlyDetails?.classList.add("d-none");
+            requestAnimationFrame(() => applyScale(scale));
+        };
+
+        const selectReadonlyNode = node => {
+            if (canEdit || !node || !readonlyPanel) return;
+            selectedNode?.classList.remove("is-selected");
+            selectedNode = node;
+            selectedNode.classList.add("is-selected");
+            tree.classList.add("is-inspecting");
+            readonlyEmpty?.classList.add("d-none");
+            readonlyDetails?.classList.remove("d-none");
+
+            if (readonlyInspector.name) readonlyInspector.name.textContent = nodeName(node);
+            if (readonlyInspector.vehicleId) readonlyInspector.vehicleId.textContent = node.dataset.vehicleId || "";
+            if (readonlyInspector.rank) readonlyInspector.rank.textContent = `Rank ${node.dataset.treeRankNumber || ""}`;
+            if (readonlyInspector.rp) readonlyInspector.rp.textContent = `${formatCost(node.dataset.rpCost)} RP`;
+            if (readonlyInspector.sl) readonlyInspector.sl.textContent = `${formatCost(node.dataset.slCost)} SL`;
+            if (readonlyInspector.acquisition) {
+                readonlyInspector.acquisition.textContent = node.querySelector("[data-tree-acquisition-preview]")?.textContent || "Unknown";
+            }
+            if (readonlyInspector.coordinate) {
+                readonlyInspector.coordinate.textContent = `Column ${node.dataset.treeColumn || "0"} · Row ${node.dataset.treeRow || "0"}`;
+            }
+            if (readonlyInspector.folder) {
+                const parent = nodeById(node.dataset.folderParentId);
+                readonlyInspector.folder.textContent = parent ? `Member of ${nodeName(parent)}` :
+                    node.dataset.isFolderParent === "true" ? "Folder parent" : "None";
+            }
+            if (readonlyInspector.image) {
+                const imageUrl = node.dataset.imageUrl || "";
+                readonlyInspector.image.toggleAttribute("hidden", !imageUrl);
+                if (imageUrl) readonlyInspector.image.src = imageUrl;
+                else readonlyInspector.image.removeAttribute("src");
+            }
+            requestAnimationFrame(() => applyScale(scale));
+        };
+
         const selectNode = (node, shouldFocus = true) => {
             if (!isEditing() || !node) return false;
             if (node === selectedNode && selectedNodes.size === 1) {
@@ -835,6 +892,9 @@
                     event.preventDefault();
                     if (event.ctrlKey || event.metaKey || event.shiftKey) toggleNodeSelection(node);
                     else selectNode(node, true);
+                } else if (!canEdit) {
+                    event.preventDefault();
+                    selectReadonlyNode(node);
                 }
             });
             node.addEventListener("dblclick", event => {
@@ -850,9 +910,14 @@
                 } else if (isEditing()) {
                     event.preventDefault();
                     selectNode(node);
+                } else if (!canEdit) {
+                    event.preventDefault();
+                    selectReadonlyNode(node);
                 }
             });
         });
+
+        tree.querySelector("[data-tree-readonly-close]")?.addEventListener("click", clearReadonlySelection);
 
         paths?.addEventListener("pointerdown", event => {
             if (isEdgeMode() && event.target.closest("[data-tree-edge-hit]")) event.stopPropagation();

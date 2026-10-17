@@ -66,10 +66,13 @@ public interface IApiClient
     Task<ApiResponse> DeleteResearchTreeAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves nations with their research trees and draft/published version
-    /// snapshots from the public GET /api/nations endpoint.
+    /// Retrieves the complete back-office nation/tree/version catalog. The API
+    /// only honors draft inclusion for authenticated administrator identities.
     /// </summary>
     Task<ApiResponse<IReadOnlyList<NationVersionsDto>>> GetNationsWithVersionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Retrieves the anonymous catalog containing Published snapshots only.</summary>
+    Task<ApiResponse<IReadOnlyList<NationVersionsDto>>> GetPublicNationsWithVersionsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves version metadata (status, game update, counts) from
@@ -106,9 +109,12 @@ public interface IApiClient
 
     /// <summary>
     /// Retrieves versioned entries for a nation from the public GET /api/vehicles/tree
-    /// endpoint, optionally filtered by vehicle type name. Used for read-only
-    /// published version views.
+    /// endpoint for one exact Published snapshot.
     /// </summary>
-    Task<ApiResponse<IReadOnlyList<PublicVehicleTreeEntryDto>>> GetVehicleTreeAsync(Guid nationId, string? vehicleTypeName = null, CancellationToken cancellationToken = default);
+    Task<ApiResponse<IReadOnlyList<PublicVehicleTreeEntryDto>>> GetVehicleTreeAsync(
+        Guid nationId,
+        Guid researchTreeVersionId,
+        string? vehicleTypeName = null,
+        CancellationToken cancellationToken = default);
 }
 

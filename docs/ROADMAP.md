@@ -764,7 +764,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   and existing Draft/Published/Publisher read-only coverage.
 
 
-## Most recently completed
+## Completed
 
 - **Batch 32 — Visual layout assistance tools** (status: Completed)
   Goal: make building and maintaining large trees faster without replacing explicit
@@ -819,9 +819,9 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   toolbar, bounded persistence, same-rank guard, and existing read-only coverage.
 
 
-## Next
+## Most recently completed
 
-- **Batch 33 — Shared public research-tree experience** (status: Planned)
+- **Batch 33 — Shared public research-tree experience** (status: Completed)
   Goal: expose the same canonical visual research-tree representation to players so
   what administrators author is what users see.
 
@@ -860,6 +860,21 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
 
   Dependency: Batches 29-32.
 
+  Result: added an explicitly anonymous `/Tree` Razor Page with cascading Nation,
+  category, and Published-version selection, defaulting to the latest Published
+  snapshot. The page reuses `VisualTreeMapper.FromPublic`, `_VisualTree.cshtml`, the
+  existing CSS/JavaScript, and SVG connector routing, including pan, zoom, fit,
+  reset, and read-only vehicle selection/details. Public API discovery now omits
+  Draft versions by default; authenticated back-office catalog calls explicitly opt
+  into Draft metadata. The public vehicle-tree endpoint requires an exact version
+  ID and returns 404 for Draft or mismatched snapshots. No schema, migration,
+  framework, or mutation endpoint was added. Verification: JavaScript syntax check;
+  solution build with zero warnings and errors; all 346 API and 207 Admin tests pass
+  (553 total), including new Published success, Draft rejection, anonymous access,
+  default selection, and read-only-control coverage.
+
+
+## Next
 
 - **Batch 34 — Player progression overlay on visual tree** (status: Planned)
   Goal: connect the existing persistent player progress from Batch 22 to the shared

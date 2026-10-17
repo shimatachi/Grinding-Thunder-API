@@ -203,6 +203,9 @@ public class ApiClient(HttpClient httpClient) : IApiClient
         DeleteAsync($"api/admin/research-trees/{id}", cancellationToken);
 
     public Task<ApiResponse<IReadOnlyList<NationVersionsDto>>> GetNationsWithVersionsAsync(CancellationToken cancellationToken = default) =>
+        GetListAsync<NationVersionsDto>("api/nations?includeDrafts=true", cancellationToken);
+
+    public Task<ApiResponse<IReadOnlyList<NationVersionsDto>>> GetPublicNationsWithVersionsAsync(CancellationToken cancellationToken = default) =>
         GetListAsync<NationVersionsDto>("api/nations", cancellationToken);
 
     public Task<ApiResponse<ResearchTreeVersionSummaryDto>> GetResearchTreeVersionAsync(Guid versionId, CancellationToken cancellationToken = default) =>
@@ -295,9 +298,13 @@ public class ApiClient(HttpClient httpClient) : IApiClient
     public Task<ApiResponse> DeleteVehiclePrerequisiteAsync(Guid versionId, Guid entryId, Guid prerequisiteEntryId, CancellationToken cancellationToken = default) =>
         DeleteAsync($"api/admin/drafts/{versionId}/prerequisites/{entryId}/{prerequisiteEntryId}", cancellationToken);
 
-    public Task<ApiResponse<IReadOnlyList<PublicVehicleTreeEntryDto>>> GetVehicleTreeAsync(Guid nationId, string? vehicleTypeName = null, CancellationToken cancellationToken = default)
+    public Task<ApiResponse<IReadOnlyList<PublicVehicleTreeEntryDto>>> GetVehicleTreeAsync(
+        Guid nationId,
+        Guid researchTreeVersionId,
+        string? vehicleTypeName = null,
+        CancellationToken cancellationToken = default)
     {
-        var uri = $"api/vehicles/tree?nationId={nationId}";
+        var uri = $"api/vehicles/tree?nationId={nationId}&researchTreeVersionId={researchTreeVersionId}";
         if (!string.IsNullOrWhiteSpace(vehicleTypeName))
         {
             uri += $"&type={Uri.EscapeDataString(vehicleTypeName)}";

@@ -10,9 +10,11 @@ body { min-height: 100vh; }
 
 .visual-tree-workspace { --visual-tree-column-step: 280px; --visual-tree-row-step: 204px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; }
 .visual-tree-workspace.is-editing, .visual-tree-workspace.is-edge-creating { grid-template-columns: minmax(0, 1fr) 22rem; }
+.visual-tree-workspace.is-inspecting { grid-template-columns: minmax(0, 1fr) 22rem; }
 .visual-tree-main { min-width: 0; }
 .visual-tree-sidebar { display: none; position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
 .visual-tree-workspace.is-editing .visual-tree-sidebar, .visual-tree-workspace.is-edge-creating .visual-tree-sidebar { display: block; }
+.visual-tree-workspace.is-inspecting .visual-tree-sidebar { display: block; }
 .visual-tree-workspace.is-edge-creating [data-tree-entry-editor] { display: none; }
 .visual-tree-edit-toggle { padding-right: .75rem; border-right: var(--tblr-border-width) solid var(--tblr-border-color); }
 .visual-tree-card { overflow: hidden; }
@@ -66,6 +68,7 @@ body { min-height: 100vh; }
 .visual-tree-node-acquisition-pack { --visual-tree-acquisition-accent: #cc5de8; }
 .visual-tree-node-acquisition-hidden { --visual-tree-acquisition-accent: #868e96; border-top-style: dashed; }
 .visual-tree-workspace.is-editing .visual-tree-node { cursor: grab; touch-action: none; }
+.visual-tree-workspace:not([data-can-edit="true"]) .visual-tree-node { cursor: pointer; }
 .visual-tree-workspace.is-editing .visual-tree-node:hover { outline: 2px solid color-mix(in srgb, var(--tblr-primary) 50%, transparent); outline-offset: 2px; }
 .visual-tree-workspace.is-edge-creating .visual-tree-node { cursor: crosshair; }
 .visual-tree-workspace.is-edge-creating .visual-tree-node:hover { outline: 2px solid #74c0fc; outline-offset: 2px; }
@@ -119,7 +122,7 @@ body { min-height: 100vh; }
     .visual-tree-viewport { min-height: 26rem; }
     .visual-tree-legend .ms-auto { width: 100%; margin-left: 0 !important; }
     .visual-tree-layout-toolbar .ms-auto { width: 100%; margin-left: 0 !important; }
-    .visual-tree-workspace.is-editing, .visual-tree-workspace.is-edge-creating { grid-template-columns: minmax(0, 1fr); }
+    .visual-tree-workspace.is-editing, .visual-tree-workspace.is-edge-creating, .visual-tree-workspace.is-inspecting { grid-template-columns: minmax(0, 1fr); }
     .visual-tree-sidebar { position: static; max-height: none; overflow: visible; }
     .visual-tree-edit-toggle { width: 100%; padding-right: 0; border-right: 0; }
 }

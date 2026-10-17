@@ -164,7 +164,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
 
                 if (Tree is not null)
                 {
-                    var entries = await apiClient.GetVehicleTreeAsync(Tree.NationId, Tree.VehicleTypeName, cancellationToken);
+                    var entries = await apiClient.GetVehicleTreeAsync(Tree.NationId, versionId, Tree.VehicleTypeName, cancellationToken);
                     if (entries.IsSuccess)
                     {
                         PublishedEntries = (entries.Value ?? [])
@@ -217,7 +217,7 @@ public class VersionModel(IApiClient apiClient) : PageModel
         Tree = new ResearchTreeDto(matchingTree.Id, matchingNation.Id, matchingNation.Name, matchingTree.VehicleTypeId, matchingTree.VehicleTypeName);
         PublishedRanks = matchingVersion.TreeRanks;
 
-        var treeEntries = await apiClient.GetVehicleTreeAsync(matchingNation.Id, matchingTree.VehicleTypeName, cancellationToken);
+        var treeEntries = await apiClient.GetVehicleTreeAsync(matchingNation.Id, versionId, matchingTree.VehicleTypeName, cancellationToken);
         if (treeEntries.IsSuccess)
         {
             PublishedEntries = (treeEntries.Value ?? [])

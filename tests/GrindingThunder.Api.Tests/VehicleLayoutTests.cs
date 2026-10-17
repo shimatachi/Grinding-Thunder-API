@@ -143,6 +143,8 @@ public class VehicleLayoutTests
         var parentEntry = database.AddVehicleTreeEntry(version, parent, rank, 10, treeColumn: 3, treeRow: 4);
         database.AddVehicleTreeEntry(version, child, rank, 20, treeColumn: 3, treeRow: 5, folderParent: parentEntry);
         await database.SaveChangesAsync();
+        version.Status = ResearchTreeVersionStatus.Published;
+        await database.SaveChangesAsync();
 
         var controller = new GrindingThunder.Api.Controllers.VehiclesController(database.Context);
         var response = Assert.IsType<OkObjectResult>(await controller.GetVehicles());
@@ -156,7 +158,7 @@ public class VehicleLayoutTests
         Assert.Equal(5, GetProperty(childDto, "TreeRow"));
 
         var treeResponse = Assert.IsType<OkObjectResult>(
-            await controller.GetVehicleTree(nation.Id, "Ground", CancellationToken.None));
+            await controller.GetVehicleTree(nation.Id, version.Id, "Ground", CancellationToken.None));
         var treeEntries = Assert.IsAssignableFrom<System.Collections.IEnumerable>(treeResponse.Value!).Cast<object>().ToList();
         var childTreeEntry = treeEntries.Single(e => (Guid)GetProperty(e, "Id")! == child.Id);
 

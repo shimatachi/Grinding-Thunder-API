@@ -191,7 +191,7 @@
                                                      data-folder-parent-id="@node.FolderParentId"
                                                      data-is-folder-parent="@node.IsFolderParent.ToString().ToLowerInvariant()"
                                                      data-tree-rank-number="@node.RankNumber"
-                                                     tabindex="@(Model.CanEdit ? "0" : "-1")"
+                                                     tabindex="0"
                                                      style="--tree-column: @node.TreeColumn; --tree-row: @node.RowOffset; --tree-stack: @node.CoordinateStackIndex">
                                                 <div class="visual-tree-node-image">
                                                     @if (!string.IsNullOrWhiteSpace(node.ImageUrl))
@@ -385,6 +385,36 @@
                         <partial name="/Pages/Trees/_VisualEntryFields.cshtml" model="@(new VisualEntryFieldsViewModel("CreateEntry", "VisualCreate", Model.Ranks, Model.Entries))" />
                         <button type="submit" class="btn btn-primary w-100">Create and Add</button>
                     </form>
+                </div>
+            </div>
+        </aside>
+    }
+    else
+    {
+        <aside class="visual-tree-sidebar" data-tree-readonly-inspector aria-label="Selected vehicle details">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Vehicle details</h3>
+                    <button type="button" class="btn-close ms-auto" data-tree-readonly-close aria-label="Close vehicle details"></button>
+                </div>
+                <div class="card-body text-secondary" data-tree-readonly-empty>Select a vehicle card to inspect it.</div>
+                <div class="card-body d-none" data-tree-readonly-details>
+                    <div class="visual-tree-identity mb-3">
+                        <div class="visual-tree-inspector-image"><img alt="" data-readonly-image /></div>
+                        <div>
+                            <div class="fw-bold" data-readonly-name></div>
+                            <div class="text-secondary small">Vehicle ID: <code data-readonly-vehicle-id></code></div>
+                            <div class="text-secondary small">@Model.ResearchTreeLabel</div>
+                        </div>
+                    </div>
+                    <dl class="row mb-0">
+                        <dt class="col-6">Rank</dt><dd class="col-6" data-readonly-rank></dd>
+                        <dt class="col-6">RP cost</dt><dd class="col-6" data-readonly-rp></dd>
+                        <dt class="col-6">SL cost</dt><dd class="col-6" data-readonly-sl></dd>
+                        <dt class="col-6">Acquisition</dt><dd class="col-6" data-readonly-acquisition></dd>
+                        <dt class="col-6">Position</dt><dd class="col-6" data-readonly-coordinate></dd>
+                        <dt class="col-6">Folder</dt><dd class="col-6" data-readonly-folder></dd>
+                    </dl>
                 </div>
             </div>
         </aside>

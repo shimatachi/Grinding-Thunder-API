@@ -509,9 +509,11 @@ public class VehiclesControllerTests
             acquisitionType: VehicleAcquisitionType.Premium);
 
         await database.SaveChangesAsync();
+        version.Status = ResearchTreeVersionStatus.Published;
+        await database.SaveChangesAsync();
 
         var controller = new GrindingThunder.Api.Controllers.VehiclesController(database.Context);
-        var actionResult = await controller.GetVehicleTree(nation.Id, "Ground", CancellationToken.None);
+        var actionResult = await controller.GetVehicleTree(nation.Id, version.Id, "Ground", CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(actionResult);
         var body = Assert.IsAssignableFrom<System.Collections.IEnumerable>(ok.Value!).Cast<object>().ToList();

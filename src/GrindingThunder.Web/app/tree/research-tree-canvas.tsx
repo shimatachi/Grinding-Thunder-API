@@ -12,6 +12,7 @@ import {
 import { formatNumber } from "@/lib/format";
 import {
   VehicleAcquisitionType,
+  type ResearchCalculationResult,
   type TreeRankSummary,
   type VehicleTreeEntry,
 } from "@/lib/api/types";
@@ -39,6 +40,11 @@ interface ResearchTreeCanvasProps {
   ranks: TreeRankSummary[];
   entries: VehicleTreeEntry[];
   snapshotKey: string;
+  ownedVehicleIds: ReadonlySet<string>;
+  targetVehicleId: string | null;
+  calculationResult: ResearchCalculationResult | null;
+  onToggleOwned: (vehicleId: string) => void;
+  onSelectTarget: (vehicleId: string) => void;
 }
 
 function clampScale(value: number): number {
@@ -97,7 +103,16 @@ function CloseIcon() {
   return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg>;
 }
 
-export function ResearchTreeCanvas({ ranks, entries, snapshotKey }: ResearchTreeCanvasProps) {
+export function ResearchTreeCanvas({
+  ranks,
+  entries,
+  snapshotKey,
+  ownedVehicleIds,
+  targetVehicleId,
+  calculationResult,
+  onToggleOwned,
+  onSelectTarget,
+}: ResearchTreeCanvasProps) {
   const layout = useMemo(() => createTreeLayout(ranks, entries), [ranks, entries]);
   const [scale, setScale] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -126,6 +141,15 @@ export function ResearchTreeCanvas({ ranks, entries, snapshotKey }: ResearchTree
         .sort((left, right) => left.name.localeCompare(right.name))
     : [];
   const selectedWikiUrl = externalHttpUrl(selected?.wikiUrl);
+  const requiredVehicles = useMemo(
+    () => new Map(calculationResult?.requiredVehicles.map((vehicle) => [vehicle.vehicleId, vehicle]) ?? []),
+    [calculationResult],
+  );
+  const activePathIds = useMemo(() => {
+    const ids = new Set(requiredVehicles.keys());
+    if (targetVehicleId) ids.add(targetVehicleId);
+    return ids;
+  }, [requiredVehicles, targetVehicleId]);
 
   useEffect(() => {
     setSelectedId(null);
@@ -290,14 +314,20 @@ export function ResearchTreeCanvas({ ranks, entries, snapshotKey }: ResearchTree
                 <marker id="tree-prerequisite-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
                   <path d="M 0 0 L 8 4 L 0 8 z" />
                 </marker>
+                <marker id="tree-route-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                  <path d="M 0 0 L 8 4 L 0 8 z" fill="#f4c14f" />
+                </marker>
               </defs>
               {layout.edges.map((edge) => {
                 const touchesSelection = selectedId === edge.fromId || selectedId === edge.toId;
+                const connectsCalculatedPath = edge.kind === "prerequisite" &&
+                  activePathIds.has(edge.toId) &&
+                  (activePathIds.has(edge.fromId) || ownedVehicleIds.has(edge.fromId));
                 return (
                   <path
                     key={`${edge.kind}:${edge.fromId}:${edge.toId}`}
                     d={connectorPath(edge, layout.nodesById)}
-                    className={`tree-edge tree-edge-${edge.kind} ${touchesSelection ? "tree-edge-active" : ""}`}
+                    className={`tree-edge tree-edge-${edge.kind} ${touchesSelection ? "tree-edge-active" : ""} ${connectsCalculatedPath ? "tree-edge-route" : ""}`}
                   />
                 );
               })}
@@ -310,6 +340,10 @@ export function ResearchTreeCanvas({ ranks, entries, snapshotKey }: ResearchTree
               };
               const selectedNode = selectedId === node.id;
               const relatedNode = selectedRelatedIds.has(node.id);
+              const ownedNode = ownedVehicleIds.has(node.id);
+              const targetNode = targetVehicleId === node.id;
+              const requiredVehicle = requiredVehicles.get(node.id);
+              const fillerNode = requiredVehicle?.isRankGateFiller === true;
               const nodeStyle = {
                 left: node.x,
                 top: node.y,
@@ -324,11 +358,14 @@ export function ResearchTreeCanvas({ ranks, entries, snapshotKey }: ResearchTree
                   key={node.id}
                   type="button"
                   data-tree-node
-                  className={`tree-node ${selectedNode ? "tree-node-selected" : ""} ${relatedNode ? "tree-node-related" : ""} ${node.folderParentId ? "tree-node-folder-child" : ""} ${node.acquisitionType === VehicleAcquisitionType.Hidden ? "tree-node-hidden" : ""}`}
+                  className={`tree-node ${selectedNode ? "tree-node-selected" : ""} ${relatedNode ? "tree-node-related" : ""} ${ownedNode ? "tree-node-owned" : ""} ${targetNode ? "tree-node-target" : ""} ${requiredVehicle ? "tree-node-required" : ""} ${fillerNode ? "tree-node-filler" : ""} ${node.folderParentId ? "tree-node-folder-child" : ""} ${node.acquisitionType === VehicleAcquisitionType.Hidden ? "tree-node-hidden" : ""}`}
                   style={nodeStyle}
                   onClick={() => setSelectedId(node.id)}
+                  onDoubleClick={() => {
+                    if (node.acquisitionType === VehicleAcquisitionType.Researchable) onSelectTarget(node.id);
+                  }}
                   aria-pressed={selectedNode}
-                  aria-label={`${node.name}, Rank ${node.rankLabel}, ${acquisition.label}, ${formatNumber(node.rpCost)} RP, ${formatNumber(node.slCost)} SL`}
+                  aria-label={`${node.name}, Rank ${node.rankLabel}, ${acquisition.label}, ${formatNumber(node.rpCost)} RP, ${formatNumber(node.slCost)} SL${node.acquisitionType === VehicleAcquisitionType.Researchable ? ", double-click to set as calculator target" : ""}`}
                 >
                   <span className="tree-node-image"><VehicleImage src={node.imageUrl} name={node.name} compact /></span>
                   <span className="tree-node-content">
@@ -344,6 +381,11 @@ export function ResearchTreeCanvas({ ranks, entries, snapshotKey }: ResearchTree
                     {(node.isFolderParent || node.folderParentId) && (
                       <span className="tree-folder-badge">{node.isFolderParent ? "Folder" : "Folder member"}</span>
                     )}
+                    {(targetNode || fillerNode || requiredVehicle || ownedNode) && (
+                      <span className={`tree-progression-badge ${targetNode ? "tree-progression-target" : fillerNode ? "tree-progression-filler" : requiredVehicle ? "tree-progression-required" : "tree-progression-owned"}`}>
+                        {targetNode ? "Target" : fillerNode ? "Filler" : requiredVehicle ? "Required" : "✓ Owned"}
+                      </span>
+                    )}
                   </span>
                 </button>
               );
@@ -352,7 +394,7 @@ export function ResearchTreeCanvas({ ranks, entries, snapshotKey }: ResearchTree
         </div>
       </div>
 
-      <p className="tree-viewport-help">Drag empty space to pan · Ctrl/⌘ + wheel to zoom · Select a vehicle for details</p>
+      <p className="tree-viewport-help">Drag empty space to pan · Ctrl/⌘ + wheel to zoom · Select for details · Double-click a Researchable vehicle to set the target</p>
 
       {selected && (
         <aside className="tree-detail-drawer" role="dialog" aria-modal="false" aria-labelledby="tree-detail-title">
@@ -371,6 +413,10 @@ export function ResearchTreeCanvas({ ranks, entries, snapshotKey }: ResearchTree
               </span>
               {selected.isFolderParent && <span>Folder parent</span>}
               {selected.folderParentId && <span>Folder member</span>}
+              {ownedVehicleIds.has(selected.id) && <span className="tree-detail-owned">✓ Owned</span>}
+              {targetVehicleId === selected.id && <span className="tree-detail-target">Target</span>}
+              {requiredVehicles.get(selected.id)?.isRankGateFiller && <span className="tree-detail-filler">Rank-gate filler</span>}
+              {requiredVehicles.has(selected.id) && !requiredVehicles.get(selected.id)?.isRankGateFiller && <span className="tree-detail-required">Required route</span>}
             </div>
 
             <dl className="tree-detail-stats">
@@ -378,6 +424,23 @@ export function ResearchTreeCanvas({ ranks, entries, snapshotKey }: ResearchTree
               <div><dt>Purchase cost</dt><dd>{formatNumber(selected.slCost)} SL</dd></div>
               <div><dt>Layout cell</dt><dd>C{selected.treeColumn + 1} · R{selected.treeRow + 1}</dd></div>
             </dl>
+
+            <div className="tree-detail-actions">
+              <button type="button" className="button-secondary" onClick={() => onToggleOwned(selected.id)}>
+                {ownedVehicleIds.has(selected.id) ? "Mark as not owned" : "Mark as owned"}
+              </button>
+              <button
+                type="button"
+                className="button-primary"
+                disabled={selected.acquisitionType !== VehicleAcquisitionType.Researchable}
+                onClick={() => onSelectTarget(selected.id)}
+              >
+                {targetVehicleId === selected.id ? "Target selected" : "Set calculator target"}
+              </button>
+              {selected.acquisitionType !== VehicleAcquisitionType.Researchable && (
+                <p>Only Researchable vehicles can be calculator targets.</p>
+              )}
+            </div>
 
             <section className="tree-detail-section">
               <h4>Prerequisites</h4>

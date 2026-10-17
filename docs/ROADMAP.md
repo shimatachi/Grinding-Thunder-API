@@ -1224,10 +1224,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   with zero warnings and all 588 C# tests pass (355 API + 233 Admin).
 
 
-## Next
-
-
-- **Batch 41 — Player calculator and progression experience** (status: Planned)
+- **Batch 41 — Player calculator and progression experience** (status: Completed)
   Goal: connect the existing calculator and player-progress backend to the new
   Next.js visual research tree.
 
@@ -1292,6 +1289,20 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   - calculations always target one explicit Published ResearchTreeVersion.
 
   Dependency: Batch 40.
+
+  Result:
+  - added a page-level React progression planner around the existing visual canvas, with Researchable target selection, positive RP/net-SL inputs, all four optimization modes, and explicit calculate, recalculate, reset, and signed-in save actions;
+  - added anonymous stable-vehicle ownership persistence in namespaced local storage and authenticated progress/preference loading through the existing player API;
+  - preserved ownership outside the active snapshot during signed-in full-set saves by refreshing canonical server progress and replacing only the selected snapshot's visible ownership slice;
+  - added owned, target, prerequisite-route, and rank-gate-filler card treatments, active calculated prerequisite edges, drawer ownership/target actions, and result summaries for RP, SL, match estimates, required vehicles, fillers, and rank deficits;
+  - kept all progression rules in the backend calculator and introduced no backend, Admin, schema, migration, dependency, or global-state-library changes.
+
+  Verification: `npm --prefix src/GrindingThunder.Web run typecheck` and
+  `npm --prefix src/GrindingThunder.Web run build` pass; all 588 C# tests pass
+  (355 API + 233 Admin).
+
+
+## Next
 
 
 - **Batch 42 — Player account, profile, and public UX polish** (status: Planned)

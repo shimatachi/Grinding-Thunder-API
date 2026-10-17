@@ -7,7 +7,7 @@ import {
   type NationSummary,
   type VehicleTreeEntry,
 } from "@/lib/api/types";
-import { ResearchTreeCanvas } from "./research-tree-canvas";
+import { ResearchPlanner } from "./research-planner";
 
 function messageFrom(error: unknown): string {
   return error instanceof Error ? error.message : "The API request failed.";
@@ -162,31 +162,22 @@ export default function TreePage() {
         <div className="panel mt-6 p-8 text-center text-steel">No published research-tree snapshots are available yet.</div>
       )}
 
-      <section className="panel mt-6 overflow-hidden" aria-label="Visual research tree">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-7">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-steel">Visual research tree</p>
-            <h2 className="mt-1 text-lg font-bold">{nation?.name ?? "Nation"} · {tree?.vehicleTypeName ?? "Category"}</h2>
-          </div>
-          <div className="flex gap-5 text-sm text-steel">
-            <span><strong className="text-white">{entries.length}</strong> vehicles</span>
-            <span><strong className="text-white">{version?.treeRanks.length ?? 0}</strong> ranks</span>
-          </div>
-        </div>
-
-        {catalogLoading || treeLoading ? (
+      {catalogLoading || treeLoading ? (
+        <section className="panel mt-6" aria-label="Visual research tree">
           <div className="tree-loading">
             <span />
             Loading published snapshot…
           </div>
-        ) : version && !error ? (
-          <ResearchTreeCanvas
-            ranks={version.treeRanks}
-            entries={entries}
-            snapshotKey={version.id}
-          />
-        ) : null}
-      </section>
+        </section>
+      ) : version && nation && tree && !error ? (
+        <ResearchPlanner
+          ranks={version.treeRanks}
+          entries={entries}
+          snapshotKey={version.id}
+          nationName={nation.name}
+          categoryName={tree.vehicleTypeName}
+        />
+      ) : null}
     </div>
   );
 }

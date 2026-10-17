@@ -57,13 +57,13 @@ export default function ProfilePage() {
         </section>
 
         <section className="panel p-7 lg:col-span-2">
-          <div className="flex items-start justify-between gap-4"><div><p className="field-label">Calculator preferences</p><h2 className="mt-2 text-xl font-bold">Planning defaults</h2></div><span className="border border-signal/30 bg-signal/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-signal">Batch 41 controls</span></div>
+          <div className="flex items-start justify-between gap-4"><div><p className="field-label">Calculator preferences</p><h2 className="mt-2 text-xl font-bold">Planning defaults</h2></div><span className="border border-signal/30 bg-signal/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-signal">Synchronized</span></div>
           <dl className="mt-7 grid gap-px bg-white/10 sm:grid-cols-3">
             <div className="bg-panel p-4"><dt className="text-xs uppercase tracking-wider text-steel">Optimization</dt><dd className="mt-2 font-semibold">{progress ? formatOptimizationMode(progress.preferences.optimizationMode) : "—"}</dd></div>
             <div className="bg-panel p-4"><dt className="text-xs uppercase tracking-wider text-steel">Average RP</dt><dd className="mt-2 font-mono font-semibold">{progress?.preferences.averageRpPerMatch ? formatNumber(progress.preferences.averageRpPerMatch) : "Not set"}</dd></div>
             <div className="bg-panel p-4"><dt className="text-xs uppercase tracking-wider text-steel">Average net SL</dt><dd className="mt-2 font-mono font-semibold">{progress?.preferences.averageNetSlPerMatch ? formatNumber(progress.preferences.averageNetSlPerMatch) : "Not set"}</dd></div>
           </dl>
-          <p className="mt-5 text-sm leading-6 text-steel">Editing these preferences and applying synchronized ownership to calculations is intentionally deferred to the calculator experience.</p>
+          <p className="mt-5 text-sm leading-6 text-steel">Change these preferences from the tech-tree planner, then use Save progress to synchronize them with your account.</p>
         </section>
       </div>
 

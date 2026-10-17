@@ -86,6 +86,16 @@ body::before {
   .status-error {
     @apply border border-red-400/30 bg-red-950/30 px-4 py-3 text-sm text-red-200;
   }
+
+  .status-success {
+    @apply border border-emerald-400/30 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200;
+  }
+}
+
+.button-primary:disabled,
+.button-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .tree-workspace {
@@ -327,6 +337,10 @@ body::before {
   fill: #70c1ff;
 }
 
+.tree-connectors #tree-route-arrow path {
+  fill: #f4c14f;
+}
+
 .tree-edge {
   fill: none;
   opacity: 0.78;
@@ -351,6 +365,14 @@ body::before {
 .tree-edge-active {
   opacity: 1;
   stroke-width: 5;
+}
+
+.tree-edge-route {
+  stroke: #f4c14f;
+  stroke-width: 6;
+  opacity: 1;
+  marker-end: url(#tree-route-arrow);
+  filter: drop-shadow(0 0 5px rgba(244, 193, 79, 0.72));
 }
 
 .tree-node {
@@ -387,6 +409,34 @@ body::before {
 
 .tree-node-related:not(.tree-node-selected) {
   box-shadow: inset 4px 0 var(--acquisition-accent), 0 0 0 4px rgba(112, 193, 255, 0.16), 0 12px 28px rgba(0, 0, 0, 0.38);
+}
+
+.tree-node-owned {
+  opacity: 0.55;
+  filter: grayscale(0.45);
+}
+
+.tree-node-owned:hover,
+.tree-node-owned:focus-visible,
+.tree-node-owned.tree-node-selected {
+  opacity: 0.86;
+}
+
+.tree-node-required {
+  border-color: #61d49a;
+  box-shadow: inset 5px 0 #61d49a, 0 0 0 4px rgba(97, 212, 154, 0.18), 0 15px 32px rgba(0, 0, 0, 0.42);
+}
+
+.tree-node-filler {
+  border-color: #c884f4;
+  box-shadow: inset 5px 0 #c884f4, 0 0 0 4px rgba(200, 132, 244, 0.2), 0 15px 32px rgba(0, 0, 0, 0.42);
+}
+
+.tree-node-target {
+  border-color: #f4c14f;
+  outline: 3px solid #f4c14f;
+  outline-offset: 4px;
+  box-shadow: inset 5px 0 #f4c14f, 0 0 0 8px rgba(244, 193, 79, 0.16), 0 18px 38px rgba(0, 0, 0, 0.5);
 }
 
 .tree-node-folder-child {
@@ -516,6 +566,24 @@ body::before {
   text-transform: uppercase;
 }
 
+.tree-progression-badge {
+  position: absolute;
+  top: 0.35rem;
+  left: 0.45rem;
+  border: 1px solid currentColor;
+  background: rgba(7, 11, 16, 0.9);
+  padding: 0.13rem 0.38rem;
+  font-size: 0.54rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.tree-progression-owned { color: #8fd8b2; }
+.tree-progression-target { color: #ffd36e; }
+.tree-progression-required { color: #75e3ac; }
+.tree-progression-filler { color: #dbadf8; }
+
 .tree-viewport-help {
   margin: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -602,6 +670,23 @@ body::before {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.tree-detail-badges .tree-detail-owned { border-color: rgba(97, 212, 154, 0.55); color: #8fe3b8; }
+.tree-detail-badges .tree-detail-target { border-color: rgba(244, 193, 79, 0.65); color: #ffd36e; }
+.tree-detail-badges .tree-detail-required { border-color: rgba(97, 212, 154, 0.55); color: #8fe3b8; }
+.tree-detail-badges .tree-detail-filler { border-color: rgba(200, 132, 244, 0.65); color: #dbadf8; }
+
+.tree-detail-actions {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.tree-detail-actions > p {
+  margin: 0;
+  color: #91a2b6;
+  font-size: 0.75rem;
 }
 
 .tree-detail-stats {
@@ -717,6 +802,66 @@ body::before {
   animation: tree-loading-spin 750ms linear infinite;
 }
 
+.calculator-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.calculator-summary > div {
+  background: #101821;
+  padding: 1rem;
+}
+
+.calculator-summary dt {
+  color: #91a2b6;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.calculator-summary dd {
+  margin: 0.35rem 0 0;
+  color: white;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.calculator-summary .calculator-summary-primary {
+  grid-column: 1 / -1;
+  border-left: 4px solid #e7a629;
+  background: rgba(231, 166, 41, 0.09);
+}
+
+.calculator-vehicle-list {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.calculator-vehicle-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: #101821;
+  font-size: 0.8rem;
+}
+
+.calculator-vehicle-list li + li {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.calculator-vehicle-list span {
+  flex: none;
+  color: #91a2b6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+}
+
 @keyframes tree-loading-spin {
   to { transform: rotate(360deg); }
 }
@@ -756,6 +901,22 @@ body::before {
 
   .tree-detail-hero {
     height: 9rem;
+  }
+
+  .calculator-vehicle-list li {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .calculator-summary {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .calculator-summary .calculator-summary-primary {
+    grid-column: auto;
   }
 }
 

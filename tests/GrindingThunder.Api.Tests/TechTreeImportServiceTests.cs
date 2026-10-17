@@ -240,6 +240,37 @@ public class TechTreeImportServiceTests
     }
 
     [Fact]
+    public async Task PreviewImport_RootEntriesSharingCoordinatesInDifferentRanks_ValidatesCleanly()
+    {
+        var (db, draft) = await CreateTestDraftAsync();
+        using (db)
+        {
+            var rank1 = db.AddTreeRank(draft, 1, 0);
+            var existingVeh = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = draft.ResearchTreeId, Name = "Existing Rank 1" };
+            db.Context.Vehicles.Add(existingVeh);
+            db.AddVehicleTreeEntry(draft, existingVeh, rank1, 1000, 1000, treeColumn: 1, treeRow: 1);
+            await db.SaveChangesAsync();
+
+            var importService = new TechTreeImportService(db.Context);
+
+            // Import contains:
+            // - Rank 2 vehicle at (1, 1): shares coords with existing draft vehicle, but different rank -> allowed.
+            // - Rank 3 vehicle at (1, 1): shares coords with imported rank 2 vehicle, but different rank -> allowed.
+            var csv = """
+                VehicleName,RankNumber,RpCost,SlCost,TreeColumn,TreeRow
+                New Rank 2,2,2000,2000,1,1
+                New Rank 3,3,3000,3000,1,1
+                """;
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
+            var preview = await importService.PreviewImportAsync(draft.Id, stream, "tree.csv");
+
+            Assert.True(preview.IsValid);
+            Assert.Empty(preview.Errors);
+        }
+    }
+
+    [Fact]
     public async Task PreviewImport_FolderNestingViolations_ReturnsErrors()
     {
         var (db, draft) = await CreateTestDraftAsync();

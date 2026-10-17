@@ -286,16 +286,17 @@ public class VersionLifecycleService(ApplicationDbContext dbContext) : IVersionL
         }
 
         // Coordinate collision for root entries:
-        // No two root (non-folder-child) entries may share the exact same (TreeRow, TreeColumn) coordinates.
+        // No two root (non-folder-child) entries may share the exact same (TreeRankId, TreeColumn, TreeRow) coordinates within a rank.
         var rootEntries = version.Entries.Where(e => e.FolderParentEntryId == null).ToList();
         var coordinateGroups = rootEntries
-            .GroupBy(e => (e.TreeColumn, e.TreeRow))
+            .GroupBy(e => (e.TreeRankId, e.TreeColumn, e.TreeRow))
             .Where(g => g.Count() > 1);
 
         foreach (var group in coordinateGroups)
         {
             var vehicleNames = string.Join(", ", group.Select(e => e.Vehicle?.Name ?? e.VehicleId.ToString()).OrderBy(n => n));
-            errors.Add($"Multiple root vehicles share coordinates ({group.Key.TreeColumn}, {group.Key.TreeRow}): {vehicleNames}.");
+            var rankNumber = rankMap.TryGetValue(group.Key.TreeRankId, out var rank) ? rank.RankNumber.ToString() : group.Key.TreeRankId.ToString();
+            errors.Add($"Multiple root vehicles share coordinates ({group.Key.TreeColumn}, {group.Key.TreeRow}) in rank {rankNumber}: {vehicleNames}.");
         }
 
         // 3. Folder Hierarchy Integrity:

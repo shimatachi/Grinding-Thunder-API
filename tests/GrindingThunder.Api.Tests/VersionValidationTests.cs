@@ -169,7 +169,7 @@ public class VersionValidationTests
         var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank Beta" };
         database.Context.Vehicles.AddRange(v1, v2);
 
-        // Both root entries share column 1, row 1
+        // Both root entries share column 1, row 1 in Rank 1
         database.AddVehicleTreeEntry(version, v1, rank, 1000, treeColumn: 1, treeRow: 1);
         database.AddVehicleTreeEntry(version, v2, rank, 2000, treeColumn: 1, treeRow: 1);
         await database.SaveChangesAsync();
@@ -177,7 +177,34 @@ public class VersionValidationTests
         var result = await lifecycleService.ValidateVersionAsync(version.Id);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Contains("Multiple root vehicles share coordinates (1, 1)"));
+        Assert.Contains(result.Errors, e => e.Contains("Multiple root vehicles share coordinates (1, 1) in rank 1"));
+    }
+
+    [Fact]
+    public async Task ValidateVersionAsync_RootEntriesSharingCoordinatesInDifferentRanks_ProducesNoCollisionError()
+    {
+        using var database = new CalculatorTestDatabase();
+        var lifecycleService = new VersionLifecycleService(database.Context);
+
+        var tree = database.AddResearchTree(database.AddNation(), database.AddVehicleType("Ground"));
+        var update = database.AddGameUpdate("2.43");
+        var version = database.AddResearchTreeVersion(tree, update, ResearchTreeVersionStatus.Draft);
+        var rank1 = database.AddTreeRank(version, 1);
+        var rank2 = database.AddTreeRank(version, 2);
+
+        var v1 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank Rank 1" };
+        var v2 = new Vehicle { Id = Guid.NewGuid(), ResearchTreeId = tree.Id, Name = "Tank Rank 2" };
+        database.Context.Vehicles.AddRange(v1, v2);
+
+        // Both root entries share column 0, row 0, but belong to distinct ranks
+        database.AddVehicleTreeEntry(version, v1, rank1, 1000, treeColumn: 0, treeRow: 0);
+        database.AddVehicleTreeEntry(version, v2, rank2, 2000, treeColumn: 0, treeRow: 0);
+        await database.SaveChangesAsync();
+
+        var result = await lifecycleService.ValidateVersionAsync(version.Id);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
     }
 
     [Fact]

@@ -364,6 +364,7 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
 
         var existingEntries = await _context.VehicleTreeEntries.AsNoTracking()
             .Include(e => e.Vehicle)
+            .Include(e => e.TreeRank)
             .Where(e => e.ResearchTreeVersionId == version.Id)
             .ToListAsync(cancellationToken);
         var existingEntryByVehicle = existingEntries.ToDictionary(
@@ -566,7 +567,7 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
         // (a) Intra-file root collisions
         var importedRootRows = parsedRows.Where(r => string.IsNullOrWhiteSpace(r.FolderParentVehicleName)).ToList();
         var intraFileCollisions = importedRootRows
-            .GroupBy(r => (r.TreeColumn, r.TreeRow))
+            .GroupBy(r => (r.RankNumber, r.TreeColumn, r.TreeRow))
             .Where(g => g.Count() > 1);
 
         foreach (var group in intraFileCollisions)
@@ -583,7 +584,7 @@ public class TechTreeImportService(ApplicationDbContext context) : ITechTreeImpo
         foreach (var rootRow in importedRootRows)
         {
             var collidingExisting = unimportedExistingRoots
-                .FirstOrDefault(e => e.TreeColumn == rootRow.TreeColumn && e.TreeRow == rootRow.TreeRow);
+                .FirstOrDefault(e => e.TreeRank.RankNumber == rootRow.RankNumber && e.TreeColumn == rootRow.TreeColumn && e.TreeRow == rootRow.TreeRow);
 
             if (collidingExisting != null)
             {

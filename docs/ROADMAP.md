@@ -1033,9 +1033,7 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   (353 API + 233 Admin).
 
 
-## Next
-
-- **Batch 38.1 — Rank-scoped layout collision validation** (status: Planned)
+- **Batch 38.1 — Rank-scoped layout collision validation** (status: Completed)
   Goal: align layout collision rules with the rank-banded visual tree model.
 
   Rule:
@@ -1059,7 +1057,17 @@ Statuses: **Completed** — implemented and tested; **Planned** — not started.
   During import before TreeRank IDs are resolved:
   `(RankNumber, TreeColumn, TreeRow)`
 
-  Dependency: Batch 38.
+  Result:
+  - updated `VersionLifecycleService.ValidateVersionAsync` to group root entries by `(TreeRankId, TreeColumn, TreeRow)` and format collision error messages with rank context (`in rank {RankNumber}`);
+  - updated `TechTreeImportService.ValidateImportDataAsync` to group intra-file root rows by `(RankNumber, TreeColumn, TreeRow)` and compare imported root rows against existing draft root entries within the same rank (`collidingExisting.TreeRank.RankNumber == rootRow.RankNumber`);
+  - audited `visual-tree.js` and `Version.cshtml.cs`, confirming collision detection and layout validation already consistently enforce `(TreeRankId, TreeColumn, TreeRow)` and exclude folder children;
+  - added test coverage in `VersionValidationTests` and `TechTreeImportServiceTests` confirming that cross-rank root entries sharing coordinates validate cleanly while same-rank root collisions remain strictly flagged;
+  - verified that no database migrations or persistence changes were introduced.
+
+  Verification: 0 warnings, 0 errors, all 588 C# tests pass across the solution (355 API + 233 Admin).
+
+
+## Next
 
 - **Batch 39 — Player frontend foundation (`GrindingThunder.Web`)** (status: Planned)
   Goal: create a dedicated player-facing frontend separate from
